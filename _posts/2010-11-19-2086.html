@@ -1,0 +1,113 @@
+---
+layout: post
+title: "Ubuntu10.10安装Zope小记"
+---
+
+<h2><span style="font-size: 25.8333px;">Zope简介</span></h2>
+zope是<span style="line-height: 33px; font-size: 13.3333px;">一款开源的Web应用服务器，它主要使用Python编写，底层一些核心部件使用C开发。相比一些轻量级的开发框架，如Django，Pylons等，Zope更加专业，具有很好的扩展性，重用性，可以用于大型的复杂的应用，适合企业部署开发。</span>
+
+<span style="line-height: 33px; font-size: 13.3333px;"><span id="more-2086"></span>
+</span>
+<h2>下载安装Zope</h2>
+<span style="line-height: 33px; font-size: 13.3333px;">Ubuntu10.10软件源里面没有Zope软件包，所以我们从官网下载源代码安装。</span>
+
+在<a href="http://www.zope.org/Products/Zope/swpackage_releases" target="_blank">这里</a>可以查看下载最新的zope稳定版。目前最新稳定版为Zope 2.11.7
+
+下载到本地以后，执行解压
+<pre>﻿$ tar zxvf Zope-2.11.7-final.tgz</pre>
+进入Zope目录，执行环境配置检测：
+<pre>$ cd Zope-2.11.7-final/
+$ ./configure</pre>
+这时如果出现类似下面的结果：
+<pre>Configuring Zope installation
+
+Testing for an acceptable Python interpreter...
+
+Python version 2.6.6 found at /usr/bin/python
+
+No suitable Python version found. You should install
+
+Python version 2.4.6 before continuing.
+
+Versions 2.4.5 2.4.4 also work, but not as optimally.</pre>
+说明Pytho﻿n版本不兼容，Zope2.11.7依赖Python2.4.6。目前10.10的源里已没有Python2.4的安装包，所以我们也需要下载源代码安装。
+
+在Python官网<a href="http://www.python.org/download/releases/2.4.6/">下载</a>Python2.4.6(如果不能访问，<a href="http://olex.openlogic.com/package_versions/download/7325?package_version_id=2197&amp;path=openlogic%2Fpython%2F2.4.6%2Fopenlogic-python-2.4.6-all-src-1.zip">猛击这里下载</a>)。解压，然后<span style="font-size: 13.3333px;">执行编译安装三部曲：</span>
+<pre>$ ./configure
+$ make
+$ sudo make install<span style="font-family: 'Segoe UI', Calibri, 'Myriad Pro', Myriad, 'Trebuchet MS', Helvetica, Arial, sans-serif; font-size: medium;"><span style="line-height: 22px; white-space: normal;">
+</span></span></pre>
+<div>安装完毕查看Python版本：</div>
+<pre><span style="font-size: 11.6667px;">$ python -V</span>
+
+<div id="_mcePaste">Python 2.4.6</div>
+
+</pre>
+<div>显示当前python为我们安装的2.4.6版本。</div>
+<div>现在再切换到Zope源代码目录下，执行 ./configure，如果是这个结果：</div>
+<pre>Configuring Zope installation
+
+Testing for an acceptable Python interpreter...
+
+Python version 2.4.6 found at /usr/local/bin/python
+
+The optimum Python version (2.4.6) was found at /usr/local/bin/python.
+
+  - Zope top-level binary directory will be /opt/Zope-2.11.
+  - Makefile written.
+
+  Next, run make.</pre>
+<div>那么恭喜你，可以继续啦！</div>
+<pre>$ make;sudo make install</pre>
+Zope2.11.7的默认安装路径为 /opt/zope-2.11，可在configure时通过设定 - -prefix 参数来更改安装路径。
+
+<span style="line-height: 34px; font-size: 25.8333px;">创建Zope实例</span>
+
+切换到安装目录 /opt/zope-2.11。新建一个zope实例：
+<pre>$ cd /opt/Zope-2.11/
+$ bin/mkzopeinstance.py</pre>
+接着会出现一个交互界面，提示输入新实例的目录：
+<pre>Please choose a directory in which you'd like to install
+Zope "instance home" files such as database files, configuration
+files, etc.
+
+Directory:</pre>
+<div><span style="font-size: 13.3333px;">接着是初始化管理员帐号：</span></div>
+<pre>Please choose a username and password for the initial user.
+These will be the credentials you use to initially manage
+your new Zope instance.
+
+Username: admin
+Password:
+Verify password: <span style="font-family: 'Segoe UI', Calibri, 'Myriad Pro', Myriad, 'Trebuchet MS', Helvetica, Arial, sans-serif; font-size: medium;"><span style="line-height: 22px; white-space: normal;">
+</span></span></pre>
+<div><span style="font-size: 13.3333px;">这里我使用了admin作为用户名。</span></div>
+<div><span style="font-size: 13.3333px;">如果在结束时出现类似下述的错误：</span></div>
+<pre>[Errno 13] Permission denied: '/var/./Extensions'</pre>
+则可能是将目录建在权限不够的地方了。在新建实例时使用sudo就可以避免这个问题，从而将实例创建在任何目录下。
+<h2>配置Zope实例</h2>
+进入我们创建的实例目录/var/zope/，看看都有什么好东西：
+<pre>$ cd /var/zope/
+$ ls
+bin  etc  Extensions  import  inituser  lib  log  Products  README.txt  var</pre>
+<div>下面依次讲解每个文件夹的作用</div>
+<ul>
+	<li><span style="line-height: 22px;"><strong>bin </strong>这个是zope服务的可执行程序</span></li>
+	<li><span style="line-height: 22px;"><strong>etc</strong> zope的配置文件，主要有zope.conf和site.zcml</span></li>
+	<li><span style="line-height: 22px;"><strong>Extensions</strong> 存放外部方法对象的目录</span></li>
+	<li><span style="line-height: 22px;"><strong>import</strong> 存放待导入Zope对象的目录</span></li>
+	<li><span style="line-height: 22px;"><strong>lib</strong> 存放额外的python包</span></li>
+	<li><span style="line-height: 22px;"><strong>log</strong> 存放系统日志</span></li>
+	<li><span style="line-height: 22px;"><strong>Products</strong> 产品扩展目录</span></li>
+	<li><span style="line-height: 22px;"><strong>var </strong>数据存储目录，其中Data.fs用来存放用户Zope对象，对象导出文件也存在在此目录。</span></li>
+</ul>
+接下来编辑etc目录下zope.conf文件，做两点修改：
+<ol>
+	<li><span style="line-height: 22px; font-size: 13.3333px;">找到effective-user这一行，将chrism替换为自己的用户名，比如user1</span></li>
+	<li><span style="font-size: 13.3333px;">反注释掉 ip-address 127.0.0.1</span></li>
+</ol>
+保存并退出。然后修改var和log的目录权限为上面修改的用户名（上面是user1的话这里也是user1）：
+<pre>$ sudo chown -R user1 var log</pre>
+启动实例：
+<pre>$ bin/zopectl start</pre>
+现在，访问 <a href="http://127.0.0.1:8080">http://127.0.0.1:8080/</a> ，开始美妙的Zope之旅吧~

@@ -1,0 +1,40 @@
+---
+layout: post
+title: "wordpress日志评论时间错误问题"
+---
+
+也许这个问题在你的服务器中不是常见的，但是偶然间还是会碰到的，它就像定时炸弹一样，说不定
+下一秒钟在你的服务器上爆发了。
+关于这个问题的解决过程真的不敢妄自菲薄，我先把问题叙述一下。这个是我们错误显示的截图：
+
+<a href="/wpfiles/2010/01/时间问题.png"><img class="aligncenter size-medium wp-image-239" title="时间问题" src="/wpfiles/2010/01/时间问题-300x92.png" alt="" width="300" height="92" /></a>
+
+当你看到那个醒目的"大约－1年"时，不知道你作何敢想。原来鼎鼎大名的Wordpress也有这样的
+错误，其实细查下来才会发现这是当前主题和Wordpress内部函数共同酿成的苦果。
+
+有了以往查找错误的经验，先查找“大约-1年前”出现的变量的地址，然后就可以按图索骥了，根
+据变量你很快就能定位到“主题名/functions.php“文件中，在functions.php下的timeSince函数中
+有这样一个变量：$since,
+<pre>$since = current_time('timestamp',$wp_time_offset ? get_option('gmt_offset') : 0) - $startTimestamp;</pre>
+它的值为当前时间－发表评论的时间，你可以打一下这个
+<pre>current_time('timestamp',$wp_time_offset ? get_option('gmt_offset') : 0)</pre>
+,结果显示那条错误的评论和那些正确的评论取出的当前时间都是正确的，说明问题还不在于此。
+继续往下找，在真正输出时间的地方，该主题又对发表评论的时间进行了处理，如下：
+<pre>comment_date));?&gt;</pre>
+，
+用echo命令输出的信息表明$comment-&gt;comment_date所取出的时间并没有错误，错误就发生
+在strtotime,这个PHP内部函数上，PHP内部函数也会出问题？我的第一个反应就是这样。
+我们看一下PHP的这个函数，下面是对该函数的说明：
+<pre>The function expects to be given a string containing a US English date format
+and will try to parse that format into a Unix timestamp (the number of seconds
+since January 1 1970 00:00:00 UTC), relative to the timestamp given in now ,
+or the current time if now  is not supplied.
+This function will use the TZ environment variable (if available) to calculate
+the timestamp. Since PHP 5.1.0 there are easier ways to define the timezone that
+is used across all date/time functions. That process is explained in the
+date_default_timezone_get() function page.</pre>
+但是在我们的环境中为什么会对一个时间点处理出错呢，这个原因我慢慢再道来。
+我们已经把这个问题的解决方案提交到github上了，这个是问题的地址：
+<a href="http://github.com/ossxp-com/wordpress-hacks/commit/fd6a5d4a4308002ba2855c9fb9512c4cb32e94bd">
+改动1</a>,<a href="http://github.com/ossxp-com/wordpress-hacks/commit/5ec451ca13d68d9877e342e58a9975a222d64d66">
+改动2</a>。改完了就再也不会出问题了

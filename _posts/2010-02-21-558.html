@@ -1,0 +1,36 @@
+---
+layout: post
+title: "Python的特点"
+---
+
+<strong>１、Python以模块文件的方式组织代码。</strong>
+Python识每个模块为一个对象，引用模块里对象的属性时首先要导入该模块（例如 import Module1，引用时用"."运算符，Module1.attr)
+
+<strong>２、Python的列表（类似于其他语言的数组）支持列表解析</strong>
+列表解析的功能非常强大，也很常用。如
+
+<span id="more-558"></span>
+<ul>
+	<li> 表达式： list1 = [x+2 for x in [1,2,3]](此时list1的值是[3,4,5])</li>
+	<li> 文件操作： lines = [line.rstrip() for line in open('filename') if line[0] == 'p'] 只对以'p'开头的行收集列表解析可接纳任意条目的for分句，而每个for分句都可以结合一个可选的if分句</li>
+	<li> 集合操作：[x+y for x in 'abc' for y in 'lmn'] 该操作完成abc与lmn的排列组合</li>
+</ul>
+<strong>3、Python根据代码前的缩进判断不同的代码块</strong>
+<pre>while True:
+    reply = raw_input('Enter text:')
+    if reply == 'stop':
+        break
+    elif not reply.isdigit():
+        print 'Bad!'*8
+    else:
+        print int(reply)**2
+print 'Bye'</pre>
+<strong>4、在Python里，OOP完全是可选的。</strong>
+Python里是以模块文件的方式组织代码结构，但这样的组织方式不能最优化代码重用，于是Python借鉴面向对象语言引入了类。
+
+<strong>5、灵活的交互式环境</strong>
+在控制台输入 python，按回车键即可进入交互式环境
+
+<strong>6、完整的文档支持</strong>
+例如查看 dict 对象的文档说明，只需在交互式环境下输入
+help(dict)，按回车键就可以查看其文档说明

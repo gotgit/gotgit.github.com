@@ -1,0 +1,80 @@
+---
+layout: post
+title: "Android 代码工作区转换为 Android 的Git库镜像"
+---
+
+最近的一段时间博客更新的会比较慢，因为在筹划一本关于 Git 的书。今天将其中的一节贴在这里。
+
+Android 在版本库的管理上有两个重要的发明，一个是 repo ，用来管理 160 多个 git 代码库，另外一个是 Gerrit 代码审核服务器和基于 ssh 的 Git 服务器。因为 Android 代码库非常大，大约 1.6 GB，在开发团队的局域网内建立一个 Android 服务器镜像几乎是必须的。如果在以工作区方式同步 Android 代码后，想转换为镜像模式，repo 没有提供这样的能力。我在书中特意用一节来介绍如何 。。。
+<div id="id53">
+<h3><a>5.6.9   从 android 的工作区到代码库镜像</a></h3>
+当执行 <cite>repo sync</cite> 命令将 android 众多的版本库克隆到本地后，各个项目在工作区中的部署和实际在服务器端的部署是不同的。这个在之前介绍 repo 的索引库机制的时候，就已经介绍过了。
+
+当 repo 工作区使用不带 <cite>--mirror</cite> 的 <cite>repo init -u</cite> 初始化并完成同步后，如果再次执行 <cite>repo init</cite> 并附带了 <cite>--mirror</cite> 参数，repo 会报错退出："fatal: --mirror not supported on existing client"。实际上 "--mirror" 参数只能对尚未初始化的 repo 工作区执行。
+
+那么如果之前没有用镜像的方法同步 Android 版本库，难道要为创建代码库镜像在重新执行一次 repo 同步么？要知道重新同步一份 Android 版本库是非常慢的。我自己就遇到了这个问题。
+
+不过既然有 manifest.xml 文件，我们完全可以对工作区进行反向操作，将工作区转换为镜像服务器的结构。下面就是一个示例脚本，这个脚本利用了已有的 repo 代码进行实现，所以看着很简洁。 8-)
+
+脚本 <cite>work2mirror.py</cite> 如下：
+<pre>#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import os, sys, shutil
+
+cwd = os.path.abspath( os.path.dirname( __file__ ) )
+repodir = os.path.join( cwd, '.repo' )
+S_repo = 'repo'
+TRASHDIR = 'old_work_tree'
+
+if not os.path.exists( os.path.join(repodir, S_repo) ):
+    print &gt;&gt; sys.stderr, "Must run under repo work_dir root."
+    sys.exit(1)
+
+sys.path.insert( 0, os.path.join(repodir, S_repo) )
+from manifest_xml import XmlManifest
+
+manifest = XmlManifest( repodir )
+
+if manifest.IsMirror:
+    print &gt;&gt; sys.stderr, "Already mirror, exit."
+    sys.exit(1)
+
+trash = os.path.join( cwd, TRASHDIR )
+
+for project in manifest.projects.itervalues():
+    # 移动旧的版本库路径到镜像模式下新的版本库路径
+    newgitdir = os.path.join( cwd, '%s.git' % project.name )
+    if os.path.exists( project.gitdir ) and project.gitdir != newgitdir:
+        if not os.path.exists( os.path.dirname(newgitdir) ):
+            os.makedirs( os.path.dirname(newgitdir) )
+        print "Rename %s to %s." % (project.gitdir, newgitdir)
+        os.rename( project.gitdir, newgitdir )
+
+    # 移动工作区到待删除目录
+    if project.worktree and os.path.exists( project.worktree ):
+        newworktree = os.path.join( trash, project.relpath )
+        if not os.path.exists( os.path.dirname(newworktree) ):
+            os.makedirs( os.path.dirname(newworktree) )
+        print "Move old worktree %s to %s." % (project.worktree, newworktree )
+        os.rename( project.worktree, newworktree )
+
+    if os.path.exists ( os.path.join( newgitdir, 'config' ) ):
+        # 修改版本库的配置
+        os.chdir( newgitdir )
+        os.system( "git config core.bare true" )
+        os.system( "git config remote.korg.fetch '+refs/heads/*:refs/heads/*'" )
+
+        # 删除 remotes 分支，因为作为版本库镜像不需要 remote 分支
+        if os.path.exists ( os.path.join( newgitdir, 'refs', 'remotes' ) ):
+            print "Delete " + os.path.join( newgitdir, 'refs', 'remotes' )
+            shutil.rmtree( os.path.join( newgitdir, 'refs', 'remotes' ) )
+
+# 设置 menifest 为镜像
+mp = manifest.manifestProject
+mp.config.SetString('repo.mirror', 'true')
+</pre>
+使用方法很简单，只要将脚本放在 Android 工作区下，执行就可以了。执行完毕会将原有工作区的目录移动到 <cite>old_work_tree</cite> 子目录下，在确认原有工作区没有未提交的数据后，直接删除 <cite>old_work_tree</cite> 即可。
+<pre>$ python work2mirror.py
+</pre>
+</div>

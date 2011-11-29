@@ -1,0 +1,52 @@
+---
+layout: post
+title: "Subversion 用户眼中的 Git (12): Git 有属性么？"
+---
+
+除了在前面比较过的部分检出，路径授权等，还有一些 Subversion 的特性，在 Git 中的实现存在差异。用户最关心的可能就是：属性。
+
+是的，Git 也有属性的概念，但是和 SVN 的属性并非一一对应的。
+<h2><span id="more-353"></span>SVN 的属性在 Git 有类似物么？</h2>
+SVN 的属性，的确是SVN的独创，在其它版本控制系统中很难看到。但是 Git 也有属性。
+
+相比 Git 的属性，Subversion 的属性实在是太灵活了，在 SVNBOOK 中有一个例子：为每个图形文件建立一个缩略图属性，该缩略图属性保存的是该图形文件的缩略图。SVN 用户可以利用属性，做很多有“创意”的应用，但是小心，这样的“创意”会将你的系统牢牢的套牢在 Subversion 的解决方案之内，非明智之举。
+
+因为 SVN 的属性太灵活，因此只拿 SVN 本身用到的属性举例，看看 Git 对应的解决方案。
+<h3>属性 svn:ignore</h3>
+SVN 的 svn:ignore 属性必须设置在目录上，用于设置此目录下的文件忽略。即某些文件（临时文件或生成文件），不应该纳入版本控制中，为了防止被意外的错误的添加到版本控制系统中，而设置该目录下的文件忽略列表。
+
+Git 使用 .gitignore 文件来定义文件忽略列表。这也是大多数版本控制系统通用的方案。如：CVS, Hg, Bazaar, Git。
+
+两种方案的优缺点：
+<ul>
+	<li>SVN 的解决方案不会在文件系统中引入不相关的文件
+但是 SVN 在每个目录下有一个 .svn 控制目录呀，岂不更是可恨？</li>
+	<li>SVN 的解决方案无法设置全局忽略，即每一个 svn:ignore 属性只影响目录本身，不会影响子目录
+SVN 的全局忽略只能在个人机器上设置，无法自动传递给团队其它成员</li>
+	<li>Git 的 .gitignore 文件可以设置在任意目录下，并且是向下继承的
+因为 Git 的忽略列表可以向下继承，所以一般只在根目录创建一个 .gitignore 文件</li>
+</ul>
+<h3>属性 svn:executable</h3>
+Subversion 用这个属性保持 *nix 下文件属性的可执行位，保持文件的可执行状态。
+
+Git 本身就会记录文件的属性，因此相比 Git 的实现，SVN 的这个属性显得多此一举。
+<h3>属性 svn:keywords</h3>
+SVN 引入 svn:keywords 的出发点是非常好的，因为 CVS 用户因为 CVS 总是对文件进行关键字扩展而搞的头大。SVN 对于需要进行关键字扩展的文件，必须为这样的文件一一设定 svn:keywords 属性。
+
+Git 可以在属性文件 .gitattributes 中对需要关键字扩展的文件设定 ident 属性，则会对 $Id$ 进行关键字扩展。
+<h3>属性 svn:eol-style</h3>
+SVN 的 svn:eol-style 用于设定文件的换行符。
+
+Git 可以在 .gitattributes 属性文件中，对相应文件设置 crlf 属性，实现类似功能。
+<h3>属性 svn:mime-type</h3>
+SVN 可以为文件设置 svn:mime-type 属性，当属性不是以 “text/” 开头，则该文件视为二进制文件。
+
+Git 可以通过 .gitattributes 属性文件，设置相关文件为 binary 实现同样的效果。
+<h3>属性 svn:externals</h3>
+SVN 用 svn:externals 属性在工作区引入其它版本库的相关内容。
+
+Git 的 submodule 可以部分实现 SVN 的这个功能。
+<h3>属性 svn:needs-lock</h3>
+SVN 用该属性模仿 VSS 的 “锁定-编辑-解锁” 的版本控制模式。
+
+Git 本身是分布式版本控制系统，不存在此工作模式，因此没有对应物。

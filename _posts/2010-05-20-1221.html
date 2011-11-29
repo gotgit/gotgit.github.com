@@ -1,0 +1,53 @@
+---
+layout: post
+title: "TortoiseSVN自动获取redmine问题列表插件&#8212;TortoiseSVNRedmineIssuesPlugin"
+---
+
+众所周知，TortoiseSVN是一款灵活而且功能强大的SVN客户端视图工具。更锦上添花的是，它还提供了整合问题跟踪系统的接口（通过与问题跟踪系统的集成，在提交代码时，可以点击相应的按钮，弹出缺陷跟踪系统中的bug列表，选择相应的bug作为提交日志，即减少了写提交日志的苦恼，又使提交与bug建立的关联，一举两得）。记得以前用Trac做缺陷跟踪管理工具时曾用过trac与TortoiseSVN整合的插件，如今我们的缺陷跟踪工具已经迁移到Remdine上了，不知Redmine是否也有相应的插件？
+
+今天一个很好的客户反映redmine也有相关的插件，可是配置起来出了点问题，希望我们研究一下。于是今天我就在虚拟机里摸索这个插件了。
+
+下面介绍一下安装配置步骤：
+<h3><span id="more-1221"></span>一、我的安装环境</h3>
+<ul>
+	<li>操作系统：<strong>WindowsXP</strong></li>
+	<li>TortoiseSVN：<strong>TortoiseSVN-1.6.8.19260-win32-svn-1.6.11.msi</strong></li>
+	<li>TortoiseSVNRedmineIssuesPlugin: <strong>TortoiseSVNRedmineIssuesPlugin_x86_1.1.0.5.msi (32bit)</strong></li>
+	<li>.NETFrameWork: <strong>3.5</strong></li>
+</ul>
+<h3>二、安装步骤</h3>
+<ol>
+	<li>下载并安装TortoiseSVN
+下载地址： <a href="http://tortoisesvn.net/downloads" target="_blank">http://tortoisesvn.net/downloads</a></li>
+	<li>下载并安装TortoiseSVNRedmineIssuesPlugin
+下载地址：<a href="http://code.google.com/p/redmine-projects/downloads/list" target="_blank">http://code.google.com/p/redmine-projects/downloads/list</a>
+<strong>注意</strong>：该插件是用C#写的，因此需要装.NET框架，而且该版本插件所需的.NET框架的版本为3.5。
+不过你不需为此烦恼，因为当你点击安装TortoiseSVNRedmineIssuesPlugin时，它会自动检测你是否已经安装了相应版本的.NET框架，如果你没安装，它会弹出一个提示框，点击确定它会自动给你导航到.NET框架下载页面。下载安装.NET框架之后，再次安装TortoiseSVNRedmineIssuesPlugin就没问题了。</li>
+	<li>配置
+<ol>
+	<li>在你本地SVN工作区点击鼠标右键，选择 <em>Tortoise</em>SVN-&gt;<em>设置</em>
+<a href="/wpfiles/2010/05/1.png"><img class="aligncenter size-medium wp-image-1228" title="1" src="/wpfiles/2010/05/1-300x225.png" alt="" width="300" height="225" /></a></li>
+	<li>配置问题跟踪器集成：在上步弹出的窗口中选择左侧问<em>题跟踪器集成</em>链接，在右侧配置相关参数。
+<a href="/wpfiles/2010/05/2.png"><img class="aligncenter size-medium wp-image-1229" title="2" src="/wpfiles/2010/05/2-300x225.png" alt="" width="300" height="225" /></a></li>
+	<li>点击添加按钮，进入针对此工作区的版本库的 TSVN-REDMINE 设置界面。<img class="aligncenter size-medium wp-image-1230" title="3" src="/wpfiles/2010/05/3-300x225.png" alt="" width="300" height="225" />
+<ul>
+	<li>工作区路径自动选择当前的路径。</li>
+	<li>提供者：如果你只安装了 TSVN-REDMINE-ISSUE-PLUGIN，只有一个选择，如果你还安装了 trac （另外一个著名的项目管理工具）整合的插件，就会有多个选择。项目若和 redmine 整合当然要选择 TSVNRMIssues 插件。</li>
+	<li>最难写的就是参数。其实不用自己写，可以从 Redmine 的问题列表下面的 RSS 图标（Atom）的链接拷贝过来。
+（下面的截图，我直接从  TSVNRMISSUE 插件的网站上转帖）
+<a href="/wpfiles/2010/05/tsvnr_setup06.png"><img class="aligncenter size-medium wp-image-2068" title="tsvnr_setup06" src="/wpfiles/2010/05/tsvnr_setup06-300x190.png" alt="" width="300" height="190" /></a></li>
+	<li>参数配置完毕后，问题跟踪器集成下就会刚刚添加的配置。<img class="aligncenter size-medium wp-image-1231" title="4" src="/wpfiles/2010/05/4-300x225.png" alt="" width="300" height="225" /></li>
+</ul>
+</li>
+	<li style="text-align: left;">测试是否配置成功：
+在本地工作区点击鼠标右键，选择 <em>SVN提交</em>，点击右上角 <em>Redmine Issues</em> 按钮，弹出redmine问题列表窗口，选择该次提交所关联的问题，点击<em>OK</em>按钮，相关的问题描述就自动出现在提交日志中。</li>
+	<li> <strong>注意选中右下角的 <em>Include Summary</em> 复选框，这样问题的标题才会被包含在提交日志中。</strong>
+
+<a href="/wpfiles/2010/05/5.png"><img class="aligncenter size-medium wp-image-1232" title="5" src="/wpfiles/2010/05/5-300x225.png" alt="" width="300" height="225" /></a>
+<a href="/wpfiles/2010/05/6.png"><img class="aligncenter size-medium wp-image-1233" title="6" src="/wpfiles/2010/05/6-300x225.png" alt="" width="300" height="225" /></a>
+<a href="/wpfiles/2010/05/7.png"><img class="aligncenter size-medium wp-image-1234" title="7" src="/wpfiles/2010/05/7-300x225.png" alt="" width="300" height="225" /></a>
+如果当点击 Redmine Issues按钮后列出了项目中的issues，那么证明配置成功了。</li>
+</ol>
+</li>
+</ol>
+<strong>后记：</strong>TortoiseSVNRedmineIssuesPlugin目前在32bit机器上安装使用比较顺利，但在64bit机器上可能会出现安装失败的情况。不过最新版本的64bit版本正在公测阶段，相信不久的将来64bit就也能顺利安装使用了！

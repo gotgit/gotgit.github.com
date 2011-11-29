@@ -1,0 +1,77 @@
+---
+layout: post
+title: "TopGit的使用技巧 (1)"
+---
+
+TopGit是基于分布式版本控制工具Git的一个轻量级的分支及补丁管理工具。使用TopGit可以很好的管理基于分支的开发模式。尤其对于二次开发人员来说，TopGit就是他们的杀手锏。
+
+首先原型版本的代码用Git初始化成Git库，然后每给原型增加一个功能或者修改一个Bug都用TopGit创建一个分支（tg create t/feture1 或者 tg create t/bug1-fix），这样每一个功能或者Bug修复都是一个TopGit分支。当原型版本升级后，我们只需要切换到原型分支，即master分支 （git co master)，然后导入原型的新版本代码，最后将TopGit的分支一个一个迁移到新的原型之上，就完成了一次版本的升级。真的很有用啊，这个东东！
+
+<strong><span style="font-size: medium;">下面介绍一些TopGit的使用技巧，尤其是关于分支update的问题</span></strong>
+<span id="more-796"></span>
+<ol>
+	<li>没有冲突的update操作
+#创建一个Git版本库demo1
+<pre>$ git clone demo1
+$ cd demo1
+$ vi sum.py   #编写一个求和的函数
+$cat sum.py
+def sum(a,b):
+return a + b
+
+print "sum(1+2)=",sum(1,2)
+$ git add .
+$ git ci -m "init repository"</pre>
+#创建一个TopGit分支
+<pre>$ tg create t/hack1
+$ vi sum.py    #修改sum.py的形参
+$ cat sum.py
+def sum(num1,num2):
+return num1 + num2
+
+print "sum(1+2)=",sum(1,2)
+$ git ci -am "modify sum function's parameter"
+$ tg summary        #查看当前TopGit分支的状态
+&gt;       t/hack1                         [PATCH] t/hack1
+$ git rev-parse master top-bases/t/hack1 t/hack1      #查看master   top-bases/t/hack1   t/hack1指向的提交号
+4cca9d96fdb2bdbd5a68a28cbb25a1cd7951687f
+4cca9d96fdb2bdbd5a68a28cbb25a1cd7951687f
+852848cf4699a63cd471c83b862ffbfdd9f4a347</pre>
+# 修改master,致使 t/hack1过期
+<pre>$ git co master
+$ vi sum.py   #修改输出格式
+$ cat sum.py
+def sum(a,b):
+return a + b
+
+print "Hi,sum(1+2)=",sum(1,2)
+$ git ci -am "modify display format"
+$ tg summary     #D 代表t/hack1已经过期了，需要update
+<strong>D   t/hack1                         [PATCH] t/hack1</strong>
+$ git rev-parse master top-bases/t/hack1 t/hack1
+<strong>494da2a3f3ad12e62c480e488f7cccb299f10a31</strong>
+4cca9d96fdb2bdbd5a68a28cbb25a1cd7951687f
+852848cf4699a63cd471c83b862ffbfdd9f4a347</pre>
+# 更新t/hack1分支
+<pre>$ git co t/hack1
+$ tg update
+tg: Updating base with master changes...
+Updating 4cca9d9..494da2a
+Fast-forward
+sum.py |    2 +-
+1 files changed, 1 insertions(+), 1 deletions(-)
+tg: Updating t/hack1 against new base...
+Auto-merging sum.py
+Merge made by recursive.
+sum.py |    2 +-
+1 files changed, 1 insertions(+), 1 deletions(-)
+$ tg summary    #更新成功
+<strong>&gt;       t/hack1                         [PATCH] t/hack1</strong>
+$ git rev-parse master top-bases/t/hack1 t/hack1
+494da2a3f3ad12e62c480e488f7cccb299f10a31
+<strong>494da2a3f3ad12e62c480e488f7cccb299f10a31
+5a0bf3e538738accd4a9f13e2426ee23696bba39</strong></pre>
+</li>
+	<li><a href="/2010/03/10/800.html">含有冲突的update操作</a></li>
+	<li><a href="/2010/03/10/802.html">含有分支依赖且产生冲突的update操作</a></li>
+</ol>

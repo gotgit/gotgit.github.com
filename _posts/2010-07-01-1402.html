@@ -1,0 +1,186 @@
+---
+layout: post
+title: "ruby中的代码块（Code Blokcs）"
+---
+
+ruby中的代码块对新手来说有点晕。其实这并不是一个什么新创的东西，在其他语言中你是碰到过的。例如C语言中的函数指针，C++的函数对 象，Python的lambda表达式和列表解析，Perls的匿名函数，Java的匿名内部类。如此看来ruby的代码块只不过是新瓶装旧酒罢了。
+
+<span style="font-size: small;"><strong>1、ruby提供了两种block的写法{}或者 do ... end。而且前者的运算优先级高于后者。</strong></span>
+
+<span id="more-1402"></span>
+<pre>irb(main):144:0&gt; 1.upto 3 {|x| puts x}
+SyntaxError: compile error
+(irb):144: syntax error, unexpected '{', expecting $end
+1.upto 3 {|x| puts x}
+^
+from (irb):144
+from /usr/lib/ruby/1.8/fileutils.rb:875
+irb(main):145:0&gt; 1.upto(3) {|x| puts x}
+1
+2
+3
+=&gt; 1
+irb(main):146:0&gt; 1.upto 3 do |x|
+irb(main):147:1*   puts x
+irb(main):148:1&gt; end
+1
+2
+3
+=&gt; 1
+</pre>
+通过上面可以看出ruby的block就是一个匿名函数，“|  | ” 之间的参数相当与函数的参数。同时这里的参数又具有严格的限制：
+<ul>
+	<li>block参数不能有默认值</li>
+	<li>block的参数不能是block对象</li>
+</ul>
+<span style="font-size: small;"><strong>2、由于Proc对象可以像其他对象一样被操作，所以可以构建block工厂</strong></span>
+<pre>irb(main):001:0&gt; def n_times(n)
+irb(main):002:1&gt;   lambda {|x| x*n}
+irb(main):003:1&gt; end
+=&gt; nil
+irb(main):004:0&gt; ten_times = n_times(10)
+=&gt; #&lt;Proc:0x00007f3b30e51330@(irb):2&gt;
+irb(main):005:0&gt; ten_times.call(1)
+=&gt; 10
+irb(main):006:0&gt; ten_times.call(1.25)
+=&gt; 12.5
+####### 计算周长  #####################
+irb(main):007:0&gt; circumference = n_times(2*Math::PI)
+=&gt; #&lt;Proc:0x00007f3b30e51330@(irb):2&gt;
+irb(main):008:0&gt; circumference.call(10)
+=&gt; 62.8318530717959
+irb(main):009:0&gt; [1,2,3].collect(&amp;circumference)
+=&gt; [6.28318530717959, 12.5663706143592, 18.8495559215388]</pre>
+或许你之前听说过ruby的闭包（closures）。那么什么是闭包呢，它与block的区别是什么呢？其实在ruby中，closures和blocks没有区别。每一个ruby 的 block 就是一个 closure 。
+<span style="font-size: small;"><strong>3、创建一个block</strong><strong>以及block的调用</strong></span>
+<ul>
+	<li>用Proc的构造器构造block
+<pre>irb(main):016:0&gt; say = Proc.new {"Hello world"}
+=&gt; #&lt;Proc:0x00007f3b30dde790@(irb):16&gt;
+irb(main):017:0&gt; say.call
+=&gt; "Hello world"
+irb(main):018:0&gt; log = Proc.new {|str| puts "[LOG] #{str}" }
+=&gt; #&lt;Proc:0x00007f3b30dd0028@(irb):18&gt;
+irb(main):019:0&gt; log.call("A test log message.")
+[LOG] A test log message.
+=&gt; nil
+</pre>
+</li>
+	<li>用Kernel#proc构造block
+<pre>irb(main):020:0&gt; say = proc {"Hello world"}
+=&gt; #&lt;Proc:0x00007f3b30e8bda0@(irb):20&gt;
+irb(main):021:0&gt; say.call
+=&gt; "Hello world"
+irb(main):022:0&gt; log = proc {|str| puts "[LOG] #{str}" }
+=&gt; #&lt;Proc:0x00007f3b30e59cd8@(irb):22&gt;
+irb(main):023:0&gt; log.call("A test log message.")
+[LOG] A test log message.
+=&gt; nil</pre>
+</li>
+	<li>用Kernel#lambda构造block
+<pre>irb(main):155:0&gt; say = lambda {"Hello world"}
+=&gt; #
+irb(main):156:0&gt; say.call
+=&gt; "Hello world"
+irb(main):157:0&gt; log = lambda {|str| puts "[LOG] #{str}" }
+=&gt; #
+irb(main):158:0&gt; log.call("A test log message.")
+[LOG] A test log message.
+=&gt; nil
+</pre>
+</li>
+</ul>
+它们之间的区别：
+<ul>
+	<li>lambda：
+<pre>irb(main):001:0&gt; add_lambda = lambda {|x, y| x + y}
+=&gt; #&lt;Proc:0x00007f43af642630@(irb):1&gt;
+irb(main):003:0&gt; add_lambda.call(1)
+ArgumentError: wrong number of arguments (1 for 2)
+from (irb):1
+from (irb):3:in `call'
+from (irb):3
+from :0
+irb(main):004:0&gt; add_lambda.call(1,2,3)
+ArgumentError: wrong number of arguments (3 for 2)
+from (irb):1
+from (irb):4:in `call'
+from (irb):4
+from :0
+</pre>
+</li>
+	<li>Proc.new:
+<pre>irb(main):005:0&gt; add_proc_new = Proc.new {|x, y| x + y}
+=&gt; #&lt;Proc:0x00007f43af6028a0@(irb):5&gt;
+irb(main):006:0&gt; add_proc_new.call(1)
+TypeError: nil can't be coerced into Fixnum
+from (irb):5:in `+'
+from (irb):5
+from (irb):6:in `call'
+from (irb):6
+from :0
+irb(main):007:0&gt; add_proc_new.call(1,2,3)
+=&gt; 3
+</pre>
+<strong>注意：当实参少于形参时，缺少的参数默认值为nil；当实参多于形参时，多于的参数会被忽略。</strong></li>
+	<li>proc
+在ruby 1.8 中，Kernel#proc与Kernel#lambda一致。在ruby 1.9中，Kernel#proc与Proc.new一致。</li>
+</ul>
+<span style="font-size: small;"><strong>4、借助&amp;符号创建自定义lambda表达式</strong></span>
+<pre>irb(main):010:0&gt; def my_lambda(&amp;aBlock)
+irb(main):011:1&gt;   aBlock
+irb(main):012:1&gt; end
+=&gt; nil
+irb(main):013:0&gt; b = my_lambda {puts "Hi, nice to meet you!"}
+=&gt; #&lt;Proc:0x00007f3b30defe28@(irb):13&gt;
+irb(main):014:0&gt; b.call
+Hi, nice to meet you!
+=&gt; nil
+irb(main):015:0&gt; b.class
+=&gt; Proc</pre>
+<span style="font-size: small;"><strong>5、自定义可以接收块的方法</strong></span>
+在ruby中，任何方法都可以接受块，只要方法的调用者传入的有block。在方法体中，通过yield调用blcok。
+<pre>irb(main):019:0&gt; def repeat(n)
+irb(main):020:1&gt;   if block_given?
+irb(main):021:2&gt;     n.times {yield}
+irb(main):022:2&gt;   else
+irb(main):023:2*     raise ArgumentError.new("I can't repeat a block you don't give me!")
+irb(main):024:2&gt;   end
+irb(main):025:1&gt; end
+=&gt; nil
+irb(main):026:0&gt; repeat(3) { puts "Hello world!"}
+Hello world!
+Hello world!
+Hello world!
+=&gt; 3
+irb(main):027:0&gt; repeat(3)
+ArgumentError: I can't repeat a block you don't give me!
+from (irb):23:in `repeat'
+from (irb):27
+from :0
+yield 是可以传递参数的
+irb(main):029:0&gt; squares = {0=&gt;0,1=&gt;1,2=&gt;4,3=&gt;9}
+=&gt; {0=&gt;0, 1=&gt;1, 2=&gt;4, 3=&gt;9}
+irb(main):030:0&gt; squares.find {|key,value| key &gt; 1}
+=&gt; [2, 4]                      # Hash#find当找到满足条件的就停止，以数组的形式返回满足条件的键值对
+irb(main):031:0&gt; class Hash
+irb(main):032:1&gt;   def find_all
+irb(main):033:2&gt;     new_hash = Hash.new
+irb(main):034:2&gt;     each {|k,v| new_hash[k] = v if yield(k,v)}
+irb(main):035:2&gt;     new_hash
+irb(main):036:2&gt;   end
+irb(main):037:1&gt; end
+=&gt; nil
+irb(main):038:0&gt; squares.find_all {|key,value| key &gt; 1}
+=&gt; {2=&gt;4, 3=&gt;9}
+
+irb(main):053:0&gt; def invoke_on_each(*args, &amp;block)
+irb(main):054:1&gt;   args.each {|arg| yield arg}
+irb(main):055:1&gt; end
+=&gt; nil
+irb(main):056:0&gt; invoke_on_each(1,2,3,4) {|x| puts x ** 2}
+1
+4
+9
+16
+=&gt; [1, 2, 3, 4]﻿</pre>

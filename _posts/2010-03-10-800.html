@@ -1,0 +1,96 @@
+---
+layout: post
+title: "TopGit的使用技巧 (2)"
+---
+
+<span style="font-size: medium;">含有冲突的update操作</span>
+<span id="more-800"></span>
+
+创建一个Git版本库demo1
+<pre>$ git clone demo1
+$ cd demo1
+$ vi sum.py #编写一个求和的函数
+$ cat sum.py
+def sum(a,b):
+return a + b
+
+print "sum(1+2)=",sum(1,2)
+$ git add .
+$ git ci -m "init repository"</pre>
+创建一个TopGit分支
+<pre>$ tg create t/hack1
+$ vi sum.py    #修改sum.py的形参
+$ cat sum.py
+def sum(num1,num2):
+return num1 + num2
+
+print "sum(1+2)=",sum(1,2)
+$ git ci -am "modify sum function's parameter"
+$ tg summary        #查看当前TopGit分支的状态
+&gt;       t/hack1                         [PATCH] t/hack1
+$ git rev-parse master top-bases/t/hack1 t/hack1
+905d75e8cb4392149b0c74b03c53e5e6fdcac3cf
+905d75e8cb4392149b0c74b03c53e5e6fdcac3cf
+ebd8259b997ef79a423fd80be0748be48db4bdd2</pre>
+修改master,致使 t/hack1过期
+<pre>$ git co master
+$ vi sum.py   #修改输出格式
+$ cat sum.py
+def sum(a,b):
+result = a + b
+return result
+
+print "sum(1+2)=",sum(1,2)
+$ git ci -am "modify sum function implements"
+$ tg summary   # D 代表过期了
+<strong>D   t/hack1                         [PATCH] t/hack1</strong>
+$ git rev-parse master top-bases/t/hack1 t/hack1
+<strong>05921161971eea33da8a47a52ead94222bab0e2a</strong>
+905d75e8cb4392149b0c74b03c53e5e6fdcac3cf
+ebd8259b997ef79a423fd80be0748be48db4bdd2</pre>
+更新t/hack1分支
+<pre>$ git co t/hack1
+$ tg update
+tg: Updating base with master changes...
+Updating 905d75e..0592116
+Fast-forward
+sum.py |    3 ++-
+1 files changed, 2 insertions(+), 1 deletions(-)
+tg: Updating t/hack1 against new base...
+Auto-merging sum.py
+CONFLICT (content): Merge conflict in sum.py
+Automatic merge failed; fix conflicts and then commit the result.
+tg: Please commit merge resolution. No need to do anything else
+tg: You can abort this operation using `git reset --hard` now
+tg: and retry this merge later using `tg update`.
+$ git rev-parse master top-bases/t/hack1 t/hack1
+05921161971eea33da8a47a52ead94222bab0e2a
+<strong>05921161971eea33da8a47a52ead94222bab0e2a</strong>
+ebd8259b997ef79a423fd80be0748be48db4bdd2</pre>
+出现冲突，需要合并（merge）冲突
+<pre>$ cat sum.py
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+def sum(num1,num2):
+return num1 + num2
+=======
+def sum(a,b):
+result = a + b
+return result
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; refs/top-bases/t/hack1
+
+print "sum(1+2)=",sum(1,2)</pre>
+可以手动修改，也可以用merge工具   $ git mergetool
+<pre>#下面是合并后sum.py文件
+$ cat sum.py
+def sum(num1,num2):
+result =num1 + num2
+return result
+
+print "sum(1+2)=",sum(1,2)
+$ tg summary
+<strong>&gt;      t/hack1         [patch] t/hack1</strong>
+$ git rev-parse master top-bases/t/hack1 t/hack1
+05921161971eea33da8a47a52ead94222bab0e2a
+05921161971eea33da8a47a52ead94222bab0e2a
+<strong>139ae66fee6398376d8a457936316f0f7df135ce</strong></pre>
+<a href="/2010/03/10/802.html">含有分支依赖且产生冲突的update操作</a>

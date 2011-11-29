@@ -1,0 +1,84 @@
+---
+layout: post
+title: "Debian 文件偷换"
+---
+
+Debian “文件偷换”？在我们对开源软件定制的时候，用到了很多“偷换”的技术实现 Linux 的定制。当然群英汇大部分应用属于彻底的定制开发，采用软件包重新发布的形式提供服务。但是也有少部分的软件，例如 Apache2，PHP5，shorewall，只是对这些软件包自身的配置文件进行定制修改，这时如果采用软件包重新发布就显得非常笨拙和多此一举。采用配置文件“偷换”，起到事半功倍的效果。
+
+为什么要文件“偷换”，而不是“光明正大”的覆盖呢？
+<ul>
+	<li>Debian 会检查文件包的文件冲突，不允许两个不同的软件包（A 和 B）安装相同的文件。
+如果新安装的软件包（B）提供的文件已经由其它的软件包（A）安装过了，则拒绝安装新的软件包（B）。</li>
+	<li>如果新的软件包（B）在 POSTINST脚本（安装后自动执行的脚本）中，以拷贝文件的方式覆盖其它软件包（A）提供的文件，当然是可以的。但是，如果软件包A 有了新的版本，升级软件包A，会导致软件包B的定制文件被软件包A新的文件所覆盖。</li>
+</ul>
+Debian 本身提供的 dpkg-divert 提供了光明正大的文件“偷换”功能：
+<ul>
+	<li>软件包 A 安装，配置文件保存在 /etc/a/file 中。</li>
+	<li>软件包 B 安装，执行 dpkg-divert 命令，声明将原来 /etc/a/file 移动到其它位置 /etc/other/place</li>
+	<li>软件包 B 自己的配置文件 /etc/b/file 链接到 /etc/a/file</li>
+	<li>软件包 A 升级的时候，会发现自己的配置文件 /etc/a/file 被指定到新位置 /etc/other/place，会将新的配置文件保存到 /etc/other/place 中。</li>
+</ul>
+Debian 文件偷换有两个常见的模式。
+<ul>
+	<li><strong>模式1：文件链接方式：</strong>
+<ul>
+	<li>软件包 A 提供配置文件 /etc/file</li>
+	<li>软件包 B 提供配置文件 /etc/file.ossxp</li>
+	<li>软件包 B 的 postinst 脚本执行 dpkg-divert
+<ul>
+	<li>将 /etc/file 重命名为 /etc/file.ossxp-orig</li>
+	<li>将 /etc/file.ossxp 链接为 /etc/file</li>
+</ul>
+</li>
+</ul>
+</li>
+	<li><strong>模式2：文件移动方式</strong>
+<ul>
+	<li>软件包 A 提供配置文件 /etc/fileA</li>
+	<li>软件包 B 提供配置文件 /etc/fileB。注意该配置文件不能是 /etc/fileA（第三模式）。</li>
+	<li>软件包 B 的 POSTINST 脚本执行 dpkg-divert，将 /etc/fileA 移动到 /usr/share/B/etc-fileA 中</li>
+</ul>
+</li>
+</ul>
+<a href="http://debathena.mit.edu/config-packages/"></a>
+
+在之前的一篇博客<a href="/2010/03/09/793.html">《群英汇部分应用的 /etc/init.d/ 下脚本名称改变》</a>中曾经提到用 <a href="http://debathena.mit.edu/config-packages/">Debian Config Package</a> 软件 和 CDBS 脚本，可以非常简单的实现上述两种文件偷换模式。而且根本无须编程，只是修改配置而已。
+
+但是简单是有代价的。我们被限制在这两种“文件偷换”的模式中，而这两种模式都只在特定的场合可行，也就是说在特定情况下，都有副作用。当我们需要第三种模式的时候，就无法实现了，需要在彻底了解文件偷换机制后，脱离 CDBS ，手工编程实现。这两种模式有什么问题，以及怎么实现第三条道路呢？
+<h2><span id="more-1431"></span>两种文件偷换模型的适用范围</h2>
+Debian Config Package 提供的两种文件偷换模式的只在特定场合适用。
+
+模式一：文件链接模式
+<ul>
+	<li>/etc 下的大部分配置文件都可以用此模型进行替换。如 /etc/apache2/site-available/default, /etc/apache2/apache2.conf, /etc/php5/apache2/php.ini, /etc/flexbackup.conf 等。</li>
+	<li>但是下面的一些情况，就不适合适用文件链接模式进行文件偷换了：</li>
+	<li>/etc/cron.d/ 目录下进行文件链接式的偷换，会一个计划任务导致在 /etc/cron.d 目录下出现两个甚至三个拷贝，导致任务多次执行或者任务执行时的冲突。</li>
+	<li>/etc/init.d/ 目录下进行文件链接式的偷换，会导致同一个应用的服务在 /etc/init.d 下出现多次，导致 insserv 命令安装 init.d 下的服务时出错。这个在 <a href="../2010/03/793/">《群英汇部分应用的 /etc/init.d/ 下脚本名称改变》</a>中已经提到。</li>
+</ul>
+模式二：文件移动的方式
+<ul>
+	<li>说明： Debian Config Package 的文件移动方式，</li>
+	<li>在前一个模式下不适合的文件偷换，例如 /etc/cron.d 或者 /etc/apache2/conf.d 目录下配置文件的偷换，就可以采用这种文件移动的方式进行偷换</li>
+	<li>但是在有的情况下，这种偷换也是不适合的：</li>
+	<li>例如 /etc/init.d 下的脚本如果使用文件移动的方式，包A 的启动脚本 /etc/init.d/A 被移走，包B的启动脚本 /etc/init.d/B 作为启动脚本。
+这个模式是可以工作的。如果只是带来一点不习惯的麻烦也就罢了，但是在软件包 A 升级的时候，因为软件包 A 要执行 /etc/init.d/A 脚本进行服务的启动或停止，因为 /etc/init.d/A 的缺失，导致软件包A无法升级。</li>
+</ul>
+<h2>第三种偷换模型</h2>
+那么我们为什么不在文件移动，即 移走软件包A的配置文件 fileA 的时候，软件包B提供同样的文件 fileA 呢？这就是我想要实现的第三种偷换模型。
+
+尝试了在 Deian Config Package 的范围内实现这个第三个模型，在阅读了最终生成的 Debian 打包脚本后，发现根本无法实现。因为：
+<ul>
+	<li>执行 dpkg-divert 对软件包A的文件 fileA 执行文件偷换，是发生在 POSTINST 脚本中，此时软件包 B 已经展开并安装！如果软件包B提供同样的配置文件，引发和软件包A的冲突！Debian系统是拒绝此种情况的发生的。</li>
+	<li>PRERM 脚本会在软件包卸载的时候执行，回复软件包 B 对文件 fileA 的偷换，在恢复的时候发现如果 fileA 不是一个符号链接，不会执行偷换文件的恢复操作。而第三种模式下，fileA 实际上不是符号链接，而是软件包B提供的正常文件。</li>
+</ul>
+<h2>第三种偷换模型的实现</h2>
+实际上，了解了 dpkg-divert 文件偷换的机制后，就很容易实现“第三种偷换模型”。即：
+<ul>
+	<li>不要使用 DEBHELPER 提供的自动脚本，即不使用 Debian Config Package 提供的现成文件偷换模型</li>
+	<li>在 PREINST 脚本，而非 POSTINST 脚本中对软件包A 的配置文件 fileA 进行文件偷换操作。PREINST 脚本执行是在软件包 B 文件展开之前执行的。</li>
+	<li>软件包 B 提供配置文件 fileA，而不用担心文件冲突，因为我们在 preinst 脚本中已经完成了软件包A 的文件偷换</li>
+	<li><span style="text-decoration: line-through;">原来是在 PRERM 脚本中还原文件偷换，必须先删除配置文件 fileA才能成功完成偷换文件的还原</span></li>
+	<li>应该在 POSTRM 脚本而非 PRERM 脚本，执行偷换文件的还原。而且是在 postrm 脚本使用 purge 参数调用时进行。即软件包 B 彻底清除时，删除了 fileA，再调用 dpkg-divert 还原被偷换的文件</li>
+	<li>补充：在 POSTRM 脚本进行偷换文件的还原还有一个原因：如果在之前进行文件还原，当对软件包 B 执行 purge 操作时，删除的是软件包 A 的配置文件 fileA。</li>
+</ul>
+第三种偷换模型的实现，彻底解决了 <a href="../2010/03/793/">《群英汇部分应用的 /etc/init.d/ 下脚本名称改变》</a> 中遗留的问题，实现了对 Linux 应用最干净的定制。

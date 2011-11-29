@@ -1,0 +1,40 @@
+---
+layout: post
+title: "如何同步 Gistore 的备份数据？"
+---
+
+Gistore 在公司内部以及部分客户推广一段时间来看，还是很满意的，但是如何实施双机备份或者管理员远程克隆是一个问题。
+<ul>
+	<li>每个需要同步 gistore 备份库的用户都需要建立单独的系统帐号？</li>
+	<li>或者引入复杂的 Git 库管理工具？</li>
+</ul>
+最新的解决方案非常的简单，只引入了一个系统帐号 gistore，使用该帐号进行备份库的克隆操作：
+<ul>
+	<li>将同步者的公钥上传。可以使用下面的命令（需要开启 gistore 的口令认证）
+<pre>$ ssh-copy-id -i id_rsa gistore@&lt;REMOTE.SERVER&gt;</pre>
+</li>
+	<li>使用 git 命令执行克隆操作。
+例如下面的命令克隆 /etc/gistore/tasks/system 指向的 gistore 备份库
+<pre>$ git clone gistore@&lt;REMOTE.SERVER&gt;:system</pre>
+</li>
+</ul>
+那么是如何实现的呢？
+<ul>
+	<li>使用了群英汇改进的 gitosis 提供 git 库访问控制服务</li>
+	<li>利用了改进后的 map 指令，将访问的 git 库的地址映射到对应的 gistore 备份库
+例如访问 system，实际访问的是 /etc/gistore/tasts/system/repo.git 指定的代码库。相关的 map 指令：
+<pre>map readonly * = (.*):\1/repo</pre>
+</li>
+	<li>不对单个公钥连接进行身份识别，而是所有的登录用户都使用唯一帐号。这样简化了授权模型，降低了配置难度
+实际上是在 /etc/ssh/sshd_config 中增加了如下设置：
+<pre># ossxp gistore backup account settings:
+Match user gistore
+    ForceCommand gitosis-serve gistore
+    X11Forwarding no
+    AllowTcpForwarding no
+    AllowAgentForwarding no
+    PubkeyAuthentication yes
+    #PasswordAuthentication no</pre>
+</li>
+	<li>以上的操作，都在安装群英汇 gistore 软件包的时候自动配置，无须人工介入。</li>
+</ul>

@@ -1,0 +1,20 @@
+---
+layout: post
+title: "redmine版本库统计 SVG 柱状图在IE中不能显示"
+---
+
+由于我们办公完全在Linux下，因此 redmine 的前端自然就是 Firefox 了。在Firefox下，redmine的版本库统计SVG柱状图显示（选择一个项目，点击<span style="text-decoration: underline;">版本库</span>菜单，然后点击右上角<span style="text-decoration: underline;">统计</span>链接）是完全正常的。但昨天一网友（也是老乡）告诉我，他们用 IE 看不到 SVG 柱状图。于是今天上午我研究了一下，终于找到问题的原因，并hack了。
+
+<span id="more-1406"></span>一、问题原因
+
+在 IE 中查看 SVG 需要安装 SVG Viewer，否则无法查看。
+
+二、解决方案
+<ol>
+	<li>安装 SVG Viewer
+下载地址 <a href="http://www.adobe.com/svg/viewer/install/" target="_blank">http://www.adobe.com/svg/viewer/install/</a>
+这是一个exe文件，因此直接双击即可完成安装</li>
+	<li>解决中文乱码
+尽管安装了 SVG Viewer，但对于中文显示却令用户生气。我也是在网上搜了好多关于这方面的资料才解决的。最终定位于redmine生成SVG 时没有考虑中文问题，没设置中文字体。因此找到源代码，加入中文字体设置，乱码问题就解决了。
+补丁文件下载地址 <a href="http://redmine.ossxp.com/redmine/attachments/download/51/svg.patch" target="_blank">http://redmine.ossxp.com/redmine/attachments/download/51/svg.patch</a></li>
+</ol>

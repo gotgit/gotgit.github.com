@@ -1,0 +1,14 @@
+---
+layout: post
+title: "Firebug&#8212;-javascript调试利器"
+---
+
+<div class="document">
+
+以前调试 <cite>javascript</cite> 总是痛苦不堪的使用一个又一个的 <cite>alert</cite>. 不过现在通过使用 <cite>firefox</cite> 的 <cite>firibug</cite> 的插件，终于摆脱了可恶的 <cite>alert</cite> .
+
+<span id="more-889"></span>Firebug是一个非常好用的调试工具，它可以除错、编辑、甚至删改任何网站的 CSS、HTML、DOM、与 JavaScript 代码，当然对ajax也十分好用。其中最主要的Console是Firebug给出各种信息的窗口，而这也正是Console的主要用途。除此之外，Console还提供了通过命令行方式来调试Javascript的多种方法。
+<blockquote><dl class="docutils"> <dt>console.debug(object[, object, ...])</dt> <dd>在控制台输出一条消息,包含一个指向代码调用位置的超链接.假如是直接在控制台输入该命令,就不会出现超链接(和console.log()一  样).</dd> <dt>console.info(object[, object, ...])</dt> <dd>在控制台输出一条带有“信息”图标的消息和一个指向代码调用位置的超链接.</dd> <dt>console.warn(object[, object, ...])</dt> <dd>在控制台输出一条带有“警告”图标的消息和一个指向代码调用位置的超链接.</dd> <dt>console.error(object[, object, ...])</dt> <dd>在控制台输出一条带有“错误”图标的消息和一个指向代码调用位置的超链接.</dd> <dt>console.assert(expression[, object, ...])</dt> <dd>测试表达式expression是否为真.如果不是真,会在控制台写一条消息并抛出异常</dd> <dt>console.dir(object)</dt> <dd>以列表形式输出一个对象的所有属性,有点和查看DOM窗口相类似.</dd> <dt>console.dirxml(node)</dt> <dd>输出一个HTML或者XML元素的XML源代码,和在HTML窗口看到的相似.</dd> <dt>console.group(object[, object, ...])</dt> <dd>输出一条消息,并打开一个嵌套块,块中的内容都会缩进.调用console.groupEnd()关闭块,该命令可以嵌套使用.</dd> <dt>console.groupEnd()</dt> <dd>关闭最近一个由console.group打开的块.</dd> <dt>console.time(name)</dt> <dd>创建一个名字为name的计时器,调用console.timeEnd(name)停止计时器并输出所耗时间(毫秒).</dd> <dt>console.timeEnd(name)</dt> <dd>停止同名的计时器并输出所耗时间(毫秒).</dd> <dt>console.profile([title])</dt> <dd>打开Javascript性能测试开关,可选参数title会在打印性能测试报告时在报告的开头输出.</dd> <dt>console.profileEnd()</dt> <dd>关闭Javascript性能测试开关并输出报告.</dd> <dt>console.clear()</dt> <dd>清空console信息窗口.</dd> </dl></blockquote>
+另外，Firebug还可以设置断点。单击行号，就会设置一个断点。右击行号，就可以设置一个断点出现的条件，只有当条件为真时，程序才会暂停执行。右面还有一个watch窗口，可以监控当前的变量，也可以查看设置的断点。
+
+</div>

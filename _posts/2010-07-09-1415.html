@@ -1,0 +1,53 @@
+---
+layout: post
+title: "小心：谷歌 gmail 邮件过滤器"
+---
+
+如果您和我一样，认为 Gmail 的邮件过滤器的用法和 Thunderbird 或者 Foxmail 或者 Outlook 的用法一样，那么您很有可能会中招，会遇到和我一样的尴尬。
+
+今天一个客户给我打电话，问我对于他昨天邮件中提到的咨询问题是如何看的？天啊，我昨天没有收到他的邮件啊？
+
+还好，借着 Gmail 强大的搜索功能，我很快找到了该客户的邮件，原来是被我自己设置的邮件过滤规则给过滤了：
+<ul>
+	<li>该邮件的标题是：“Re: MoinMoin 和 redmine”</li>
+	<li>该邮件被过滤到 “项目列表-MoinMoin”的标签下</li>
+</ul>
+我建立的相应的过滤规则是：
+<ul>
+	<li>如果邮件标题包含 <big>“<strong>[</strong>MoinMoin<strong>]</strong>”</big> （注意过滤条件中的方括号）</li>
+	<li>则添加标签 “项目列表-MoinMoin”，且不投递到收件箱</li>
+	<li>还要注意不要对此类邮件进行垃圾邮件判断，即不要误入垃圾箱</li>
+</ul>
+疑问出来了：
+<ul>
+	<li>明明过滤规则中，要求标题中需要出现特定格式的字符，其中包括方括号字符</li>
+	<li>但是对应于邮件标题中没有出现方括号，应该不会匹配过滤规则，为什么也被过滤了</li>
+</ul>
+经过对 Gmail 邮箱的过滤规则的测试（在新建过滤规则中进行测试），终于明白了：
+<ul>
+	<li>停用词：一些特殊符号作为停用词，不纳入到搜索条件中
+像上面提到的方括号可能就属于停用词之类</li>
+	<li>空格分隔的关键词需要同时出现，相当于在关键词前使用了"+"号</li>
+	<li>如果要排除某个关键词，在关键词前添加“-”（减号）</li>
+	<li>使用引号，要求精确匹配某个字串。字串中的加号和减号当做一般文本处理</li>
+	<li> <address>例如：邮件过滤规则  <strong><span style="color: #ff0000;">cron "make -C" -gistore</span></strong> 的含义是：</address>
+<ul>
+	<li>必须在搜索的字段中同时出现单词 <strong><span style="color: #ff0000;">cron</span></strong> 和字符串 "<strong><span style="color: #ff0000;">make -C</span></strong>"（去掉引号），</li>
+	<li>并且在搜索的字段中不能出现单词 <strong><span style="color: #ff0000;">gistore</span></strong> 。</li>
+</ul>
+</li>
+</ul>
+<ul>
+	<li><address>例如：邮件过滤规则 <span style="color: #ff0000;"><strong>"Cron Daemon" ossxp.com OR ossxp.net</strong></span> 出现在发件人中含义是:</address>
+<ul>
+	<li>发件人字段必须包含 "<span style="color: #ff0000;"><strong>Cron Daemon</strong></span>" 字符串（引号除外）</li>
+	<li>同时发件人字段还必须包含 <strong><span style="color: #ff0000;">ossxp.com</span></strong> 或者 <span style="color: #ff0000;"><strong>ossxp.net</strong></span></li>
+</ul>
+</li>
+</ul>
+即：
+<ul>
+	<li>一般的邮件客户端软件（thunderbird，foxmail等），过滤规则使用的字符串查找算法，可能就是一个 substr 函数</li>
+	<li>而 Gmail 涉及到分词和全文检索。过滤规则使用的也是 google 搜索引擎用到的搜索语法。</li>
+</ul>
+我要马上重新设计我的Gmail帐号的过滤规则，避免遗漏重要邮件。

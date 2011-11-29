@@ -1,0 +1,170 @@
+---
+layout: post
+title: "python egg学习笔记"
+---
+
+经常接触Python的同学可能会注意到，当需要安装第三方python包时，可能会用到easy_install命令。easy_install是由PEAK(Python Enterprise Application Kit)开发的setuptools包里带的一个命令，它用来安装egg包。egg包是目前最流行的python应用打包部署方式。如何制作和安装egg包？下面我就简单的分析了一下。
+
+<span id="more-2178"></span>
+<div id="setuptools">
+<h2><a href="#id7">1.1   安装setuptools</a></h2>
+首先要安装setuptools工具。Debian/Ubuntu下可以直接使用apt安装：:
+<pre>$ sudo apt-get install python-setuptools</pre>
+手工安装的话，有两种方式：
+<ul>
+	<li>通过引导程序 <a href="http://peak.telecommunity.com/dist/ez_setup.py">ez_setup.py</a> 来安装。这个引导程序会联网下载最新版本setuptools来安装，同时也可以更新本地的setuptools。
+<pre>$ wget http://peak.telecommunity.com/dist/ez_setup.py
+$ sudo python ez_setup.py</pre>
+更新setuptools：:
+<pre>$ sudo python ez_setup.py -U setuptools</pre>
+</li>
+	<li>或者下载setuptools的egg包来安装。可以在 <a href="http://pypi.python.org/packages/2.6/s/setuptools/">这里</a> 查看最新版本下载。下载完毕以后通过sh安装。
+<pre>$ wget http://pypi.python.org/packages/2.6/s/setuptools/setuptools-0.6c11-py2.6.egg
+$ sudo sh setuptools-0.6c11-py2.6.egg</pre>
+</li>
+</ul>
+现在就可以使用easy_install命令来安装其他的egg包了。
+
+</div>
+<div id="egg">
+<h2><a href="#id8">1.2   制作自己的egg包</a></h2>
+总是安装别人的egg包，是不是也想制作自己的egg包呢？好，接下来我们就自己制作一个简单的egg包。
+
+首先建立工程目录egg-demo,初始化一个setup.py文件：
+<pre>$ mkdir egg-demo
+$ cd egg-demo
+$ touch setup.py
+$ ls
+setup.py</pre>
+下面主要就是填充setup.py。setup.py其实是python工具包distutils的配置文件，setuptools就是基于distutils来做的。 在setup.py中通过setup函数来配置打包信息。首先要引入setuptools的函数setup。setuptools的setup其实就是distutils的setup函数，填写setup.py为以下内容：
+<pre>$ cat setup.py
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+from setuptools import setup
+
+setup()</pre>
+写到这里，一个空的egg配置文件就写好了。我们可以使用下面命令生成egg包：
+<pre>$ python setup.py bdist_egg</pre>
+下面看看究竟生成了什么：
+<pre>$ ls -F
+build/ dist/ setup.py UNKNOWN.egg-info/</pre>
+可以看到多了三个文件夹。而在dist文件夹下，有一个egg文件：UNKNOWN-0.0.0-py2.6.egg。
+
+产蛋成功！先看看这个egg文件是什么格式的：
+<pre>$ file dist/UNKNOWN-0.0.0-py2.6.egg
+dist/UNKNOWN-0.0.0-py2.6.egg: Zip archive data, at least v2.0 to extract</pre>
+噢，原来就是一个zip压缩包呀！好，再来看看内部构造：
+<pre>$ unzip -l dist/UNKNOWN-0.0.0-py2.6.egg
+Archive:  dist/KNOWN-0.0.0-py2.6.egg
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+      120  2010-12-06 17:04   EGG-INFO/SOURCES.txt
+        1  2010-12-06 17:04   EGG-INFO/top_level.txt
+        1  2010-12-06 17:04   EGG-INFO/zip-safe
+        1  2010-12-06 17:04   EGG-INFO/dependency_links.txt
+      227  2010-12-06 17:04   EGG-INFO/PKG-INFO
+---------                     -------
+      350                     5 files</pre>
+只有一个EGG-INFO文件夹，内含五个egg信息文件，没了。
+
+这个egg名称未知，版本0.0.0。这是因为我们在setup里什么也没有设置。
+
+显然，这个egg什么也不能做。
+
+下面给它加点料。
+
+在setup.py中，setup函数接收一系列属性作为配置参数。
+<ul>
+	<li>name name是egg包的名称，也是寻找要打包的文件夹的名称，默认是UNKNOWN。</li>
+	<li>version 版本号，默认0.0.0</li>
+	<li>packages 这里要用到setuptools的另一个函数find_packages，顾名思义，find_packages用来将指定目录下的文件打包。</li>
+	<li>zip_safe 默认是False，这样在每次生成egg包时都会检查项目文件的内容，确保无误。</li>
+</ul>
+还有一些描述性的属性，如description，long_description，author，author_email，license，keywords，platform，url等。
+
+填充setup.py文件如下：:
+<pre>$ cat setup.py
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+from setuptools import setup, find_packages
+
+setup(
+        name = "demo",
+        version="0.1.0",
+        packages = find_packages(),
+        zip_safe = False,
+
+        description = "egg test demo.",
+        long_description = "egg test demo, haha.",
+        author = "amoblin",
+        author_email = "amoblin@ossxp.com",
+
+        license = "GPL",
+        keywords = ("test", "egg"),
+        platforms = "Independant",
+        url = "",
+        )</pre>
+在egg-demo目录下建立和上述name名称相同的目录demo，demo目录下写__init__.py文件：
+<pre>$ mkdir demo
+$ cat demo/__init__.py
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+def test():
+    print "Hello, I'm amoblin."
+
+if __name__ == '__main__':
+    test()</pre>
+再次生成egg包以后查看egg包信息：
+<pre>$ python setup.py bdist_egg
+$ unzip -l dist/demo-0.1.0-py2.6.egg
+Archive:  dist/demo-0.1.0-py2.6.egg
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+      121  2010-12-06 17:30   demo/__init__.py
+      344  2010-12-06 17:46   demo/__init__.pyc
+      137  2010-12-06 17:46   EGG-INFO/SOURCES.txt
+        5  2010-12-06 17:46   EGG-INFO/top_level.txt
+        1  2010-12-06 17:46   EGG-INFO/zip-safe
+        1  2010-12-06 17:46   EGG-INFO/dependency_links.txt
+      227  2010-12-06 17:46   EGG-INFO/PKG-INFO
+---------                     -------
+      836                     7 files</pre>
+可以看到，多了一个文件夹demo，里面有我们写的__init__.py。
+
+奉行敏捷原则，先安装了体验一下再说：
+<pre>$ sudo python setup.py install
+running install
+install_dir /usr/local/lib/python2.6/dist-packages/
+...
+creating /usr/local/lib/python2.6/dist-packages/demo-0.1.0-py2.6.egg
+Extracting demo-0.1.0-py2.6.egg to /usr/local/lib/python2.6/dist-packages
+demo 0.1.0 is already the active version in easy-install.pth
+
+Installed /usr/local/lib/python2.6/dist-packages/demo-0.1.0-py2.6.egg
+Processing dependencies for demo==0.1.0
+Finished processing dependencies for demo==0.1.0</pre>
+OK!安装完毕！接下来我们就可以直接通过import来使用啦！
+<pre>$ python -c "from demo import test;test()"
+Hello, I'm amoblin.</pre>
+成功输出！这说明安装正确。我们的一个egg包诞生了。
+
+一般情况下，我们的源程序都放在src目录下，所以接下来将demo文件夹移动到src里。但这样也要修改setup.py文件，修改find_packages函数中参数为'src'，同时增加package_dir参数：
+<pre>packages=find_packages('src'),
+package_dir = {'':'src'}</pre>
+这样告诉setuptools在src目录下找包，而不是原来默认的工程根目录。
+
+</div>
+<div id="id4">
+<h2><a href="#id9">1.3   egg文件卸载</a></h2>
+以python2.6版本为例，egg文件一般安装在/usr/local/lib/python2.6/dist-packages/目录下，该目录下还有一个easy-install.pth文件，用于存放安装的egg信息。:
+<pre>$ cd /usr/local/lib/python2.6/dist-packages
+$ cat easy-install.pth|grep demo
+./demo-0.1.0-py2.6.egg
+$ ls -F|grep demo
+demo-0.1.0-py2.6.egg/</pre>
+卸载egg文件很简单，首先将包含此egg的行从easy-install.pth中删除，然后删除egg文件夹即可。
+
+</div>

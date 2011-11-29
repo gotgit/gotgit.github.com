@@ -1,0 +1,46 @@
+---
+layout: post
+title: "群英汇redmine增强版ossxp-2.0成功上线"
+---
+
+经过近乎两周的打包测试, 群英汇Redmine 增强版ossxp-2.0成功上线. 如今<a href="http://redmine.ossxp.com/redmine/" target="_blank"> http://redmine.ossxp.com/redmine/</a> 上运行的就是 ossxp-2.0版本.
+
+下面介绍一下 ossxp-2.0 版本的新特征:
+<span id="more-1037"></span>
+<ol>
+	<li>上游版本库升级到Redmine官方的0.9.3版本. Redmine 0.9.3 引入的新特征:
+<ul>
+	<li>提供了git分支以及里程碑浏览
+具体的实现模仿了GitHub的实现和显示效果</li>
+	<li>管理员界面增加了用户组选项
+管理员可以新建用户组(如开发组), 然后通过把该组添加到某一项目, 那么该组里的所有成员都成为该项目的成员, 而且这些成员的角色和该组的角色一样</li>
+	<li>项目可以无限嵌套
+0.8.x以及之前的版本只支持2级嵌套, 如今项目可以无限嵌套</li>
+	<li>可以指定目标版本的状态以及可见范围
+目标版本共有三个状态:打开, 锁定, 关闭.
+同时可以设置该目标版本的可见性: 不共享, 与子项目共享, 与项目继成树共享, 与所有项目共享</li>
+	<li><strong><em>管理</em></strong> --&gt;<em> <strong>配置</strong></em> --&gt;<strong><em>项目</em></strong> 页面新增了指定新建项目默认开启的模块和非管理员用户新建项目时将被赋予的角色</li>
+</ul>
+</li>
+	<li>群英汇扩展
+<ul>
+	<li>解决无法使用中文版HG库的问题</li>
+	<li>解决当redmine部署在非根路径下，插件的plugin_assets路径错误的问题</li>
+	<li>解决Subversion授权的问题
+<strong>Redmine对Subversion授权是这样处理的</strong>: 在配置Subversion版本库时, 除了输入URL外, 还需填写一个拥有Subversion读权限的账户信息(如果你的Subversion不允许匿名访问). 显然很多商业公司的代码有很高的严密性, 大多是不允许匿名访问的,看来是必填了.
+
+
+而Redmine对Subversion认证不严格也是从这里开始的. 填写了这个账户之后, 不管哪个用户登录Redmine浏览版本库, 看到的版本库信息都是该账户应该能看到的, 而不是当前登录用户应该看&gt;到的. 也就是说, 在这种情况下, 如果你想对代码浏览严加控制, 那么就需要创建一个很低权限的Subversion账号, 用这个账号作为Redmine访问Subversion的账号. 但这样一来, 那些具有高权限的用户就不乐意了(他们本来是能看到很多代码的, 但这样一来他们的权限无形之中被剥夺了).
+
+<strong>为了满足商业软件公司的需求, 群英汇对Redmine关于Subversion授权的部分进行了扩展, 采用Subversion本身的授权模式</strong>. 我们添加了解析Subversion授权文件的组件, 可以很好地解析每个用户的权限, 从而保证Redmine浏览权限和Subversion定义的权限一致, 完美解决了Redmine中Subversion授权不&gt;严格的问题, 实现了Subversion基于路径的授权.</li>
+	<li>新建问题自动指定默认的目标版本
+项目管理人员可以在 <em><strong>版本</strong></em>选项卡下指定该项目新建问题的默认目标版本, 这样新建的问题自动指定到该版本</li>
+	<li>查看活动，从最后一次变更时间算起而非当前时间
+Redmine是将当天作为项目的的起始时间, 默认显示30之内的活动, 这样当项目30天没活动时就会显示一片空白</li>
+	<li>管理员可以从 LDAP 同步帐号到 redmine.
+Redmine的LDAP认证模式是: 首先管理员配置好 LDAP认证, 并且选中 <strong><em>即时用户生成</em></strong>选项, 然后当用户用LDAP账号第一次登录Redmine时, 系统自动将LDAP里的用户信息存入数据库, 为用户创建Redmine账号.
+但这样会有一个问题: 如果管理员想批量给某一项目添加项目成员, 这时不得不一一通知这些人, 让他们都立马登录一下Redmine(因为只有这样, 他们才拥有Redmine账号, 管理员才能给这些用户划分角色, 授予权限).</li>
+	<li>单点登录支持最新的Cosign-3.0版本(Cosign-3.0解决了以前版本钓鱼攻击的问题)</li>
+</ul>
+</li>
+</ol>

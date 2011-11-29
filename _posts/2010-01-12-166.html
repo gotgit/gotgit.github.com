@@ -1,0 +1,65 @@
+---
+layout: post
+title: "wordpress工作原理"
+---
+
+WP初始化的过程：当你输入&lt;yourlink&gt;/wordpress对wordpress进行初始化时，wordpress默认会找
+根目录下的index.php页面，看一下index.php页面。
+<pre>&lt;?php
+define('WP_USE_THEMES', true);
+/** Loads the WordPress Environment and Template */
+require('./wp-blog-header.php'); ---把/wp-blog-header.php包含进来
+?&gt;</pre>
+<span id="more-166"></span>你会发现，它会去调用根目录下的wp-blog-header.php，我们继续看wp-blog-header.php。
+<pre>&lt;?php
+if ( !isset($wp_did_header) ) {
+$wp_did_header = true;
+require_once( dirname(__FILE__) . '/wp-load.php' );  ---加载wp-load.php
+wp();  ---加载function WP();
+require_once( ABSPATH . WPINC . '/template-loader.php' );   ---加载模板文件
+}
+?&gt;</pre>
+通过wp-load.php，wordpress先后把wp-config.php, wp-setting.php,classes.php,fucntions.php，
+query.php等文件加载进来,并建立了三个全局变量,$wp_the_query,$wp_rewrite和$wp ,分别为WP_Query,
+
+WP_Rewrite和WP类的实例。然后,wp-blog-header执行wp()函数,并通过其调用$wp所属WP类的main方法,
+
+这个方法又调用一系列方法,但最重要的是parse_request方法, WP从这里开始解析URL并建立主循环。
+我们看一下wordpress的主方法：
+<pre>function main($query_args = '') {
+$this-&gt;init();  --初始化环境
+$this-&gt;parse_request($query_args);   --解析请求
+$this-&gt;send_headers();  --发送头信息
+$this-&gt;query_posts();  --查询日志
+$this-&gt;handle_404();   --操作404(URL地址不存在)
+$this-&gt;register_globals();  --注册全局变量
+do_action_ref_array('wp', array(&amp;$this));
+}</pre>
+这基本上就是wordpress初始化时的信息。
+
+下面就讨论一下当我们设置自定义的永久链接时，wordpress的运作过程。
+当我们使用了自定义的永久链接的时候，wordpress会自动生成.htaccess文件，并且在这个文件中生成相
+
+对应于永久链接的匹配规则，在wordpress/wp-includes/rewrite.php中有针对.htaccess文件的重写规则，其
+
+中$use_verbose_rules参数规定了输出信息的详尽和简约，默认的情况下为false。输出的信息比较简单，
+
+如下
+<pre># BEGIN WordPress
+&lt;IfModule mod_rewrite.c&gt;
+RewriteEngine On
+RewriteBase /
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+&lt;/IfModule&gt;
+
+# END WordPress</pre>
+如果想查看完整的匹配规则，就把$use_verbose_rules设置为true。
+wordpress在对使用了自定义的永久链接进行处理时，它还是会调用wp-include/classes.php文件中
+
+的parse_request函数，对发过来的请求进行解析，无论是否为pathinfo类型的请求，都会被赋值给
+
+$request参数，然后调用该参数与.htaccess中的规则进行匹配，如果找到一个匹配就会“发送头信息”
+
+、“查询日志”，如果没有任何匹配就会返回404错误。

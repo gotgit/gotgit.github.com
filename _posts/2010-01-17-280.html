@@ -1,0 +1,146 @@
+---
+layout: post
+title: "Linux 下如何同时访问多个 github 帐号"
+---
+
+Github.com 提供了 Git 的版本库托管服务，对于开源项目提供 300MB 免费空间 :laugh: ，如果需要扩大空间或者需要私有的 Git 库访问，Github 还提供收费服务。
+
+<a href="http://www.ossxp.com/">群英汇</a> 在Github上的官方版本库地址为:  http://github.com/ossxp-com/ 。但同时，我还有一些偏个人的数据，非公司协同开发的代码，要放到 Github 上去，于是又注册了一个空间： http://github.com/jiangxin/ 。
+
+问题出现了：
+<ul>
+	<li>Github 使用公钥进行认证，两个不同的 Github 帐号，需要配置不同的 SSH 公钥，公钥不能相同</li>
+	<li>如果为不同 Github 帐号一个配置为  rsa 格式公钥，一个配置 dsa 格式公钥，但是认证的时候，总是以第一个公钥判断用户身份</li>
+</ul>
+怎么办呢？...
+
+<span id="more-280"></span>
+<h2>新项目无法 push 到新的 github 帐号</h2>
+使用 Github 上的新帐号jiangxin，创建了一个新的空的版本库 freemind-mmx。在本地的 freemind-mmx 项目中为 github 配置为新的源，PUSH的时候失败：
+<pre>$ <strong>git remote add github git@github.com:jiangxin/freemind-mmx.git</strong>
+$ <strong>git push github debian</strong>
+ERROR: Permission to jiangxin/freemind-mmx denied to <span style="color: #ff0000;"><em>ossxp-com</em></span>.
+fatal: The remote end hung up unexpectedly
+</pre>
+如上所示，因为连接 github 上的 jiangxin/freemind-mmx.git 版本库时，认证首先使用的公钥是 ossxp-com 的公钥，导致认证失败。
+
+想要在 Linux 中同时访问多个 Github 的多个帐号的关键是，如何让认证的时候选择不同的公钥。即：
+<ul>
+	<li>多个公钥在一个 Linux 帐号下共存的问题；</li>
+	<li>连接不同服务器时，公钥选择的问题；</li>
+</ul>
+<h2>在 ~/.ssh 目录下创建多套公钥</h2>
+<span style="text-decoration: underline;"><strong>缺省在 ~/.ssh 下已经有一些 ssh 公钥了：</strong></span>
+<pre>$ <strong>ls ~/.ssh/</strong>
+authorized_keys  id_dsa  id_dsa.pub  id_rsa  id_rsa.pub  known_hosts
+</pre>
+其中 id_dsa 和 id_dsa.pub 是 DSA 格式的私钥和公钥，id_rsa 和 id_rsa.pub 是 RSA 格式的公钥（是 ossxp-com 帐号在 github 上认证使用的公钥）
+
+<strong><span style="text-decoration: underline;">创建目录 ~/.ssh/github1， 用于保存 ossxp-com 帐号在 github 上的公钥/私钥对</span></strong>
+<pre>$ mkdir ~/.ssh/github1
+$ cp ~/.ssh/id_rsa* ~/.ssh/github1/
+</pre>
+<strong><span style="text-decoration: underline;">创建目录 ~/.ssh/github2，用于保存 jiangxin 帐号在 github 上的公钥/私钥对</span></strong>
+<pre>$ <strong>mkdir ~/.ssh/github2</strong>
+$ <strong>ssh-keygen -t rsa -f ~/.ssh/github2/id_rsa</strong>
+Generating public/private rsa key pair.
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /home/jiangxin/.ssh/github2/id_rsa.
+Your public key has been saved in /home/jiangxin/.ssh/github2/id_rsa.pub.
+The key fingerprint is:
+0d:38:95:b2:d7:2b:1d:c8:cb:42:bc:94:bd:50:cb:f3 jiangxin@hp
+The key's randomart image is:
++--[ RSA 2048]----+
+|        ..       |
+|      .oo        |
+|     .oO.+       |
+|      B.Ooo      |
+|     o =S*.o     |
+|      o = E      |
+|       . .       |
+|                 |
+|                 |
++-----------------+
+</pre>
+<h2>用 IdentityFile 指令设置不同公钥的优先级</h2>
+在 ~/.ssh/config 文件中，可以使用 IdentityFile 指令，设置公钥认证所使用的文件。可以通过多条 IdentityFile 指令，依次尝试各个公钥。
+
+那么对于使用 ossxp-com 帐号访问 github.com 的时候，修改 ~/.ssh/config 文件为：
+<pre>IdentityFile ~/.ssh/github1/id_rsa
+IdentityFile ~/.ssh/github2/id_rsa
+IdentityFile ~/.ssh/id_rsa
+IdentityFile ~/.ssh/id_dsa
+</pre>
+那么对于使用 jiangxin 帐号访问 github.com 的时候，修改 ~/.ssh/config 文件为：
+<pre>IdentityFile ~/.ssh/github2/id_rsa
+IdentityFile ~/.ssh/github1/id_rsa
+IdentityFile ~/.ssh/id_rsa
+IdentityFile ~/.ssh/id_dsa
+</pre>
+即每次连接不同的 Github 帐号修改不同公钥的认证优先级。但是这个方法还是不够智能。又查了一下 ssh_config 的 MAN 手册。找到了下面的方法。
+<h2>设置虚拟域名，用 Host 指令设置不同的 Github 认证公钥</h2>
+可以在 ssh 配置文件中，用 Host 指令设置为不同的主机设定各自独立的设置。使用这个配置，就可以针对在 Github 上不同的帐号，自动设置认证公钥，避免了每次手动修改 IdentityFile 指令的麻烦。
+
+<strong><span style="text-decoration: underline;">配置文件 ~/.ssh/config 的设置示例</span></strong>：
+<pre>Host ossxp.github.com
+ User git
+ Hostname github.com
+ PreferredAuthentications publickey
+ IdentityFile ~/.ssh/github1/id_rsa
+
+Host jx.github.com
+ User git
+ Hostname github.com
+ PreferredAuthentications publickey
+ IdentityFile ~/.ssh/github2/id_rsa
+</pre>
+<span style="text-decoration: underline;"><strong>原有 ossxp-com 的项目，重新设置 remote URL：</strong></span>
+
+$ <strong>git remote -v</strong>
+github  git@github.com:ossxp-com/redmine-ossxp-hacks.git (fetch)
+github  git@github.com:ossxp-com/redmine-ossxp-hacks.git (push)
+origin  git@bj.ossxp.com:ossxp/redmine-0.8.x.git (fetch)
+origin  git@bj.ossxp.com:ossxp/redmine-0.8.x.git (push)
+ossxp   git@ossxp.com:ossxp/redmine-0.8.x.git (fetch)
+ossxp   git@ossxp.com:ossxp/redmine-0.8.x.git (push)
+$ <strong>git config remote.github.url ossxp.github.com:ossxp-com/redmine-ossxp-hacks.git</strong>
+$ <strong>git remote -v</strong>
+github  ossxp.github.com:ossxp-com/redmine-ossxp-hacks.git (fetch)
+github  ossxp.github.com:ossxp-com/redmine-ossxp-hacks.git (push)
+origin  git@bj.ossxp.com:ossxp/redmine-0.8.x.git (fetch)
+origin  git@bj.ossxp.com:ossxp/redmine-0.8.x.git (push)
+ossxp   git@ossxp.com:ossxp/redmine-0.8.x.git (fetch)
+ossxp   git@ossxp.com:ossxp/redmine-0.8.x.git (push)
+
+<span style="text-decoration: underline;"><strong>使用 jiangxin 帐号创建的 github 项目，使用 自定义连接 URL 提交：</strong></span>
+<pre>$ <strong>git remote rm github
+</strong>$ <strong>git remote add github jx.github.com:jiangxin/freemind-mmx.git</strong>
+$ <strong>git push github master</strong>
+Counting objects: 2761, done.
+Delta compression using up to 2 threads.
+Compressing objects: 100% (833/833), done.
+Writing objects: 100% (2761/2761), 31.61 MiB | 64 KiB/s, done.
+Total 2761 (delta 2076), reused 2378 (delta 1907)
+To git@github.com:jiangxin/freemind-mmx.git
+* [new branch]      master -&gt; master
+
+$ <strong>git push github debian</strong>
+Counting objects: 84, done.
+Delta compression using up to 2 threads.
+Compressing objects: 100% (77/77), done.
+Writing objects: 100% (82/82), 115.47 KiB, done.
+Total 82 (delta 25), reused 0 (delta 0)
+To git@github.com:jiangxin/freemind-mmx.git
+* [new branch]      debian -&gt; debian
+
+$ <strong>tg remote --populate github</strong>
+tg: Remote github can now follow TopGit topic branches.
+tg: Populating local topic branches from remote 'github'...
+tg: The remote 'github' is now the default source of topic branches.
+
+$ <strong>tg -r github push --all</strong>
+...
+...
+</pre>
+<span style="color: #0000ff;"><strong>说明: t g  push 命令支持 --all 参数，参见博文：<a title="永久链接: 群英汇 TopGit 改进 (1): tg push 全部分支" rel="bookmark" href="/2010/01/15/247.html">群英汇 TopGit 改进 (1): tg push 全部分支</a></strong></span>

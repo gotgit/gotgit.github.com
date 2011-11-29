@@ -1,0 +1,39 @@
+---
+layout: post
+title: "Fail2ban&#8212;-暴力口令破解的克星"
+---
+
+<div id="fail2ban" class="document">
+
+Fail2ban对防止暴力破解口令有非常好的作用，它可以设置对方密码失败n次后用防火墙屏蔽n分钟，写入日志中，并可邮件你。 它的工作原理就是:
+<pre class="literal-block">fail2ban → 监视log file → 连续出现多次错误信息 → 封锁IP.</pre>
+<span id="more-961"></span>
+
+请确定已经安装了 <cite>fail2ban</cite>,如果没有可以使用 <cite>sudo aptitude install fail2ban</cite> 来安装（fail2ban 这是 debian 源中的包，如果是群英汇客户，安装 ossxp-secure-fail2ban，自动安装了群英汇提供的过滤器扩展等）。您可以在<a href="https://weblogin.ossxp.com/" target="_blank">群英汇的单点登录网站 </a>中亲身体验到 <em>fail2ban</em>的威力。  8-) 8-)
+
+下面以配置<a href="http://blog.ossxp.com/tag/sso/" target="_blank">cosign </a>为例来演示 <cite>fail2ban</cite> 的配置使用。
+
+在Debian上Fail2ban的配置文件在 <cite>/etc/fail2ban</cite> 下，jail.conf配置文件是fail2ban所保护的具体服务的配置，但是一般都是配置 <cite>jail.local</cite> 文件来覆盖 <cite>jail.conf</cite>。下面是一些fail2ban的全局变量，可以被覆盖:
+<pre class="literal-block">ignoreip = 127.0.0.1 172.13.14.15   #忽略IP,在这个清单里的IP不会被屏蔽
+bantime = 600                       #屏蔽时间
+maxretry = 3                        #尝试次数</pre>
+首先，fail2ban可以很方便的在 <cite>filter.d</cite> 目录<cite></cite><cite></cite>增加filter文件，一定要注意filter文件必须有后缀 <cite>.conf</cite> 。增加<a href="http://blog.ossxp.com/tag/sso/" target="_blank">cosign</a>的filter文件 <cite>cosign-auth.conf</cite> 内容如下:
+<pre class="literal-block">[Definition]
+failregex = CoSign(?:\[\d+\]*)?: user .* authentication failure from host [[]&lt;HOST&gt;[]]
+ignoreregex =</pre>
+其中failregex就是cosign日志文件的匹配策略。fail2ban自身有一个很方便的正则表达式测试工具 <cite>fail2ban-regex</cite> ，可以这样使用:
+<pre class="literal-block">sudo  fail2ban-regex /var/log/apache2/error.log cosign-auth.conf</pre>
+然后，在 <cite>jail.local</cite> 中加入下面的内容, <cite>filter</cite> 就是上面的文件 <cite>cosign-auth.conf</cite>:
+<pre class="literal-block">[cosign]
+enabled = true                           # 开启
+port    = https                          # 端口
+filter  = cosign-auth                    # filter.d/cosign-auth.conf
+logpath = /var/log/apache*/error.log     # cosign失败日志路径</pre>
+最后,就需要重新启动 <cite>sudo /etc/init.d/fail2ban restart</cite>,在浏览器上访问检测。
+
+如果重启 fail2ban 后，多次用错误口令访问之后还是没有禁用，可能有两种情况：
+<ol>
+	<li>端口错误，即在 <cite>jail.local</cite> 文件中 <cite>[cosign]</cite> port 配置错误</li>
+	<li>防火墙 <cite>iptables</cite> 没有配置，你可以考虑安装 firestarter 或者 shorewall。</li>
+</ol>
+</div>

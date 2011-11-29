@@ -1,0 +1,24 @@
+---
+layout: post
+title: "logcheck, fail2ban 的副作用"
+---
+
+今天客户遇到的问题，让我们看到了 logcheck与 fail2ban 的副作用，采取适当的配置，可以减少副作用的发生。
+
+logcheck 工具周期性（每个小时）读取系统日志，检查日志中可能的安全风险，并将相关信息发送给管理员。fail2ban 也是检查相应的日志文件，检查服务滥用情况（如暴力口令破解），并自动采取相关措施（针对IP地址暂停服务）。
+
+今天客户的机器发生CPU占用过高的情况，经过检查发现（虽然不是直接原因） logcheck 和 fail2ban 导致了CPU高占用率。
+<ul>
+	<li>客户的服务器还提供用户SSH登录和执行运算等工作</li>
+	<li>有一个用户写的程序，频繁的发送日志，在一天之内，就在 /var/log/messages 中写了 12G 的数据，而且还在不停的写</li>
+	<li>logcheck 和 fail2ban 等日志检查程序，在处理如此之大的日志文件时，造成 CPU 占用过高</li>
+	<li>此外，还（曾经）出现内存耗尽的情况（总共64G物理内存）</li>
+</ul>
+停止 fail2ban 服务进程，杀掉正在执行的 logcheck 进程，CPU 占用量降为正常水平。
+
+最根本的是用户自己的应用不要频繁的发送日志，后台进程运行将 debug 信息输出到空设备(/dev/null)。还有，为了防止类似情况的发生，还要解决 logchec 和 fail2ban 因庞大日志导致的性能降低问题：
+<ul>
+	<li>logcheck 只跟踪 /var/log/auth.log 日志，不要跟踪 /var/log/syslog 和其它有可能因为意外导致奇大无比的日志
+编辑 /etc/logcheck/logcheck.logfiles 文件，设定跟踪的日志文件</li>
+	<li>fail2ban，关闭跟踪 /var/log/messages 文件的事件。当然最好修改相关应用，日志存放在独立的文件而非 /var/log/messages 中。</li>
+</ul>

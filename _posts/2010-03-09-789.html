@@ -1,0 +1,44 @@
+---
+layout: post
+title: "Apache 性能调校"
+---
+
+Apache 是老牌子的网站服务器，论功能和插件，是无出其右，但是论性能，很多新手已经把 Apache 甩在后面，如 lighttpd, Nginx。在更换Web服务器软件这类激进的动作之前，你应该考虑一下：如果您拥有足够多的内存来应付现有的并发访问的话，建议你还是继续使用 Apache，但是作些性能上的调校是应该的。
+<h2><span id="more-789"></span>关于 ServerLimit  和 MaxClients</h2>
+MaxClients 参数决定了 Apache 最大并发访问数。
+
+对于 mpm_prefork，如果 MaxClients 设置超过了 256，就需要对 ServerLimit 设置，ServerLimit 应该和 MaxClients 一样，至少不小于 MaxClient。
+
+对于 mpm_worker，如果 MaxClients 除以 ThreadsPerChild  超过了 16，就要对 ServerLimit 进行设置。ServerLimit 乘以 ThreadsPerChild 要大于等于 MaxClients。
+<h2>MaxClients 不是随意设定的</h2>
+像 Apache 这样重量级的软件，内存消耗是很大的。MaxClients 的计算规则是 Apache 可占用的物理内存，除以单个 Apache进程的内存占用。
+
+因此并发数目直接取决于内存的大小。然而如果内存足够大，而配置文件没有跟上，岂不是吃亏？ ;-)
+<h2>用MaxRequestsPerChild 降低内存泄漏的危害</h2>
+难保有什么Web 应用/插件会导致内存泄漏，我曾经有过一个服务器，每隔两天就需要重启，可能是 ssl 模块导致的内存泄漏。如果配置了 MaxRequestsPerChild，就会将风险降到最小，当一个 Apache 进程服务了 MaRequestsPerChild 个请求后，就会杀掉自己，避免内存泄漏。
+
+缺省 MaxRequestsPerChild 的配置为 0, 则进程始终提供服务，不会重生以释放可能的内存泄漏。
+<h2>精雕细刻式的调优</h2>
+我见过很多服务器优化的文章，介绍了一系列精雕细刻式的调优（只在访问量巨大，IO成为瓶颈的时候会又效果）：
+<ul>
+	<li>从包括为磁盘挂载设置  relatime 参数，以避免分区在读取的时候，还要执行写操作（写入访问时间）</li>
+	<li>为 / 设置 Options FollowSymLinks 和 AllowOverride None，都是为了避免在提供 Web 应用的时候，一些不必要的文件检索操作</li>
+</ul>
+<h2>使用 mod_cache 模组，提供页面缓存</h2>
+模组 mod_cache, 包括 mod_disk_cache, mod_mem_cache， mod_file_cache 可以用来提供页面缓存，这是有效的解决应用效率不高的瓶颈的最佳方法。而且 mod_cache 的配置，比使用反向代理或者 squid 要简便的多。
+
+需要注意的事项：
+<ul>
+	<li>在 /etc/default/apache2 中，设置 HTCACHECLEAN_SIZE，来指定缓存的大小</li>
+	<li>使用 disk_cache 比 mem_cache 来的方便
+因为 mem_cache 是线程有效的，mpm_prefork 单线程，mpm_work 多线程但是也会配置多个进程。</li>
+	<li>cache 模组的参数配置很有学问，而且和应用本身提供的 Header 信息是否合理有关
+例如 Web 服务器响应中的 Vary, Expiry, Last-Modified, no-cache, Etag 等 Header 都会对页面缓存造成影响。</li>
+</ul>
+<h2>应用本身的优化，是更为重要</h2>
+Web服务器的优化，代替不了应用本身的优化。WordPress 就是一例。
+<ul>
+	<li>WordPress 作为博客功能非常丰富，功能永远是其开发第一位的，而代码质量？劝你还是别看代码吧。性能？如果两个以上的并发访问，可能就会让一个双核CPU的服务器疲于应付了。</li>
+	<li>WordPress 的插件中，有数据库缓存的插件，可以有效的对 SQL 访问进行缓存，可能将几十次 SQL 访问降低到几次</li>
+	<li>WordPress 的插件中，也有页面缓存的插件，性能比不上 Apache mod_cache，但是针对性更强</li>
+</ul>

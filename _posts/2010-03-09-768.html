@@ -1,0 +1,31 @@
+---
+layout: post
+title: "robots.txt 文件的非标准扩展"
+---
+
+在前面的博客 <a href="/2010/03/08/756.html" target="_blank">关于机器人 /robots.txt 文件的常识</a> 中已经介绍了 robots.txt 文件的一些基本用法，这篇文章向大家介绍一些 robots.txt 文件的一些扩展指令。
+
+<span id="more-768"></span>
+<h2>1、Crawl-delay 指令</h2>
+一些主要的爬虫支持 Crawl-delay 参数，该参数用于设置对于同一服务连续两个请求之间等待的秒数。
+<pre>User-agent *
+Crawl-delay: 10</pre>
+<h2>2、Allow 指令</h2>
+一些主要的爬虫支持 Allow 指令，该指令用于排除紧跟其后的 Disallow 指令的设置。当你想排除整个目录的访问但又想让该目录中某些HTML文档能被爬取时这个指令相当有效。虽然按标准执行的第一个匹配的robots.txt模式总是能获得胜利，但谷歌的实施却有所不同：它首先评估所有允许的模式，然后才是所有不允许的模式。
+
+为了和所有的机器人兼容，当只允许排除目录中的某一个文件被抓取时，你应该经 Allow 指令放在 Disallow 指令之前，例如：
+<pre>Allow: /folder/myfile.html
+Disallow: /folder1/</pre>
+<h2>3、Sitemap 指令</h2>
+一些爬虫支持 Sitemap指令，在一个 robots.txt 文件里允许出现多个 Sitemap
+<pre>Sitemap: http://www.gstatic.com/s2/sitemaps/profiles-sitemap.xml
+Sitemap: http://www.google.com/hostednews/sitemap_index.xml</pre>
+<h2>4、扩展标准</h2>
+<a rel="nofollow" href="http://www.conman.org/people/spc/robots2.html">Extended Standard for Robot Exclusion</a> 已经被推出, 该标准推出了一些新的指令, 例如 <strong>Visit-time</strong> 和 <strong>Request-rate</strong>. 示例:
+<pre>User-agent: *
+Disallow: /downloads/
+Request-rate: 1/5         # maximum rate is one page every 5 seconds
+Visit-time: 0600-0845     # only visit between 06:00 and 08:45 UTC (GMT)</pre>
+该机器人排除标准的第一个版本中并没有涉及到任何关于 "*" 号在 Disallow: 语句中的规定。像 Googlebot和Slurp这样的爬虫能识别包含"*"的字符串，然而MSNbot和Teoma以不同的方式解析它。
+
+参考：<a href="http://en.wikipedia.org/wiki/Robots_exclusion_standard" target="_blank">http://en.wikipedia.org/wiki/Robots_exclusion_standard</a>

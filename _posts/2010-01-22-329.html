@@ -1,0 +1,77 @@
+---
+layout: post
+title: "CruiseControl HgVersionParser: no match of"
+---
+
+<div class="document">
+
+使用开源CruiseControl的时候，SCM工具是Mercurial(hg)。CC在收集hg库的修改集合信息的时候，解析hg的version总是出错。这个问题困扰我很长时间，昨天终于解决了。
+
+<span id="more-329"></span>
+<h2>Error executing mercurial version command hg version</h2>
+<div id="error-executing-mercurial-version-command-hg-version" class="section">
+
+项目构建的时候总是出现这个错误:
+<pre class="literal-block">Error executing mercurial version command hg version
+</pre>
+具体错误信息如下:
+<pre class="literal-block">net.sourceforge.cruisecontrol.CruiseControlException: java.text.ParseException: HgVersionParser: no match of 分布式软件配置管理工具 - 水银 (版本 1.4.1)
+apper.run(ProjectWrapper.java:69)
+at java.lang.Thread.run(Thread.java:619)
+</pre>
+</div>
+<div id="id1" class="section">
+<h2>错误原因</h2>
+通过研究CruiseControl源代码Mercurial.java文件，终于找到了错误原因。其中Mercurial.java有这么一段代码去得到hg的version:
+<pre class="literal-block">Pattern p = Pattern.compile("Mercurial Distributed SCM \\((.*)\\)");
+Matcher m = p.matcher(versionLine);
+if (!m.matches()) {
+   throw new ParseException("HgVersionParser: no match of " + versionLine, 0);
+}
+</pre>
+在系统终端依次输入:
+<pre class="literal-block">$ hg version
+$ LANGUAGE=C hg version
+</pre>
+hg version得到的返回结果是:
+<pre class="literal-block">分布式软件配置管理工具 - 水银 (版本 1.4.1)
+版权所有 (C) 2005-2009 Matt Mackall &lt;mpm@selenic.com&gt; 和其他人。
+这是自由软件，具体参见版权条款。这里没有任何担保，甚至没有适合
+特定目的的隐含的担保。
+</pre>
+LANGUGAER=C hg vesion的返回结果:
+<pre class="literal-block">Mercurial Distributed SCM (version 1.4.1)
+Copyright (C) 2005-2009 Matt Mackall &lt;mpm@selenic.com&gt; and others
+This is free software; see the source for copying conditions. There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+</pre>
+Mercurial.java在解析的时候，总是正则表达式（"Mercurial Distributed SCM \((.*)\)"）去匹配的，遇到中文当然出错了。
+
+</div>
+<div id="id2" class="section">
+<h2>解决方案</h2>
+java程序员一定对Runtime.getRuntime()不陌生。CuriseControl也是这样做的，Commandline和EnvCommandline可以给我们答案.Commandline中，设置环境变量的参数为Null，如下:
+<pre class="literal-block">if (safeQuoting) {
+    process = runtime.exec(getCommandline(), null, workingDir);
+} else {
+    process = runtime.exec(toStringNoQuoting(), null, workingDir);
+}
+</pre>
+EnvCommandline继承Commandline,重写execute(),代码如下:
+<pre class="literal-block">process = Runtime.getRuntime().exec(getCommandline(), env.toArray(),workingDir);
+</pre>
+这样的话，我们很容易就可以修改解决这个问题，把Mercuriale.java中原代码:
+<pre class="literal-block">Commandline command = new Commandline();
+command.setWorkingDirectory(localWorkingCopy);
+command.setExecutable("hg");
+command.createArgument("version");
+</pre>
+修改如下:
+<pre class="literal-block">EnvCommandline command = new EnvCommandline();
+command.setWorkingDirectory(localWorkingCopy);
+command.setExecutable("hg");
+command.createArgument("version");
+command.setVariable("LANGUAGE", "c");
+</pre>
+</div>
+</div>

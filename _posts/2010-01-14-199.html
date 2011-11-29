@@ -1,0 +1,47 @@
+---
+layout: post
+title: "如何剥离CruiseControl内置的Web控制台"
+---
+
+<h2>背景介绍</h2>
+出于各自不同的考虑：
+<ul>
+	<li>启用 Apache Tomcat 内置的 Java EE 安全性管理机制，以加强这些 Web 控制台的管理</li>
+	<li>采用比 Jettery (cc内置的Web容器)  更强大的 Web 容器，使得 CruiseControl 构建循环不会受到 Web 控制台用户的影响。因为默认情况下，CruiseControl构建循环与宿主 Web 控制台的 Jetty 处于同一进程中。</li>
+</ul>
+CI集成人员需要将CruiseControl内置的两个Web控制台( http://localhost:8080/cruisecontrol/ 和 http://localhost:8080/dashboard/ ) 剥离出来，并运行在其他 Java EE 容器中，比如 Tomcat等。
+<h2>移植Web 控制台到 Apache Tomcat 6.0.20 的步骤</h2>
+如果你想用Debian 安装的tomcat6部署dashboard，请参照 <a href="/2010/01/23/391.html" target="_blank">剥离CruiseControl dashboard控制台到Debian安装的tomcat6上</a>
+
+<span id="more-199"></span>
+1、下载 CruiseControl 和 tomcat-6.0.20 安装包，并分别解压（这是我放置解压目录的位置 /work/cruisecontrol 和 /work/tomcat )。
+2、复制 /work/cruisecontrol/webapps/dashboard 到 /work/tomcat/webapps下
+<pre>/work/tomcat/webapps&gt; cp -a /work/cruisecontrol/webapps/dashboard .</pre>
+3、修改 /work/cruisecontrol/dashboard-config.xml 文件，下面是修改后的文件(粗体部分是修改的内容)
+<pre>&lt;dashboard&gt;
+ &lt;buildloop
+   logsdir="<strong>/work/cruisecontrol/logs</strong>"
+   artifactsdir="<strong>/work/cruisecontrol/artifacts</strong>"/&gt;
+ &lt;features allowforcebuild="<strong>true</strong>"/&gt;
+ ......
+&lt;/dashboard&gt;</pre>
+4、修改CruiseControl构建循环使用的 config.xml 配置文件。(粗体部分是增加的内容)
+<pre>&lt;cruisecontrol&gt;
+ <strong>&lt;dashboard url="http://localhost:8080/dashboard" postinterval="5"/&gt;</strong>
+<strong> </strong> .......
+&lt;/cruisecontrol&gt;</pre>
+5、告诉 tomcat dashboard-config.xml 文件的位置
+打开 /work/tomcat/bin/catalina.sh,添加这么一行（粗体部分)
+<pre>"$_RUNJAVA" "$LOGGING_CONFIG" $JAVA_OPTS $CATALINA_OPTS
+  -Djava.endorsed.dirs="$JAVA_ENDORSED_DIRS" -classpath "$CLASSPATH"
+  -Dcatalina.base="$CATALINA_BASE"
+  -Dcatalina.home="$CATALINA_HOME" <strong>
+  -Ddashboard.config=/work/cruisecontrol/dashboard-config.xml
+ </strong> -Djava.io.tmpdir="$CATALINA_TMPDIR"
+  org.apache.catalina.startup.Bootstrap "$@" start
+  &gt;&gt; "$CATALINA_BASE"/logs/catalina.out 2&gt;&amp;1 &amp;</pre>
+还有一种最简单的方法，直接将 dashboard-config.xml 复制到 /work/tomcat/bin/ 目录下
+6、该步骤可选。既然不打算用内置的Jetty容器，我们就要手动去掉该配置。
+打开 /work/cruisecontrol/cruisecontrol.sh 文件，将 "-webport" 参数以及其值去掉
+
+到现在为止，我们已经成功完成了/dashboard Web 控制台的移植工作。

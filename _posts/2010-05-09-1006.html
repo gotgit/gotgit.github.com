@@ -1,0 +1,62 @@
+---
+layout: post
+title: "从 CoSign 看开源软件本地化（7）"
+---
+
+这应该是计划中 CoSign 本地化系列博文的最后一篇。之所以，要以 CoSign 为题，写一下开源软件本地化，是因为：其一、在我们经历的众多开源产品的定制中，CoSign 本地化最纠结，我们投入的精力最多。在之前的几篇博文中应该已经看出来了。其二、我们在 CoSign 本地化时采用了作为常见的 GetText 方式，非常典型。其三、使用模板以及模板本地化也是在 MVC 框架流行的今天最为重要的页面本地化方式之一，当然也要承认 CoSign 的模板实际上只是字符串替换，没有一些复杂模板中才有的编程能力。
+
+作为这个系列博文的最后一篇，介绍一下 CoSign 的服务页面的本地化过程变迁历史，便于单点登录系统维护者理解群英汇单点登录平台和 CoSign 的异同。
+
+<span id="more-1006"></span>CoSign 的原设计中，有一个服务页面的概念。就是：当认证成功后，单点登录会重定向到 /services 页面，管理员可以设定这个重定向 URL 地址。
+<pre>set cosignserviceurl  /services</pre>
+这个页面为登录者提供一个访问快捷，用户通过该页面了解到有哪些服务已经整合到单点登录平台中，点击相应链接，便可以直接登录相关应用。
+
+但是 CoSign 本身并未实现 /services 服务，需要 Web 管理员自己写一个 services 页面。
+<h2>PHP 实现的 services 页面</h2>
+在最初的群英汇单点登录平台中，使用 PHP 写了一个 services 页面，在这个页面中，包含：
+<ul>
+	<li>欢迎信息</li>
+	<li>用户修改口令的快捷</li>
+	<li>退出登录的快捷</li>
+	<li>和单点登录平台整合的服务列表：包括 wiki, blog, mailman, subversion, redmine, testlink, 等等</li>
+</ul>
+<h2>用模板重新实现 services 页面</h2>
+使用 PHP 实现 services 页面的缺点：
+<ul>
+	<li>需要独立的配置文件：配置 LDAP 相关信息，以便从 LDAP 获取登录用户的相关信息</li>
+	<li>界面不能和单点认证的模板同步。即单点登录可能包括多套界面模板，而 PHP 实现的服务界面，缺省只有一套固定界面</li>
+	<li>配置复杂。需要将 services 作为一个单点登录应用来配置，和单点认证系统整合</li>
+</ul>
+在博文<a href="/2010/05/01/1005.html">《从 CoSign 看开源软件本地化（6）》</a>中完成了对静态页面模板化后，我们想到了，为什么不对 PHP 的动态脚本也进行本地化呢？然而，动态页面的模板化，并非静态页面模板化那么简单：
+<ul>
+	<li>静态页面中，无非是不同情况下显示不同的错误信息而已。</li>
+	<li>动态页面，即 services 页面，按照我们原来 PHP 脚本的设计，需要显示登录用户的姓名，邮件地址等信息，而这些信息在 CoSign 原有的设计中是无法获取的，只能通过 LDAP 等用户认证数据库中获取</li>
+</ul>
+那么如何获取用户信息呢？
+<ul>
+	<li>直接从用户认证数据库中获取的方法并不恰当，因为 CoSign 单点登录的设计并不对用户认证数据源做限制。</li>
+	<li>用户认证源是 LDAP 还是关系型数据库，并不是 CoSign 本身所关心的，而是CoSign外挂的认证 factor 所依赖的。</li>
+	<li>因此能够通过 CoSign 的 factor 获取认证用户的相关信息是更合理的设计。</li>
+</ul>
+于是，我们首先实现了认证因子的反射功能，即认证成功后，CoSign 可以用另外的格式调用认证因子，获取认证用户的信息。
+
+例如按照下面的方法执行认证因子：
+<pre>$ <strong>/opt/cosign/factor/ldap2 --query jiangxin ldap2
+</strong>mail:jiangxin@moon.ossxp.com
+givenname:鑫
+cn:蒋鑫
+uid:jiangxin
+sn:蒋
+name:蒋鑫</pre>
+实际上，认证因子反射功能，我们是在为 CoSign 增加用邮件地址登录的功能时就加入的，在这里发现了可以稍加改进而重用。
+
+关于认证因子反射，也许会在以后专题介绍。这里不在详述。
+
+最终的实现：
+<ul>
+	<li>如果管理员没有在 CoSign 中定义 cosignserviceurl，则登录后，读取模板文件 "<em>/opt/cosign/lib/templates-local/services.html</em>"</li>
+	<li>该模板文件中， $N, $M 等宏将用用户的姓名，邮件地址等内容填充</li>
+	<li>每套 CoSign 模板中，都加入一个 services.html 模板文件，这样就解决了 services 页面和模板风格匹配的问题</li>
+	<li>通过认证因子反射获取用户信息，我们就无须为 services 页面进行单独的配置</li>
+	<li>services 页面本身作为了 CoSign 核心的一部分，而不再需要作为外部应用进行复杂的整合</li>
+</ul>

@@ -1,0 +1,114 @@
+---
+layout: post
+title: "Git 服务器软件 gitosis 的改进"
+---
+
+群英汇内部的 Git 服务器使用 gitosis 软件架设，能够实现针对版本库的授权，以及基于公钥的安全的无口令的版本库访问。
+
+在 Gitosis 的使用过程中，我们根据需要对其进行了改进，以满足我们对授权和版本库管理上的需求：
+<ul>
+	<li>增加了<strong>管理员</strong>角色，只有管理员才能够创建版本库
+<ul>
+	<li>原来的实现只有 readonly 和 writable 两种权限，其中 writable 可以创建版本库。</li>
+	<li>我们权限分为三级：read/write/admin。拥有管理员(admin)权限，可以创建版本库，并自动具有读(read)写(write)权限</li>
+	<li>拥有写(write)权限也包含读(read)的权限</li>
+	<li>如果没有设置权限，禁止范围版本库</li>
+</ul>
+</li>
+	<li>版本库匹配支持<strong>通配符</strong>，这样在授权的时候，可以用通配符为某个目录下的所有代码库授权
+<ul>
+	<li>原有的实现，在配置文件中必须写入完整的版本库名称（路径）</li>
+	<li>当我们增加了管理员的概念后，增加通配符，就可以为特定的命名空间进行授权，而无须因为某个管理员要建库，还要修改授权文件</li>
+	<li>有了通配符后，读写权限的设置也更为简单。</li>
+	<li>通配符支持？，* 和 **。问号匹配一个字符，* 匹配任意字符（路径/字符除外），两个星号匹配包括路径分割符在内所有字符</li>
+</ul>
+</li>
+	<li>增加了版本库<strong>路径映射</strong>的可用性。版本库路径映射在代码库重构中非常有用
+<ul>
+	<li>增加了正则表达式匹配路径和替换映射</li>
+	<li>在权限检查的路径命中之后也检查路径映射，可以减轻错误配置的可能性</li>
+</ul>
+</li>
+	<li><strong>创建版本库</strong>只有写操作才进行，读操作不创建版本库
+<ul>
+	<li>原来的实现支持即时创建版本库，在读取一个不存在的版本库时自动创建</li>
+	<li>读操作创建库，这会导致很多因为版本库克隆时路径输入错误导致错误建库</li>
+	<li>我们更改后，只允许在写版本库时并且具有 admin 权限才初始化新的代码库</li>
+</ul>
+</li>
+	<li>版本库名称中允许出现<strong>中文（UTF-8）</strong>
+<ul>
+	<li>基本上版本库命名都用英文字符，不过有个客户提出来支持中文版本库，我们就添加了这个支持</li>
+</ul>
+</li>
+</ul>
+下面，拿一个配置文件来说明：
+
+<span id="more-1521"></span>
+<pre>  1 [gitosis]
+  2 repositories = /gitroot
+  3 #loglevel=DEBUG
+  4 gitweb = yes
+  5 daemon = no</pre>
+<ul>
+	<li>[gitosis] 小节配置的是全局参数，可以在各个版本库自定义的小节中对其覆盖</li>
+	<li>第二行设置版本库缺省的根目录，git 版本库一般都会建在这个目录的下面</li>
+	<li>gitweb 和 daemon 用于设置和 gitweb 和 gitdaemon 的整合</li>
+</ul>
+<pre>  7 [group gitosis-admin]
+  8 write = gitosis-admin
+  9 members = jiangxin@ossxp jiangxin@bj wangsheng
+ 10 repositories = /home/git</pre>
+<ul>
+	<li>所有以 group 开始的小节，都是用于设置版本库授权的</li>
+	<li>第9行，设置了用户组，这里包含三个用户，分别对应于三个公钥文件。如 jiangxin@ossxp 对应于  keydir 目录下的 jiangxin@ossxp.pub 文件。当用户以该公钥访问 ssh 服务器时，在服务器看来就是 jiangxin@ossxp 用户。</li>
+	<li>第8行，设置写权限。等号左边的键 即 write 代表写权限，等号右边的是版本库列表，用空格分隔，这里只指定了一个版本库 gitosis-admin</li>
+	<li>第10行设定了版本库的根。所以这个小节授权的版本库的实际路径为 /home/git/gitosis-admin</li>
+</ul>
+<pre> 19 [group ossxp-admin]
+ 20 members = jiangxin@ossxp wangsheng
+ 21 admin = ossxp/**
+ 22 map admin redmine-* = ossxp/redmine/\1
+ 23 map admin ossxp/redmine-* = ossxp/(redmine-.*):ossxp/redmine/\1
+ 24 map admin ossxp/testlink-* = ossxp/(testlink-.*):ossxp/testlink/\1</pre>
+<ul>
+	<li>这个小节设置的是我们公司代码库管理员</li>
+	<li>第20行，设定了两个成员属于用户组 ossxp-admin</li>
+	<li>第21行，设定该用户组可以在 ossxp/ 目录下创建任意版本库</li>
+	<li>第22行设置重定向，即访问 redmine-0.8.x.git 代码库将重定向到 ossxp/remdine/redmine-0.8.x.git</li>
+	<li>第23和24行采用正则表达式来设置路径映射。例如：访问 ossxp/redmine-1.x.x.git 将重定向到 ossxp/redmine/redmine-1.x.x.git</li>
+</ul>
+<pre> 50 [group testlink]
+ 51 members = @admin leiww wangsheng cuirui
+ 52 write = ossxp/testlink-*
+ 53 map write testlink-* = ossxp/testlink/\1
+ 54 map write ossxp/testlink-* = ossxp/(testlink-.*):ossxp/testlink/\1</pre>
+<ul>
+	<li>本小节设置某个项目（testlink）的授权</li>
+	<li>第51行指定的用户列表中的用户，能够读/写 ossxp/testlink-* 版本库</li>
+	<li>因为历史关系，加上了第53,54行，以便原来的地址仍然可用</li>
+</ul>
+<pre> 86 [group ossxp]
+ 87 members = @all
+ 88 read = ossxp/**</pre>
+<ul>
+	<li>@all是一个特殊的组，所有用户都属于该用户组</li>
+	<li>这里可以看出“群英汇”公司内部，源代码开放</li>
+</ul>
+<pre> 94 [group users]
+ 95 members = @all
+ 96 read = users/**</pre>
+<ul>
+	<li>在 users 目录下，每个人都有自己的主目录，在下面保存自己的代码库</li>
+	<li>这里的含义是，每个人都可以读取其他人的代码库，真的是开放的了得。</li>
+</ul>
+<pre>106 [group leiww]
+107 members = leiww
+108 admin = users/leiww** users/leiweiwei**</pre>
+<ul>
+	<li>当然只有用户自己才能在自己的名下创建代码库</li>
+	<li>即自己是自己主目录下代码库的管理员</li>
+</ul>
+您可能想要了解详细的 Gitosis 部署，其实参考 gitosis 下的 README，已经写的很详细了。参见： <a href="http://github.com/ossxp-com/gitosis">http://github.com/ossxp-com/gitosis</a>
+
+关于未来版本的设想：还有一个叫做 gitolite 的项目更为强大，可以对 git 分支进行授权，用 PERL 语言开发。有时间研究一下，把相关功能 port 到 python 实现的 gitosis 中。

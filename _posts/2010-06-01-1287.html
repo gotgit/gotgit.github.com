@@ -1,0 +1,148 @@
+---
+layout: post
+title: "Pylons nightmare ends?"
+---
+
+Pylons 是 Python 的 MVC 框架之一，在 08 年写 SVN 管理后台 —— pySvnManager (<a href="http://sourceforge.net/projects/pysvnmanager/">sourceforge</a>, <a href="http://www.ossxp.com/trac/pysvnmanager ">ossxp trac</a>) 的时候，选择了 pylons。当时有两个框架可以选择： Pylons 和 Django。
+
+选择 Pylons 没有什么特别的原因，只是先看了 Pylons，觉得和 ROR 靠的很近，使用习惯和非常相近，再加上看了些老外写的 Pylons 和 Django 的对比文章。于是就从 pylons 入手了。“噩梦”从此开始。
+
+<span id="more-1287"></span>Pylons 相比 Django，依赖很多第三方的 python 库，如 Paste, Routes, WebHelpers, WebOb, WebTest, ... 第三方 python 升级造成的兼容性问题，再加上 Pylons 本身仍在完善之中，于是 pySvnManager 一而再，再而三的陷入无法工作的状态。当 pylons 从 0.9.6 升级为 0.9.7 之后， pySvnManager 为支持新的 Pylons 框架，代码从 0.2 版升级到 0.3 版本。一年多过去了，遇到无数因为第三方 Python 库升级造成无法运行的问题，都被迫采用降低第三方 Python 库版本的方式进行安装。直到最近，终于下定决心彻底解决 pySvnManager 和新版本 Pylons 及其依赖库的兼容性问题。
+
+被 Pylons 及其依赖库折磨，一度让我有改换门庭的打算：迁移到 Django 框架，或者迁移到 ROR 框架。最终还是选择了更理性的办法，从解决 Pylons 兼容性入手。因为：1. pySvnManager 如果选用别的框架，项目名称可能也要变，也许变成了 rbSvnManager？ 2. 公司长远打算重写一个新的版本控制管理平台，没有必要在这上面浪费时间。
+
+经过两天的尝试，终于完成 pySvnManager 代码升级，可以运行在 Pylons 1.0 以及相关 python 包的最新版本了。
+
+下面介绍 Pylons 0.9.x 到 Pylons 1.0 的 Web 应用迁移注意事项。
+<h2>c=&gt;tmpl_context, g=&gt;app_globals</h2>
+Pylons 0.9.x 中两个最常用的变量分别用一个字母标识。 g 代表全局对象，c 则代表控制器传递给模板的对象。
+
+在 Pylons 1.0 中，g 需要替换做 app_globals，c 要替换做 tmpl_context。
+
+如果觉得 c,g 用起来更方便，也可以在代码中用如下语句建立别名
+<pre>from pylons import app_globals as g
+from pylons import tmpl_context as c</pre>
+但是，这不是万能的，在单元测试框架的代码中，TestResponse 对象包含的 tmpl_context 就不能用 c 来代替。因此建议彻底替换代码中的 c 和 g 对象名称。
+<h2>redirect_to =&gt; redirect</h2>
+在 Pylons 0.9.x 代码中，网页重定向用的是 redirect_to 语句。在 Pylons 1.0 中要用 redirect 替换，同时注意修改相应的导入语法。
+
+将
+<pre>from pylons.controllers.util import redirect_to
+或者
+form routes import redirect_to</pre>
+替换为
+<pre>from pylons.controllers.util import redirect</pre>
+<h2>url_for =&gt; url</h2>
+构造 url 地址语法需要由 pylons 0.9.x 的 url_for 换做 url。并注意对于非命名映射地址，至少需要提供 controller 和 action 参数。pylons 0.9.x 在模板中的 url_for 往往可以省略的 controller 参数，在 pylons 1.0 中不能省略。
+
+例如：下列 0.9.x 的调用
+<pre>return redirect_to(h.url_for(controller='security', action='failed'))
+redirect_to(h.url_for(controller='check'))
+h.url_for(action='view', id=logs[i].get('revision','')), ...</pre>
+替换为 pylons 1.0 的调用
+<pre>return redirect(url(controller='security', action='failed'))
+redirect(url(controller='check',action='index'))
+url(controller='logs', action='view', id=logs[i].get('revision','')), ...</pre>
+<h2>stylesheet_link_tag =&gt; stylesheet_link</h2>
+旧版本 WebHelpers 的仿照 ROR 实现的 rails 类在新的 WebHelpers 被取消了，包含 stylesheet 文件的调用需要改写。
+
+原语法
+<pre>from webhelpers.rails.asset_tag import stylesheet_link_tag
+${h.stylesheet_link_tag('/css/common', media='all')}</pre>
+新语法
+<pre>from webhelpers.html.tags import stylesheet_link
+${h.stylesheet_link(h.url('/css/common.css'), media='all')}</pre>
+<h2>javascript_include_tag =&gt; javascript_link</h2>
+同样由于 WebHelpers.rails 的取消，原来一条 javascript_include_tag 就可以包含所有相关 javascript 脚本的语句要用多条的 javascript_link 替代。
+
+原语法
+<pre>from webhelpers.rails.asset_tag import javascript_include_tag
+${h.javascript_include_tag(builtins=True)</pre>
+新语法
+<pre>from webhelpers.html.tags import javascript_link
+${h.javascript_link(h.url('/javascripts/prototype.js'))}
+${h.javascript_link(h.url('/javascripts/scriptaculous.js'))}
+${h.javascript_link(h.url('/javascripts/unittest.js'))}</pre>
+<h2>scriptaculous 内置支持被取消</h2>
+WebHelpers 旧版本仿照 ROR，使用 scriptaculous 实现页面特效。但是新版本 WebHelpers 不再内置 Javascript 框架和特效支持，而是将选择权交给用户。由用户决定是使用 jQuery, Prototype, jQueryUI, scriptaculous 或者 ExtJs。
+
+模板中原语法
+<pre>complete='hideNoticesPopup();'+h.visual_effect("Highlight", "acl_msg", duration=1),</pre>
+直接调用 scriptaculous JavaScript 函数：
+<pre>onComplete:function(request){hideNoticesPopup();new Effect.Highlight('acl_msg',{duration:1});},</pre>
+<h2>form_remote_tag 被取消</h2>
+WebHelpers 中仿照 rails 的 form_remote_tag 也不复存在。直接写 HTML 吧，虽然麻烦些
+
+模板中原语法
+<pre>&lt;%
+    context.write(
+        h.form_remote_tag(
+            html={'id':'main_form'},
+            url=h.url_for(action='create_submit'),
+            update="message",
+            method='post', before='showNoticesPopup()',
+            complete='hideNoticesPopup();switch_message_box();',
+        )
+    )
+%&gt;</pre>
+模板中直接写 Form 元素进行替换：
+<pre>&lt;form action="${h.url(controller="repos", action='create_submit')}"
+  id="main_form" method="POST"
+  onsubmit="showNoticesPopup();
+            new Ajax.Updater('message',
+                             '${h.url(controller="repos", action='create_submit')}',
+                             {asynchronous:true, evalScripts:true, method:'post',
+                              onComplete:function(request){hideNoticesPopup();switch_message_box();},
+                              parameters:Form.serialize(this)});
+           return false;"&gt;</pre>
+<h2>传递给模板的外部变量直接显示要先转码</h2>
+Pylons 旧版本传递给模板的 c 变量可以包含 HTML 代码，并可以不经过处理直接显示在模板中：
+<pre>&lt;div id="logs"&gt;
+${c.display}
+&lt;/div&gt;</pre>
+新版本 Pylons 会对变量中 HTML 标签进行转换，要直接显示的写法如下
+<pre>&lt;div id="logs"&gt;
+&lt;%
+  context.write(tmpl_context.display);
+%&gt;
+&lt;/div&gt;</pre>
+<h2>pylons.config 初始化时机</h2>
+websetup.py 中原来的 load_environment 加载配置环境的语句，在 Pylons 1.0 被修改成了：
+<pre>def setup_app(command, conf, vars):
+    """Place any commands to setup pysvnmanager here"""
+    # Don't reload the app if it was loaded under the testing environment
+    if not pylons.test.pylonsapp:
+        load_environment(conf.global_conf, conf.local_conf)</pre>
+什么概念？就是在Pylons 1.0 的 websetup.py 中用到 pylons.config， 会面临 config 未初始化的困境。如果需要可以从 pylons.test.pylonsapp 中获取。
+
+同样在代码中用到  pylons.config 也会由于在测试环境中未初始化而必须使用 pylons.test.pylonsapp 的问题。太怪异了。
+<h2>WebTest 升级导致测试用例失效</h2>
+测试框架中获取页面的 webtest.TestResponse 对象数据结构改变
+<ul>
+	<li>status 属性值由 int 改为字符串
+原语法
+<pre>res = self.app.get(url_for(controller='authz'))
+assert res.status == 302, res.status</pre>
+要改为新语法：
+<pre>res = self.app.get(url(controller='authz', action='index'))
+assert res.status == "302 Found", res.status</pre>
+</li>
+	<li>header 属性改名为 headers， header['location'] 可以直接用 location 属性
+原语法
+<pre>assert res.header('location').endswith('/login'), res.header('location')</pre>
+新语法
+<pre>assert res.location.endswith('/login'), res.location</pre>
+</li>
+	<li>控制器传参 c 改名为 tmpl_context
+原语法
+<pre>res = self.app.get(url(controller='check', action='index'))
+assert res.c.reposlist == [u'/', u'document', u'project1', u'project2', u'repos1', u'repos2', u'repos3'], res.c.reposlist</pre>
+新语法
+<pre>res = self.app.get(url(controller='check', action='index'))
+assert res.tmpl_context.reposlist == [u'/', u'document', u'project1', u'project2', u'repos1', u'repos2', u'repos3'], res.tmpl_context.reposlist</pre>
+</li>
+</ul>
+<h2>使用 Proxy-prefix 与 Apache 整合</h2>
+遇到一个问题，已经提交到 Pylons 网站，参见： “<a href="http://pylonshq.com/project/pylonshq/ticket/692">When app filter with a proxy-prefix, url generated by pylons.url of Pylons 1.0 does NOT has the prefix</a>”
+
+以上是向 Pylons 1.0 迁移的主要注意事项。既然 Pylons 已经升级为 1.0 版本，相信框架的稳定性将会得到改善。梦醒了。 :yawn:

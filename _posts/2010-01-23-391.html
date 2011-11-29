@@ -1,0 +1,51 @@
+---
+layout: post
+title: "剥离CruiseControl dashboard控制台到Debian安装的tomcat6上"
+---
+
+在前篇日志 <a href="/2010/01/14/199.html" target="_blank">如何剥离CruiseControl内置的Web控制台</a> 中，我已经介绍过怎么剥离CruiseControl内置的控制台dashboard到tomcat6容器中。但那篇日志中介绍的是用下载压缩包方式安装的tomcat6，在这我向大家介绍一下如何用Debian包安装的tomcat6部署dashbaord控制台。
+<h2>为什么这两种安装tomcat6的方法会给web部署带来异同呢？</h2>
+<span id="more-391"></span>
+
+原因是，用Debian包安装的tomcat6默认启动了tomcat6 的SecurityManager，这时对于部署在它上面的应用代码进行权限管理，当你的web应用在/WEB-INF/lib或者/WEB-INF/classes目录下加入了第三方或个人的jar包/类库，但没有在/etc/tomcat6/policy.d目录下的安全策略文件中加入访问权限控制，那么你的web应用就不能正常启动，会出现一些意想不到的错误。可参见我的另一篇日志 <a href="/2010/01/23/385.html">Dashboard不能运行在Debian包安装的Tomcat6上？</a>
+而用解压包安装的tomcat6默认情况下是不启用SecurityManager，比如你运行
+<pre>CATALIAN_ROOT/bin$ ./startup.sh</pre>
+就不会启用SecurityManager。如果你想启用SecurityManager，可运行
+<pre>$CATALINA_HOME/bin/catalina.sh start -security(Unix)
+CATALINA_HOME%\bin\catalina start -security      (Windows)</pre>
+<h2>下面就说下用Debian包安装的tomcat6部署dashbaord控制台的步骤:</h2>
+1、部署dashbaord web应用
+将dashbaord项目拷到 /var/lib/tomcat6/webapps目录下
+
+2、编辑 /etc/tomcat6/policy.d/50local.policy 安全策略文件，加入以下几行
+<pre>// The permissions granted to the context WEB-INF/classes directory
+grant codeBase "file:${catalina.base}/webapps/dashboard/WEB-INF/classes/-" {
+   permission java.security.AllPermission;
+};
+
+// The permissions granted to the context WEB-INF/lib directory
+grant codeBase "file:${catalina.base}/webapps/dashboard/WEB-INF/lib/-" {
+   permission java.security.AllPermission;
+};</pre>
+3、修改 dashboard-config.xml配置文件，下面是修改后的文件(粗体部分是修改的内容)
+<pre>&lt;dashboard&gt;
+ &lt;buildloop
+   logsdir="<strong>/PATH/TO/CC/logs</strong>"
+   artifactsdir="<strong>/PATH/TO/CC/artifacts</strong>"/&gt;
+ &lt;features allowforcebuild="<strong>true</strong>"/&gt;
+ ......
+&lt;/dashboard&gt;</pre>
+4、修改CruiseControl构建循环使用的 config.xml 配置文件。(粗体部分是增加的内容)
+<pre>&lt;cruisecontrol&gt;
+ <strong>&lt;dashboard url="http://localhost:8080/dashboard" postinterval="5"/&gt;</strong>
+ .......
+&lt;/cruisecontrol&gt;</pre>
+5、告诉 tomcat dashboard-config.xml 文件的位置，编辑/etc/init.d/tomcat6 脚本，加入以下内容（粗体部分是加入的)
+<pre>JAVA_OPTS="$JAVA_OPTS -Djava.endorsed.dirs=$CATALINA_HOME/endorsed -Dcatalina.base=$CATALINA_BASE -Dcatalina.home=$CATALINA_HOME <strong>-Ddashboard.config=/path/to/dashboard-config.xml</strong> -Djava.io.tmpdir=$JVM_TMP"</pre>
+6、重启tomcat6就OK了
+<pre>sudo /etc/init.d/tomcat6 restart</pre>
+<strong>如果你不想tomcat6启用SecurityManager</strong>，可修改/etc/init.d/tomcat6( "－“代表删除,"+"代表加入")
+<pre># Use the Java security manager? (yes/no)
+-  TOMCAT6_SECURITY=yes
++ TOMCAT6_SECURITY=no</pre>
+这时就不用配置安全策略了。

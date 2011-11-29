@@ -1,0 +1,58 @@
+---
+layout: post
+title: "Subversion 管理后台升级"
+---
+
+Subversion 管理后台最近版本升级解决两个主要问题：Subversion版本库同步的同步锁清除，以及 IE8兼容性问题。
+<h3>Subversion 版本库同步时同步锁的清除</h3>
+Subversion版本库容灾备份，主版本库提交时，会临时在镜像版本库的 rev0 的版本属性中添加 svn:sync-lock 和 svn:sync-currently-copying 两个临时属性作为同步锁，避免针对一个版本库同时有多个同步进程。这么设计是因为 SVN 镜像可以是远程调用。
+
+在特定情况下，会造成死锁：
+<ul>
+	<li>同步开始后，突然的网络中断，导致同步失败，而同步的目标版本库（镜像版本库）的 rev0的锁尚未删除。</li>
+	<li>再次同步时，由于 rev0 的版本属性中的锁的存在，导致同步失败。</li>
+	<li>Subversion 的主从备份失效。</li>
+</ul>
+死锁发生后，客户端的感受
+<ul>
+	<li>客户端提交会发现速度很慢，会被阻塞10秒钟以上</li>
+	<li>实际上，提交已经完成，在进行主从同步时被阻塞</li>
+	<li>Subversion的同步一旦发现被同步锁阻塞时，会持续尝试10次，每次间隔1秒钟</li>
+</ul>
+最新的同步机制，能够自动判断锁的有效性，避免主从同步失效
+<ul>
+	<li>在同步发起时，会记录同步进程的 PID 到一个临时文件</li>
+	<li>当发现镜像中存在锁的时候，会检测本地锁文件，以及是否有对应的同步进程</li>
+	<li>如果发现锁是僵尸锁，则删除镜像版本库rev0 中的僵尸锁，继续执行版本库同步</li>
+	<li>如果同步过程有错误发生时，会通过钩子脚本（post-commit 或 post-revprop-change）将同步的错误会直接通过用户提交通知界面进行显示。</li>
+	<li>管理员也可以设置 debug 诊断标志，当 debug 打开，同步成功的信息也会以“错误通知”的方式显示在提交后的通知界面中。（同步成功的消息显示为控制台错误，这是 Subversion 的 post-commit 等脚本的设计机制决定的）<a href="/wpfiles/2010/09/svnsync.png"><img class="aligncenter size-medium wp-image-1978" title="svnsync" src="/wpfiles/2010/09/svnsync-300x210.png" alt="" width="300" height="210" /></a></li>
+</ul>
+同时，还为 subversion 钩子提供手工版本库同步的接口：
+
+（其中 /opt/svn/svnroot 是版本库的根目录）
+<ul>
+	<li>显示版本库的状态：
+<pre>$ sudo python /etc/subversion/hooks/scripts/svn_mirror.py  /opt/svn/svnroot/</pre>
+</li>
+	<li>手工对配置了容灾的版本库进行同步：
+<pre>$ sudo python /etc/subversion/hooks/scripts/svn_mirror.py  sync /opt/svn/svnroot/</pre>
+</li>
+</ul>
+<h3>IE8 兼容性问题</h3>
+部分界面在 IE8 不能正常显示。当打开 IE8 浏览器的“兼容视图”，则能够正常显示。
+
+最终定位到是元素显隐，IE8的支持和以前不同。原来的实现是通过设置 element.style.visibility 为 'hidden' 或者 'visible' 实现 DIV 的消隐。当对 div 重复进行隐藏后，再设置显示时， DIV 中的表单域却不能显示出来！
+
+通过 google 查询了半天，也对子元素的 style.visibility 设置为 inherit 也没有什么改观，对IE 恨的牙痒痒的。IE 的调试工具也很匮乏，FireBug lite 让 Firebug 可以在 IE 里运行，但毕竟是 CSS 的问题，也帮不了大忙。
+
+忽的灵机一动，既然框架中已经用了 prototype, 为什么不采用 prototype 本身已经封装好的元素消隐呢，于是利用 Prototype 重写 Javascript，解决这个棘手的问题。
+
+主要的 Javascript 修改，类似于：
+<pre>-    $('path_list_box').style.visibility = 'hidden';
+-    $('path_list_box').style.position = 'absolute';
++    $('path_list_box').hide();
+
+-    $('path_input_box').style.visibility = 'visible';
+-    $('path_input_box').style.position = 'relative';
++    $('path_input_box').show();
+</pre>

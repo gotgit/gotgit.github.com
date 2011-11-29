@@ -1,0 +1,100 @@
+---
+layout: post
+title: "提高Nutch局域网抓取的速度"
+---
+
+<div id="nutch" class="document">
+
+如果想要提高Nutch局域网抓取的速度，大家第一个想到肯定是 <cite>-threads</cite> .但是那是错误的,如果只是单单增大线程数，那根本于事无补。
+
+<span id="more-911"></span>
+
+通过下面这组测试，我们看看 <cite>-threads</cite> 是否起作用。首先在本地apache2下建立两个网站，写一个简单的Rakefile来帮助完成测试。设定 <cite>depth=3</cite>,下面是Rakefile的内容:
+<pre class="literal-block">threads=1
+depth=3
+task:default =&gt; [:crawl]
+task:crawl =&gt; [:clean] do
+  t=Time.now
+  sh "bin/nutch crawl myurl -dir crawl -depth #{depth} -threads #{threads}"
+  puts Time.now-t
+end
+task:clean do
+  sh "rm -rf crawl"
+end
+</pre>
+threads的值分别为1，5，10 结果如下表:
+<table class="docutils" border="1"><colgroup> <col width="40%"></col> <col width="60%"></col> </colgroup>
+<thead>
+<tr>
+<th class="head">线程数</th>
+<th class="head">时间</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>891.001462</td>
+</tr>
+<tr>
+<td>5</td>
+<td>889.560529</td>
+</tr>
+<tr>
+<td>10</td>
+<td>878.812949</td>
+</tr>
+</tbody>
+</table>
+从上面表格可以看出，这根本一点作用都没有。第一种提高速度的方法就是减少抓取之间的延迟时间，我们可以通过修改conf/nutch-default.xml中 <cite>fetcher.server.delay</cite> 来减少延迟时间。
+<blockquote><dl class="docutils"> <dt>fetcher.server.delay</dt> <dd>抓取器在同一服务器的逐次请求所延迟的秒数</dd> </dl></blockquote>
+我们试试减小它的值为1.0(原先的值为5.0)。经过测试，结果如下:
+<table class="docutils" border="1"><colgroup> <col width="38%"></col> <col width="62%"></col> </colgroup>
+<thead>
+<tr>
+<th class="head">线程数</th>
+<th class="head">时间</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>482.807096</td>
+</tr>
+<tr>
+<td>5</td>
+<td>488.666853</td>
+</tr>
+<tr>
+<td>10</td>
+<td>486.67904</td>
+</tr>
+</tbody>
+</table>
+显然速度提高了，但是线程数还是起没有作用，原因就在于conf/nutch-default.xml中 <cite>fetcher.threads.per.host</cite> 配置为1。那么第二种方法就是同一时刻允许多个线程访问同一主机。
+<blockquote><dl class="docutils"> <dt>fetcher.threads.per.host</dt> <dd>这个值允许同一时刻访问一台主机的最大线程数</dd> </dl></blockquote>
+如果这个配置为1，同一时刻只允许一个线程，启动多少的线程都没用。下面我们增大这个配置为5,测试结果如下:
+<table class="docutils" border="1"><colgroup> <col width="38%"></col> <col width="62%"></col> </colgroup>
+<thead>
+<tr>
+<th class="head">线程数</th>
+<th class="head">时间</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>484.754918</td>
+</tr>
+<tr>
+<td>5</td>
+<td>384.201041</td>
+</tr>
+<tr>
+<td>10</td>
+<td>332.934009</td>
+</tr>
+</tbody>
+</table>
+很明显随着线程数的增大，抓取速度也在增大。如果还想再提高速度的话，可以减小抓取之间的延迟时间。不过不是修改 <cite>fetcher.server.delay</cite> ,而是修改 <cite>fetcher.server.min.delay</cite> 。这个配置是设定抓取器在同一服务器的逐次请求所延迟最小的秒数，这个值仅当 <cite>fetcher.threads.per.host</cite> 属性值比1大时适用。
+
+</div>

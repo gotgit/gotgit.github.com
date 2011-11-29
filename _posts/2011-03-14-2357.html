@@ -1,0 +1,171 @@
+---
+layout: post
+title: "搭建本地pypi服务器"
+---
+
+<h1><span style="letter-spacing: normal; line-height: 24px; font-size: 13.3333px;">Python中的easy_install很好很强大，后起之秀pip更是青出于蓝。有人说python中的easy_install就像ruby中的gem，perl中的cpan，我一直使用Ubuntu，因此想到的类比是debian系列中的apt。easy_install如此常见以致有不少同学以为easy_install是linux的一个命令。强大的软件包管理工具必然有一个不弱小的软件包仓库。Python的官方软件包仓库就是大名鼎鼎的PyPI。通常情况下我们都是使用easy_install或pip从PyPI仓库下载软件包并安装，很方便。但如果网络状况不好或没有网络的话这就很麻烦。幸好，Python提供了Pypi服务器软件，使得可以在本地搭建一个pypi镜像服务器，然后就可以使用自己的镜像服务器来下载安装了。<span id="more-2357"></span>
+</span></h1>
+Pypi服务器软件有好几个，比如PEP，yopypi，z3c.pypimirror等，还有一种是通过代理来安装的，叫做collective.eggproxy。这其中最常见的就是z3c.pypimirror了。下面讲讲如何使用pypimiror搭建PyPI镜像服务器。
+<div id="pypimirror">
+<h1>安装pypimirror</h1>
+首先安装pypimirror。使用easy_install或pip安装：
+<pre>$ sudo easy_install z3c.pypimirror
+$ sudo pip install z3c.pypimirror</pre>
+</div>
+<div id="id1">
+<h1>配置并下载软件包</h1>
+<dl> <dt>安装完毕就要填写配置文件，需要填写的参数主要有：</dt> <dd>
+<ul>
+	<li>mirror_file_path 下载的包的存放路径</li>
+	<li>base_url 服务器地址，这个注意要和Apache上的一致！</li>
+	<li>create_indexes 布尔类型，用来在下载的每个包目录下创建索引</li>
+	<li>package_matches 这个是用户自定义的，PyPI包无数，使用正则表达式有选择地下载，要不然硬盘要爆了</li>
+	<li>lock_file_name 设置运行时锁状态文件存放位置</li>
+	<li>log_filename 设置日志文件存放位置</li>
+</ul>
+填写完毕以后，运行pypimirror来下载软件包，配置文件名可任意，通常是pypimirror.cfg：
+<pre>$ pypimirror -c -v -I pypimirror.cfg</pre>
+</dd> <dt>参数说明：</dt> <dd>
+<ul>
+	<li>-c 在终端显示日志</li>
+	<li>-v 冗余模式显示</li>
+	<li>-I 初始化PyPi镜像</li>
+</ul>
+</dd> </dl>接下来可以活动活动，因为这个要运行很长时间。
+
+</div>
+<div id="id2">
+<h1>生成索引文件</h1>
+经过漫长的等待，所有软件下载完毕，然后需要一个索引文件，这个索引文件不同于上面的包目录下的索引文件，而是所有包的索引。
+<pre>$ pypimirror -c -v -i -U pypimirror.cfg</pre>
+<dl> <dt>参数说明：</dt> <dd>
+<ul>
+	<li>-i 创建索引</li>
+	<li>-U 更新镜像。</li>
+</ul>
+为什么要使用-U参数呢？因为在创建索引时必须选择使用-I或者-U。-I用来初始化，-U用来更新。
+
+</dd> </dl></div>
+<div id="apache">
+<h1>整合Apache</h1>
+假设前面设置的下载文件存放路径为/data/pypi/files，下面把它链接到/var/www/目录下：
+<pre>$ ln -s /data/pypi/files /var/www/pypi</pre>
+重启Apache，访问http://localhost/pypi/ 应该就可以了。这是最简单的配置，这时的base_url就是 <a href="http://localhost/pypi/">http://localhost/pypi/</a> 。
+
+</div>
+<div id="id3">
+<h1>使用自己的PyPI服务器</h1>
+easy_install和pip中使用自己的PyPI服务器安装Pylons：
+<pre>$ sudo easy_install -i http://localhost/pypi/ Pylons
+$ sudo pip install -i http://localhost/pypi/ Pylons</pre>
+在buildout中使用，在index字段中设置。
+<pre>[buildout]
+parts = instance
+index = http://localhost/pypi/
+
+...</pre>
+</div>
+<div id="buildoutpypimirror">
+<h1>使用buildout构建pypimirror</h1>
+除了使用easy_install或pip安装pymirror以外，也可以通过buildout构建(参考自<a href="http://bluedynamics.com/articles/jens/setup-z3c.pypimirror">http://bluedynamics.com/articles/jens/setup-z3c.pypimirror</a> )。
+
+同时使用模板，填写参数，生成对应的配置文件。
+
+buildout配置文件如下：
+<pre>[buildout]
+parts = mirror mirror-cfg
+
+[mirror]
+recipe = zc.recipe.egg:scripts
+eggs = z3c.pypimirror
+
+[dirs]
+recipe = z3c.recipe.mkdir
+mirror-base = /PATH/TO/mirror
+mirror-files = ${:mirror-base}/files
+paths =
+    ${:mirror-files}
+
+[mirror-cfg]
+recipe = collective.recipe.template
+input = ${buildout:directory}/pypimirror.cfg.in
+output = ${buildout:directory}/pypimirror.cfg
+url = http://pypi.MYDOMAIN.TLD
+mirror-path = ${dirs:mirror-files}
+lockfile = ${buildout:directory}/mirror.lock
+logfile = ${dirs:mirror-base}/mirror.log</pre>
+<dl> <dt>配置参数解释：</dt> <dd>
+<ul>
+	<li>input 配置文件模板，这里是 pypimirror.cfg.in</li>
+	<li>output 生成的配置文件</li>
+	<li>mirror-base，mirror-files，mirror-path 都是用来配置mirror-file-path的</li>
+	<li>url 用来生成base_url</li>
+	<li>lockfile 用来生成lock_file_name</li>
+	<li>logfile 用来生成log_filename</li>
+</ul>
+</dd> </dl>接下来是配置文件模板 pypimirror.cfg.in ：
+<pre>[DEFAULT]
+# the root folder of all mirrored packages.
+# if necessary it will be created for you
+mirror_file_path = ${:mirror-path}
+
+# where's your mirror on the net?
+base_url = ${:url}
+
+# lock file to avoid duplicate runs of the mirror script
+lock_file_name = ${:lockfile}
+
+# days to fetch in past on update
+fetch_since_days = 1
+
+# Pattern for package files, only those matching will be mirrored
+filename_matches =
+    *.zip
+    *.tgz
+    *.egg
+    *.tar.gz
+    *.tar.bz2
+
+# Pattern for package names; only packages having matching names will
+# be mirrored
+package_matches =
+    *
+
+# remove packages not on pypi (or externals) anymore
+cleanup = True
+
+# create index.html files
+create_indexes = True
+
+# be more verbose
+verbose = True
+
+# resolve download_url links on pypi which point to files and download
+# the files from there (if they match filename_matches).
+# The filename and filesize (from the download header) are used
+# to find out if the file is already on the mirror. Not all servers
+# support the content-length header, so be prepared to download
+# a lot of data on each mirror update.
+# This is highly experimental and shouldn't be used right now.
+#
+# NOTE: This option should only be set to True if package_matches is not
+# set to '*' - otherwise you will mirror a huge amount of data. BE CAREFUL
+# using this option!!!
+external_links = True
+
+# similar to 'external_links' but also follows an index page if no
+# download links are available on the referenced download_url page
+# of a given package.
+#
+# NOTE: This option should only be set to True if package_matches is not
+# set to '*' - otherwise you will mirror a huge amount of data. BE CAREFUL
+# using this option!!!
+follow_external_index_pages = False
+
+# logfile
+log_filename = ${:logfile}</pre>
+修改里面的package_matches为自己需要的软件包。然后执行 bin/buildout生成pypimirror脚本和配置文件。
+
+接下来的步骤和前面easy_install的一样，只不过命令改为bin/pypimirror罢了。
+
+</div>

@@ -1,0 +1,128 @@
+---
+layout: post
+title: "面向 PHP 5.3 友好的 PHP 开发"
+---
+
+最近 Debian 的 testing 版本已经将 PHP 由 5.2.x 升级 为 5.3.1。PHP 5.3 开始，为了更好的向 PHP 的未来版本(PHP6) 过渡，将未来不再支持的函数标记为 DEPRECATED。在代码中使用这些函数，将毫不留情的在页面中显示警告信息：“使用了过时的函数...”，诸如此类。
+
+那么如何面向未来，让现有的 PHP 程序平滑的向下一代 PHP 引擎过渡呢？
+<h2><span id="more-812"></span>配置文件迁移</h2>
+PHP 5.3 开始，配置文件 php.ini 中的一些配置将会在 PHP 执行时显示过时警告，这些配置将在 PHP6中不再存在，相关功能也将关闭。
+<ol>
+	<li>define_syslog_variables</li>
+	<li>register_globals</li>
+	<li>register_long_arrays</li>
+	<li>safe_mode</li>
+	<li>magic_quotes_gpc</li>
+	<li>magic_quotes_runtime</li>
+	<li>magic_quotes_sybase</li>
+</ol>
+<h2>函数迁移</h2>
+涉及到的主要的函数迁移如下：
+<h3>删除函数 define_syslog_variables 引用</h3>
+<ul>
+	<li>删除对函数 define_syslog_variables 的引用</li>
+	<li>将变量 $LOG_ERR, $LOG_USER 等用常量 LOG_USER, LOG_USER, ... 替代</li>
+</ul>
+<h3>ereg, eregi 函数用 preg_match 函数替代</h3>
+<ul>
+	<li>这几个函数的函数声明
+<pre>int  <strong>ereg</strong> (  string  <tt>$pattern</tt> ,  string  <tt>$string</tt> [,  array  <tt>&amp;$regs</tt> ] )
+int  <strong>eregi</strong> (  string  <tt>$pattern</tt> ,  string  <tt>$string</tt> [,  array  <tt>&amp;$regs</tt> ] )
+int  <strong>preg_match</strong> (  string  <tt>$pattern</tt> ,  string  <tt>$subject</tt> [,  array  <tt>&amp;$matches</tt> [,  int  <tt>$flags</tt> [,  int  <tt>$offset</tt> ]]] )</pre>
+</li>
+	<li>虽然三者的第一个参数都是字符串，表示一个正则表达式。但是 preg_match 用的是 PCRE（Perl 兼容的正则表达式语法）：正则表达式的两端用一个符号做边界，如 "/pattern/" 或者 "#pattern#"</li>
+	<li>eregi 是乎略大小写的匹配，转换为 preg_match，第一个参数，用PCRE的参数来乎略大小写，如："/pattern/i" 或者 "#pattern#i"</li>
+	<li>两者的第三个参数返回的匹配的数据结构不同。ereg 的第三个参数在调用结束后，返回的是一个字符串数组，分别为完整匹配字串和各个子匹配字串。preg_match 返回的是二维数组，相当于 ereg 的字串数组中的字串在 preg_match 是一个数组，分别保存匹配值以及匹配位置。</li>
+	<li>如果要进行多次匹配，PHP 提供了 preg_match_all 函数，其第三个参数的返回值则是一个三维数组；</li>
+</ul>
+<h3>ereg_replace, eregi_replace 函数用 preg_replace 函数或者 str_replace 函数来替代</h3>
+<ul>
+	<li>和前面的 ereg 替换为 preg_match 类似，第一个参数要进行转换，头尾增加一个符号，如："/pattern/" 或者 "#pattern#", ...</li>
+	<li>eregi_replace 到 preg_replace 的替换，在第一个参数的后面增加正则表达式参数。如："/pattern/i" 或者 "#pattern#i", ...</li>
+	<li>如果 ereg_replace 的第一个参数不是正则表达式，可以用 str_replace 直接来替换。</li>
+</ul>
+<h3>split, spliti 函数用 explode 或则 preg_split 函数替代</h3>
+<ul>
+	<li>split 切分字符串，如果无须用到正则表达式，使用 explode 替换是最好不过，速度最快</li>
+	<li>对于使用正则表达式切分字串，则使用 preg_split 函数替代。替代过程和 ereg/ereg_replace 类似，只是在第一个正则表达式参数中做文章，将 split 的正则表达式前后加上一个 PCRE 的分隔符号。</li>
+	<li>split 转换为 explode 最容易出错。例如：
+<ul>
+	<li>split("\ ", $string) 不能替换为 explode("\ ", $string)，而是替换为 explode(" ", $string);</li>
+	<li>split("\.", $string) 不能替换为 explode("\.", $string)，而是替换为 explode(".", $string);</li>
+	<li>split("\/", $string) 不能替换为 explode("\/", $string)，而是替换为 explode("/", $string);</li>
+</ul>
+</li>
+</ul>
+<h3>mysql_db_query 函数用 mysql_select_db 和 mysql_query 函数替代</h3>
+<ul>
+	<li>mysql_db_query 在未来版本不再支持</li>
+	<li>将其转换为两次调用，分别是用 mysql_select_db 选择数据库，用 mysql_query 来执行 SQL 查询</li>
+</ul>
+<h3>mysql_escape_string 函数用 mysql_real_escape_string 函数替代</h3>
+<ul>
+	<li>mysql_escape_string 未来版本不再支持</li>
+	<li>使用 mysql_real_escape_string 替代</li>
+</ul>
+<h3>session_register 函数，session_unregister，session_is_registered 函数用 $_SESSION 全局变量替代</h3>
+<ul>
+	<li>这三个 session 相关函数未来不再支持</li>
+	<li>其功能相当于直接操作全局数组 $_SESSION。可以直接向数组中赋值或者执行相应的 unset 即可实现相关功能</li>
+</ul>
+<h2>函数引用传参的过时语法</h2>
+如果在函数调用时使用引用传参，会引发警告：
+<pre>Call-time pass-by-reference has been deprecated
+</pre>
+解决方法：
+<ul>
+	<li>在函数声明部分，对需要引用传参的参数用 &amp; 符号标识。如：
+<pre>function some_func( $var, &amp;$ref_var )
+{
+    。。。
+}</pre>
+</li>
+	<li>调用该函数时，不要再对引用传参的参数添加 &amp; 修饰符，因为函数声明中已经声明过了。例如：
+<pre>some_func("user name", $email);</pre>
+</li>
+</ul>
+<h2>在代码中查抄过时函数</h2>
+下面这个脚本可以用于在代码树中查找过时的 PHP 函数
+<pre>#!/bin/sh
+
+OPTS="-rHw"; verbose=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    -v)
+      verbose=1; shift ;;
+    -q)
+      verbose=0; shift ;;
+    -*)
+      OPTS="$OPTS $1"; shift ;;
+    *)
+      break; ;;
+  esac
+done
+
+if [ $# -eq 0 ]; then
+  echo "Usage $0 [-v] "
+  exit 1
+fi
+
+[ $verbose -eq 0 ] &amp;&amp; OPTS="$OPTS -l"
+
+DEPRECATED="call_user_method call_user_method_array define_syslog_variables
+            dl set_magic_quotes_runtime magic_quotes_runtime
+            set_socket_blocking sql_regcase
+            mysql_db_query mysql_escape_string
+            session_register session_unregister session_is_registered
+            eregi? eregi?_replace spliti?"
+
+OPTS="$OPTS --include=*.inc --include=*.php --include=*.php5"
+
+for item in $DEPRECATED; do
+  echo "##### find deprecated item: $item in $1: #####"
+  grep $OPTS -E "$item\s*$" $*
+  grep $OPTS -E "$item\s*\(" $*
+  echo ""
+done
+</pre>

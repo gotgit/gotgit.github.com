@@ -1,0 +1,84 @@
+---
+layout: post
+title: "Topgit 原理及安装"
+---
+
+<div id="id47">
+
+针对网友 dd 对 topgit 的疑问，我将写作中的 topgit 部分章节摘录如下。关于 dd 问到 windows 如何安装，应该可以在 cygwin 的环境下安装 topgit。我暂时还没有试验，因此并不是十分确定。Windows 下的 Git 我准备专门一章加以介绍，还没有开始呢。 ;-)
+
+<strong>后记</strong>：Topgit在Windows上部署，参见： <a title="Topgit 安装" href="/2011/03/10/2392.html">http://blog.ossxp.com/2011/03/2392/</a> 。
+
+<span id="more-2033"></span>
+<h3><a>5.3.2   Topgit 原理</a></h3>
+下面的分支图，是一个近似的 Topgit 实现图（略去了重要的 top-bases 分支）。
+<pre>            +---b1--M1---M3--- （特性分支B: refs/heads/t/B）
+            |      /    /
+   +---a1---a2---a3----M2---   （特性分支A: refs/heads/t/A）
+   |                  /
+---V1----------------V2---     （主线/卖主分支: master）
+   |                  \
+   +--------------c1---M4---   （特性分支C: refs/heads/t/C）
+</pre>
+在上图中，主线上的 V1 是上游的版本的一次提交。特性分支 A 和 C 都直接依赖主线 master，而特性分支 B 则依赖特性分支 A。提交 M1 是特定分支 B 因为特性分支 A 更新而做的一次迁移。提交 M2 和 M4，则分别是特性分支 A 和 C 因为上游出现了新版本 V2 而做的迁移。当然特性分支 B 也要做相应的迁移，是为 M3。
+
+上述的描述非常粗糙，因为这样的设计很难实现特性分支导出为补丁文件。例如特性分支B的补丁，实际上应该是 M3 和 M2 之间的差异，而绝不是 M3 到 a2 之间的差异。Topgit 为了能够实现分支导出为补丁，又为每个特性的开发引入了第二个分支，追踪分支依赖的“变基”。
+<pre>   +---a1---a2
+   |        |
+   |        +-------a3---M2--- （特性 B 的变基分支: refs/top-bases/t/B）
+   |                    /
+   +-------------------V2---   （特性 A 的变基分支: refs/top-bases/t/A）
+   |                  /
+---V1----------------V2---     （主线/卖主分支: master）
+   |                  \
+   +-------------------V2---   （特性 C 的变基分支: refs/top-bases/t/C）
+</pre>
+把上面的两张分支图重合，实际上就可以获得各个特性分支在任一点的特性补丁文件。
+
+上面的特性分支 B 还只是依赖一个分支，如果出现一个分支依赖多个特性分支的话，情况就会更加的复杂，更会体现出这种设计方案的精妙。
+
+Topgit 还在每个特性分支工作区的根目录引入两个文件，用以记录分支的依赖以及关于此分支的说明。
+<ul>
+	<li>文件 <cite>.topdeps</cite> 记录该分支所依赖的分支列表。该文件通过 <cite>tg create</cite> 命令在创建特性分支时自动创建，或者通过 <cite>tg depend add</cite> 命令来添加新依赖。</li>
+	<li>文件 <cite>.topmsg</cite> 记录该分支的描述信息。该文件通过 <cite>tg create</cite> 命令在创建特性分支时创建，也可以手动编辑。</li>
+</ul>
+</div>
+<div id="id48">
+<h3><a>5.3.3   Topgit 的安装</a></h3>
+Topgit 的可执行命令只有一个 <cite>tg</cite> 。其官方参考手册见: <a href="http://repo.or.cz/w/topgit.git?a=blob;f=README">http://repo.or.cz/w/topgit.git?a=blob;f=README</a> 。
+
+安装官方的 Topgit 版本，直接克隆官方的版本库，执行 make 即可。
+<pre>$ git clone git://repo.or.cz/topgit.git
+$ cd topgit
+$ make
+$ make install
+</pre>
+缺省会把可执行文件 <cite>tg</cite> 安装在 $HOME/bin （用户主目录下的 bin 目录）下，如果没有将 ~/bin 加入环境变量 $PATH 中，可能无法执行 tg。如果具有 root 权限，也可以将 tg 安装在系统目录中。
+<pre>$ sudo prefix=/usr make install
+</pre>
+我对 Topgit 做了一些增强和改进，在后面的章节予以介绍。如果想安装我改进的版本，需要预先安装 quilt 补丁管理工具。然后进行如下操作。
+<pre>$ git clone git://github.com/ossxp-com/topgit.git
+$ cd topgit
+$ QUILT_PATCHES=debian/patches quilt push -a
+$ make
+$ sudo prefix=/usr make install
+</pre>
+如果您用的是 Ubuntu 或者 Debian Linux 操作系统，还可以这么安装。
+<ul>
+	<li>先安装 Debian/Ubuntu 打包依赖的相关工具软件。
+<pre>$ sudo aptitude install quilt debhelper build-essential fakeroot dpkg-dev
+</pre>
+</li>
+	<li>再调用 dpkg-buildpackage 命令，编译出 DEB 包，再安装。
+<pre>$ git clone git://github.com/ossxp-com/topgit.git
+$ cd topgit
+$ dpkg-buildpackage -b -rfakeroot
+$ sudo dpkg -i ../topgit_*.deb
+</pre>
+</li>
+	<li>安装完毕后，重新加载命令行补齐，可以更方便的使用 tg 命令。
+<pre>$ . /etc/bash_completion
+</pre>
+</li>
+</ul>
+</div>

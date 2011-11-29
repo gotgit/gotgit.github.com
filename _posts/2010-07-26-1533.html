@@ -1,0 +1,67 @@
+---
+layout: post
+title: "rst2pdf图片处理（续）"
+---
+
+<div id="rest" class="document">
+<div id="pnggif" class="section">
+<div id="id2" class="section">
+
+继在上一篇博客 <a href="/2010/07/19/1450.html">《rst2pdf中图片的处理》</a> 中提出问题，本文通过一个简单的实现，解决 rst 转换为 HTML 和 PDF 时图片显示不一致（尤其是PDF中不同格式图片忽大忽小）的问题。
+
+图像分辨率是用于度量位图图像内数据量多少的一个参数。通常表示成ppi（每英寸像素 pixel per inch）和dpi(每英寸点 dot pre inch)。包含的数据越多，图形文件的长度就越大，也能表现更丰富的细节。但更大的文件也需要耗用更多的计算机资源，更多的内存，更大的硬盘空间等等。在另一方面，假如图像包含的数据不够充分（图形分辨率较低），就会显得相当粗糙，特别是把图像放大为一个较大尺寸观看的时候。Ppi和dpi经常都会出现混用现象。从技术角度说，"像素"（p）只存在于计算机显示领域，而"点"（d）只出现于打印或印刷领域。
+
+<span id="more-1533"></span>
+
+Gif格式的图片不支持打印分辨率等一些基本的图像属性，这也是为什么rst2pdf根据后缀的不同而分别处理图片。在处理png图片时rst2pdf会取到图像自带的分辨率属性，一般情况计算机生成的图片的分辨率都是72dpi（根据不同显示器的分辨率而不同，我机器上的GIMP创建的png图片缺省是112dpi)，gif则在 rst2pdf 的处理中默认采用 300 dpi， 所以就会出现原本同样大小的图片在pdf中png显示比gif大。
+
+</div>
+</div>
+<div id="id4" class="section">
+<h1><a class="toc-backref" href="#id9">代码分析</a></h1>
+现在我们来分析rst2pdf中图片分辨率的处理情况。首先由命令选项 <cite>--default-dpi</cite> 来修改分辨率设置:
+<pre class="literal-block">def_dpi = config.getValue("general", "default_dpi", 300)
+parser.add_option('<em><strong>--default-dpi</strong></em>', dest='def_dpi', metavar='NUMBER',
+         default=def_dpi,
+         help='DPI for objects sized in pixels. Default=%d'%def_dpi)</pre>
+第一行代码是从配置文件中得到<em>default-dpi</em>的默认值，有关配置文件的情况在上一篇博客 <a href="/2010/07/19/1450.html">rst2pdf中图片的处理</a> 中有简单说明。 <cite>default-dpi</cite> 将会在 <cite>RstToPdf</cite> 和 <cite>StyleSheet</cite> 初始化时赋值给成员属性<em>dep_dpi</em>：<cite></cite>
+<pre class="literal-block">RstToPdf(
+  ......                     #省略其他参数
+ <strong> <em>def_dpi=int(options.def_dpi)</em>,</strong>
+  basedir=options.basedir,
+  show_frame=options.show_frame,
+  splittables=options.splittables,
+  blank_first_page=options.blank_first_page,
+  breakside=options.breakside,
+  custom_cover=options.custom_cover
+  ).createPdf(text=options.infile.read(),
+              source_path=options.infile.name,
+              output=options.outfile,
+              compressed=options.compressed)
+
+  self.styles = sty.StyleSheet(styleSheets,self.font_path,
+                               self.style_path,<strong><em>def_dpi=self.def_dpi</em></strong>)</pre>
+进一步的将会在image.py中使用图片分辨率:
+<pre class="literal-block">xdpi, ydpi = client.styles.def_dpi, client.styles.def_dpi</pre>
+如果图片自带分辨率，则:
+<pre class="literal-block">xdpi, ydpi = img.info.get('dpi', (xdpi, ydpi))</pre>
+rst2pdf是这样处理图像分辨率的, <cite>inch</cite> (72)是显示器分辨率， <cite>xdpi，ydpi</cite> 是打印分辨率。通过 <cite>inch/xdpi</cite> 和 <cite>inch/ydpi</cite> 的比率来得到图片在pdf中的宽和高:
+<pre class="literal-block">w = iw*inch/xdpi
+h = ih*inch/ydpi</pre>
+</div>
+<div id="id5" class="section">
+<h1><a class="toc-backref" href="#id10">解决方案</a></h1>
+rst2pdf中图片显示大小不一，非常令人头疼，不符合<em>Rest</em>文档所见即所得。
+<ul>
+	<li> 最笨拙的解决方法是：手动修改图片属性和转化图片格式，即都采用同一种图片格式，并且修改图片属性中的分辨率并使之保持小嗯同。
+这种方式费时费力，当然可以借助工具来完成，比如一个免费的、分布式的图片润饰、图象制作和处理软件Gimp，号称是Linux下的PhotoShop。</li>
+</ul>
+<ul>
+	<li>最好的办法是：通过简单的修改代码来改变 rst2pdf 的实现方式。
+我们为rst2pdf增加一个命令选项，如 <cite>--ignore-image-dpi</cite> 。这个选项的默认值为True,即忽略图片本身的分辨率属性，使用 <cite>--default-dpi</cite> 设置的分辨率，当为false时按rst2pdf原先的处理方式处理。如下:
+<pre class="literal-block">if not ign_dpi:
+   xdpi, ydpi = img.info.get('dpi', (xdpi, ydpi))</pre>
+</li>
+</ul>
+</div>
+</div>

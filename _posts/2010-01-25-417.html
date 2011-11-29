@@ -1,0 +1,583 @@
+---
+layout: post
+title: "TestLink简明配置手册"
+---
+
+安装完TestLink的下一步就是配置了，Testlink的配置信息包含很多方面，从日志信息、与其它bug管理工具的连接、自定义产生的文档、Email信息配置、用户认证配置、GUI定制、测试执行设置、测试规约、附件、需求支持、混合功能配置等等，在此一并列出。希望对你的TestLink的配置有所帮助，在此也声明一点，TestLink系统配置是很庞大的，部分信息是从网上搜集的。
+<h2><span id="more-417"></span></h2>
+<h2>1、配置文件概览</h2>
+所有的配置字段都在文件config.inc.php和它所包含的文件中。对这个版本这些就是配置文件：
+• config.inc.php -主配置文件，它几乎被每一个页面include.
+• config_db.inc.php -包含访问数据库的配置字段，它在安装或升级过程中创建，几乎不需要你手工修改它。
+• custom_config.inc.php – 用在config.inc.php 文件中的默认字段值的修改，它的好处是在升级过程中你的修改能很方便的被拷贝。
+• /cfg/.cfg.php –设置对bug跟踪工具的数据库的访问。
+• /cfg/const.inc.php – 定义那些不支持修改的常量和变量。
+•/gui/templates/input_dimensions.conf – 代替huml输入的硬编码属性，像maxlength和size,我们把它编进了这个文件中。（有一些历史原因造成的异常）
+• /cfg/tl_fckeditor_config.js – 设置fckeditor组件的配置
+<h2>2、日志</h2>
+LOG LEVEL
+日志记录的缺省级别，所需设置字段$tlCfg-&gt;log_level='ERROR';
+有效值包含NONE, ERROR, INFO, DEBUG, EXTENDED，默认为error。DEBUG级别只在开发或者与bug系统集成时使用
+LOGGING OUTPUT
+有两种输出方式：文件和数据库。两种方法都默认打开，设置下列字段为false，如果你想要进行设置。
+<pre>$g_loggerCfg = null; // all loggers enabled (default)
+$g_loggerCfg['db']['enabled'] = FALSE; // true/false
+$g_loggerCfg['file']['enabled'] = FALSE; // true/false</pre>
+LOGGING PATH
+$tlCfg-&gt;log_path=TL_ABS_PATH . 'logs' . DS ;
+日志文件的文件名和路径，配置。
+Php的log level默认是error,我们希望php故障能够向用户显示。当然你也可以修改这个字段
+error_reporting(E_ALL);
+SMARTY DEBUG WINDOW
+开发者应该使用这个字段来显示一个额外的包含所有字段和值的列表的窗口，这些值来自php脚本相关的模板组件。在产品安装时必须是false。
+$tlCfg-&gt;smarty_debug = false;
+如果有安全薄弱的点，在登录页和主页面会有警告。这个消息默认打开（true），false将引起文件config_check.txt，有着一个列表，创建日志目录，不会用户不会通过GUI被通知的。
+$tlCfg-&gt;show_config_check_warning = TRUE;
+Event viewer
+所有早于这个值（天）的时间都将被从数据库移除。
+$g_removeEventsOlderThan = 30;
+<h2>3、关于与其他缺陷追踪工具的连接</h2>
+在此以Mantis为例进行分析：
+<pre>/** The DB host to use when connecting to the mantis db */
+define('BUG_TRACK_DB_HOST', 'localhost');
+
+/** The name of the database that contains the mantis tables */  //Mantis使用的数据库名
+define('BUG_TRACK_DB_NAME', 'mantis');
+
+/** The DB type being used by mantis
+values: mysql,mssql,postgres
+*/
+define('BUG_TRACK_DB_TYPE', '[CONFIGURE_BUG_TRACK_DB_TYPE]');
+
+/** The DB password to use for connecting to the mantis db */
+define('BUG_TRACK_DB_USER', 'mantis');                //Mantis登录数据库的用户名
+define('BUG_TRACK_DB_PASS', 'mantis');                //Mantis登录数据库的密码
+
+define('BUG_TRACK_HREF', "http://localhost/mantis/view.php?id=");  //定义查看bug号的链接
+
+/** link to the bugtracking system, for entering new bugs */
+define('BUG_TRACK_ENTER_BUG_HREF',"http://localhost/mantis/");   //定义报bug的链接</pre>
+OK,基本上就这样了，另外还要打开$g_interface_bugs = 'NO';设置为YES
+<h2>4、产生的文档</h2>
+下面的字符串被用来在打印文档的首页，左边空白就是无效。
+<pre>$tlCfg-&gt;document_generator-&gt;company_name = 'Your Company';
+$tlCfg-&gt;document_generator-&gt;company_copyright = '2008 (c) TestLink Community';
+$tlCfg-&gt;document_generator-&gt;confidential_msg = 'GPL';</pre>
+打印的文档有自己的设计模板，你可以修改CSS模板为你自己的，
+<pre>$tlCfg-&gt;document_generator-&gt;css_template = $tlCfg-&gt;theme_dir .'css/tl_documents.css';</pre>
+测试用例版本可以被包含在产生的文档中，带着测试用例标题。
+<pre>$tlCfg-&gt;document_generator-&gt;tc_version_enabled = FALSE;</pre>
+<h2>5、发送Email</h2>
+Testlink已经整合了邮件系统，支持发送报告和通知，你必须设置下列值：
+SMTP服务器发送产生的Email，值‘localhost’在大多数例子里都足够了。
+<pre>$g_smtp_host = 'localhost';</pre>
+管理员和发送者的Email地址也是强制性字段。
+<pre>$g_tl_admin_email = 'your.name@your_company.com'; # for problem/error notification
+$g_from_email = 'no_replay@testlink.test_team'; # email sender (showed to recipient)
+$g_return_path_email = 'your.name@your_company.com';</pre>
+你可以选择性的设置Email的优先级，5是默认的。
+<pre># Urgent = 1, Not Urgent = 5, Disable = 0
+$g_mail_priority = 5;</pre>
+你的SMTP服务器应该需要登录来relayemali。在多数case里值是空的。
+<pre>$g_smtp_username = '';
+$g_smtp_password = '';</pre>
+<h2>6、用户认证</h2>
+Testlink支持两种验证方式， 'MD5' – 使用存储在内部数据库中的加密口令。'LDAP' – 使用来自目录服务器的口令。
+<pre>$tlCfg-&gt;authentication['method']= 'MD5';（默认，也可设置为‘’，‘md5’,’ldap’）</pre>
+使用ldap验证的相关字段:
+<pre>$tlCfg-&gt;authentication['ldap_server'] = 'localhost';
+$tlCfg-&gt;authentication['ldap_port'] = '389';
+$tlCfg-&gt;authentication['ldap_version'] = '3';
+$tlCfg-&gt;authentication['ldap_root_dn'] = 'dc=mycompany,dc=com';
+$tlCfg-&gt;authentication['ldap_organization'] = ''; // e.g.
+'(organizationname=*Traffic)'
+$tlCfg-&gt;authentication['ldap_uid_field'] = 'uid';
+$tlCfg-&gt;authentication['ldap_bind_dn'] = '';
+$tlCfg-&gt;authentication['ldap_bind_passwd'] = '';</pre>
+登录相关配置：
+Testlink允许新用户创建默认角色的帐号，通过在登录页面的“New User”的链接。它加速了用户的管理步骤，管理员可以通过设置下列字段为false，来使这个特性为无效，以完全在系统中控制用户。
+<pre>$tlCfg-&gt;user_self_signup = TRUE;</pre>
+注意：如果你改变了这个字段，你肯想要更新$TLS_valid_user_name_format字符串，它在语言文件中，来解释你在页面上使用的规则。
+<pre>$tlCfg-&gt;validation_cfg-&gt;user_login_valid_regex='/^[\w \-]+$/';</pre>
+常规表达式也被用来在有效用户的email地址：
+<pre>$tlCfg-&gt;validation_cfg-&gt;user_email_valid_regex = "/^([\w]+)(.[\w]+)*@([\w-]+\.){1,5}([A-Za-z]){2,4}$/";</pre>
+配置下列字段来显示配置检查的结果：
+<pre>$tlCfg-&gt;show_config_check_warning = FALSE;</pre>
+True：消息显示在登录和testlink桌面上
+False：一个两行的消息显示，以文件的检查结果的形式指示。
+<h2>7、GUI 定制</h2>
+<h3>7.1、树形菜单</h3>
+可能值有：'EXTJS', 'LAYERSMENU','DTREE', 'JTREE'，EXTJS是默认值，我们推荐它。这个组件有最好的性能，因为他使用的是异步通信。
+<pre>$tlCfg-&gt;treemenu_type = 'EXTJS';</pre>
+所有类型的节点（test case，test suite）被加入以排序号码“0”，当创建一个树节点时。它的最初显示顺序是根据节点ID来的。一个父test suite拥有下个默认值来分割子test suite 和test case。这些值必须是&gt;=0.
+<pre>$tlCfg-&gt;treemenu_default_testsuite_order = 1;
+$tlCfg-&gt;treemenu_default_testcase_order = 100;</pre>
+在树形菜单中显示或隐藏test case 的唯一ＩＤ：
+<pre>$tlCfg-&gt;treemenu_show_testcase_id = TRUE;</pre>
+允许在树形菜单上，根据状态计数test case。
+<pre>$tlCfg-&gt;exec_cfg-&gt;enable_tree_testcase_counters = ENABLED;</pre>
+<h3>7.2、GUI 布局</h3>
+gui/themes/default/.——主题目录，包含css和图片文件。
+你应该拷贝默认目录，修改内容和设置下列字段指向它。
+<pre>$tlCfg-&gt;theme_dir = 'gui/themes/your_theme/';</pre>
+你可以通过写你自己的CSS文件来改变testlink外观。
+<pre>• testlink.css (主风格定义)
+• tl_print.css (打印页面的风格设置)
+• tl_documents.css (用于产生的文档，像测试规约)
+• tl_treemenu.css (树形菜单的特殊设置)</pre>
+这些文件名被作为常量定义在const.inc.php文件中，你可以根据需要修改。
+如果你要设计你自己的logo，那么拷贝图片到gui/themes/default/images/目录，
+$tlCfg-&gt;company_logo = 'company_logo.png';
+注意：这个logo将被用在所有的GUI和产生的文档中。
+登录页面可以显示信息文本，以html格式，这个值默认是空的。
+<pre>$tlCfg-&gt;login_info = 'Please, contact administrator <a href="”mailto:jack@caribic.sea”">G. B. Shaw</a> if you have any question.';</pre>
+你可以修改弹头图标的文件名，默认包含arrow_org.gif and slide_gripper.gif。
+<pre>$tlCfg-&gt;bullet_image = 'slide_gripper.gif';</pre>
+指定test project背景颜色：
+<pre>$tlCfg-&gt;gui-&gt;testproject_coloring = 'background';</pre>
+打开页面，编辑test project到指定的特殊颜色，默认值是“none”（没有背景颜色的改变是允许的）。默认背景颜色是：
+<pre>$tlCfg-&gt;gui-&gt;background_color = '#9BD';</pre>
+设置显示姓名来代替只显示login，指定一种显示格式：
+<pre>$tlCfg-&gt;username_format = '%login%';
+Examples:
+'%first% %last%' -&gt; John Cook
+'%last%, %first%' -&gt; Cook, John
+'%first% %last% %login%' -&gt; John Cook [ux555]</pre>
+配置默认导航框在窗口左边的宽。
+<pre>$tlCfg-&gt;frame_workarea_default_width = "30%";</pre>
+Test project复选框在顶部菜单的顺序是可以配置的了，值必须是SQL支持的。
+<pre>$tlCfg-&gt;gui-&gt;tprojects_combo_order_by='ORDER BY nodes_hierarchy.id DESC';
+Examples:
+'ORDER BY name'
+'ORDER_BY nodes_hierarchy.id DESC' -&gt; similar effect to order last created first</pre>
+管理者可以配置在主页导航主题的配置：
+<pre>$tlCfg-&gt;gui-&gt;layoutMainPageLeft = array( 'testProject' =&gt; 1,
+'userAdministration' =&gt; 2 , 'requirements' =&gt; 3, 'testSpecification' =&gt; 4);
+$tlCfg-&gt;gui-&gt;layoutMainPageRight = array( 'testPlan' =&gt; 1, 'testExecution' =&gt; 2 ,'testPlanContents' =&gt; 3);</pre>
+配置度量的仪表盘上的圆的百分比：
+<pre>$tlCfg-&gt;dashboard_precision = 2;</pre>
+控制一些GUI元素的有效性，你可以使他们无效来提高页面描述性能，
+<pre>$tlCfg-&gt;gui-&gt;round_corners-&gt;exec_history = ENABLED;
+$tlCfg-&gt;gui-&gt;round_corners-&gt;tc_title = ENABLED;
+$tlCfg-&gt;gui-&gt;round_corners-&gt;tc_spec = ENABLED;</pre>
+<h3>7.3、文本域编辑</h3>
+文本数据编辑通过Javascript编辑器解决，它在文本域的工具栏，配置被下列数组定义
+<pre>$tlCfg-&gt;gui-&gt;text_editor = array();</pre>
+FCKeditor组件默认被使用，这是一个很有特色的组件，可以很容易的通过配置提高。
+<pre>$tlCfg-&gt;gui-&gt;text_editor['all'] = array(
+'type' =&gt; 'fckeditor',
+'toolbar' =&gt; 'tl_default',
+'configFile' =&gt; 'cfg/tl_fckeditor_config.js',
+);</pre>
+如果在这个结构中没有带搜索键的元素被发现，那么这个配置将被使用。每个元素与下列配置关键字对应：
+字段'type' = 'fckeditor', 'tinymce' 或是'none' -&gt; 使用文本域输入字段
+下面这行修改用于所有地方的文本域：
+<pre>$tlCfg-&gt;gui-&gt;text_editor['all'] = array( 'type' =&gt; 'none');</pre>
+FCKeditor工具栏定义了在文本域菜单是否允许或是失效图标，我们推荐研究它。
+默认的testlink工具栏定义是‘tl_default’。自定义工具栏的‘tl_default’定义在/cfg/tl_fckeditor_config.js文件中。你可以向对其他配置字段一样修改工具栏内容，（像templates, styles, spell checker等）。
+字段‘configFile’只对type = 'fckeditor'的应用有效，例如，下面的属性就是被这些字段定义的：
+<pre>• 'height': FCKEditor的高
+• 'width':  FCKEditor的宽
+• 'cols':    tinymce and none的列数量
+• 'rows':   tinymce and none的行数量</pre>
+提示：在做了配置修改后，清你的浏览器cookies和缓存
+<pre>// $tlCfg-&gt;gui-&gt;text_editor['execution'] = array( 'type' =&gt; 'none'); // BETTER
+Performance with a lot of testcases
+//
+// This configuration is useful only if default type is set to 'fckeditor'
+// $tlCfg-&gt;gui-&gt;text_editor['design'] = array('toolbar' =&gt; 'tl_mini');
+//
+// $tlCfg-&gt;gui-&gt;text_editor['testplan'] = array( 'type' =&gt; 'none');
+// $tlCfg-&gt;gui-&gt;text_editor['build'] = array( 'type' =&gt; 'fckeditor','toolbar' =&gt;
+'tl_mini');
+// $tlCfg-&gt;gui-&gt;text_editor['testproject'] = array( 'type' =&gt; 'tinymce');
+// $tlCfg-&gt;gui-&gt;text_editor['role'] = array( 'type' =&gt; 'tinymce');
+// $tlCfg-&gt;gui-&gt;text_editor['requirement'] = array( 'type' =&gt; 'none');
+// $tlCfg-&gt;gui-&gt;text_editor['requirement_spec'] = array( 'type' =&gt; 'none');</pre>
+性能警告：问题是fckeditor使用iframe，并且每个iframe需要下载fckeditor文件，所以可能会有一些页面有装在问题。
+在fckeditor中打开图片装载
+这个指导面向FCKEditor 2.3.2，但对别的版本也是有效的。
+打开FCKEditor/fckconfig.js，确定默认的php连接被选择。
+搜索：
+<pre>var _FileBrowserLanguage = 'php' ; // asp | aspx | cfm | lasso | perl | php | py
+var _QuickUploadLanguage = 'php' ; // asp | aspx | cfm | lasso | php</pre>
+打开FCKeditor/editor/filemanager/browser/default/connectors/php/config.php
+安全：你必须使能‘connector’，设为true。
+<pre>$Config['Enabled'] = true ;</pre>
+首先在testlink的目录下建立一个上传目录TestLink_upload，并确认该目的地址文件夹必须是可读写的而且能用网络访问的
+
+1.修改\third_party\fckeditor\fckconfig.js文件，选择php模式
+
+去掉// FCKConfig.ProtectedSource.Add( /&lt;\?[\s\S]*?\?&gt;/g ) ; // PHP style. server side code的注释
+
+将var _FileBrowserLanguage  = 'asp' ;  // asp | aspx | cfm | lasso | perl | php | py
+var _QuickUploadLanguage = 'asp' ;  // asp | aspx | cfm | lasso | php
+里面的asp都改为php
+
+2.修改\third_party\fckeditor\editor\filemanager\browser\default\connectors\php\config.php
+<pre>$Config['Enabled'] = false ;
+改为$Config['Enabled'] = true ;</pre>
+<pre>$Config['UserFilesPath'] = '/userfiles/' ;
+改为$Config['UserFilesPath'] = 'TestLink_upload/' ;</pre>
+<pre>$Config['UserFilesAbsolutePath'] = '' ;
+改为$Config['UserFilesAbsolutePath'] = 'C:\\www\\testlink\\TestLink_upload\\' ;</pre>
+3.修改\third_party\fckeditor\editor\filemanager\upload\php\config.php
+<pre>$Config['Enabled'] = false ;
+改为$Config['Enabled'] = true ;</pre>
+<pre>$Config['UserFilesPath'] = '/userfiles/' ;
+改为$Config['UserFilesPath'] = 'TestLink_upload/' ;</pre>
+<pre>$Config['UserFilesAbsolutePath'] = '' ;
+改为$Config['UserFilesAbsolutePath'] = 'C:\\www\\testlink\\TestLink_upload\\' ;</pre>
+4. 重启电脑等待1-2小时后，修改就生效了(很奇怪，不是重启apache或者电脑后立马生效的，我配置2次都是如此)，实际试验发现立刻可以的。
+<h3>7.4、Javascript</h3>
+<pre>$g_use_ext_js_library = ENABLED;</pre>
+定义表格整理库，默认值'kryogenix.org'，空‘’使这个特性失效。
+<pre>$g_sort_table_engine='kryogenix.org';</pre>
+<h3>7.5、使用自定义模板引擎</h3>
+如果你想要使用自定义模板，我们有这些配置数组，
+$g_tpl
+包括，
+<pre>• $g_tpl['tcView']
+• $g_tpl['tcSearchView']
+• $g_tpl['tcEdit']
+• $g_tpl['tcNew']
+• $g_tpl['execSetResults']</pre>
+允许你创建与原testlink不同名称的模板文件，不用担心在下次升级过程中有覆盖源文件的危险。
+注意：不是所有的testlink页面都可以进行这种类型的配置。
+标准配置:
+<pre>$g_tpl['tcView'] = "tcView.tpl";
+$g_tpl['tcSearchView'] = "tcSearchView.tpl";
+$g_tpl['tcEdit'] = "tcEdit.tpl";
+$g_tpl['tcNew'] = "tcNew.tpl";
+$g_tpl['execSetResults'] = "execSetResults.tpl";</pre>
+<h2>8、测试执行设置</h2>
+允许XML-RPC调用外部外部测试自动化服务器，特殊按钮将会被显示在执行页面。
+<pre>ENABLED -&gt; enable XML-RPC calls
+DISABLED -&gt; disable
+$tlCfg-&gt;exec_cfg-&gt;enable_test_automation = DISABLED;</pre>
+在执行页面的附件管理的不同设置，这些变量预定义在const.inc.php中：
+<pre>$att_model_m1 -&gt; shows upload button and title
+$att_model_m2 -&gt; hides upload button and title [DEFAULT VALUE]
+$tlCfg-&gt;exec_cfg-&gt;att_model = $att_model_m2;</pre>
+用户可以删除执行结果：
+<pre>ENABLED -&gt; User can delete an execution result
+DISABLED -&gt; User can not. [DEFAULT VALUE]
+$tlCfg-&gt;exec_cfg-&gt;can_delete_execution = DISABLED;</pre>
+<h3>8.1、执行历史</h3>
+定义执行历史顺序：
+ASC -&gt; 上升上一次执行在最后，
+DESC -&gt;下降最后一次执行在顶部，默认值
+$tlCfg-&gt;exec_cfg-&gt;history_order = 'DESC';
+在执行窗口，定义是否所选build的全部执行历史是被显示：
+<pre>TRUE -&gt; the whole execution history for the build will be shown
+FALSE -&gt; just last execution will be shown [DEFAULT VALUE]
+$tlCfg-&gt;exec_cfg-&gt;history_on = FALSE;</pre>
+允许显示前个build的执行结果：
+<pre>TRUE -&gt; test case VERY LAST (i.e. in any build) execution status will be displayed
+FALSE -&gt; only last result on current build. [DEFAULT VALUE]
+$tlCfg-&gt;exec_cfg-&gt;show_last_exec_any_build = FALSE;</pre>
+允许显示所有build的执行结果历史：
+<pre>TRUE -&gt; History for all builds will be shown
+FALSE -&gt; Only history of the current build will be shown [DEFAULT VALUE]
+$tlCfg-&gt;exec_cfg-&gt;show_history_all_builds = FALSE;</pre>
+<h3>8.2. 测试执行导航</h3>
+根据测试用例状态显示测试用例和测试用例计数的颜色：
+<pre>ENABLED -&gt; 有色的测试状态 [DEFAULT VALUE]
+DISABLED -&gt; disable
+$tlCfg-&gt;exec_cfg-&gt;enable_tree_testcases_colouring = ENABLED;
+$tlCfg-&gt;exec_cfg-&gt;enable_tree_counters_colouring = ENABLED;</pre>
+控制当用户点击树形菜单上的test suite时发生在右边frame上的事，Disabling这种设置能帮助避免性能问题。
+<pre>ENABLED -&gt; 显示所有测试用例
+DISABLED -&gt; 什么都不发生，要点击一个测试用例你需要点击它，默认
+$tlCfg-&gt;exec_cfg-&gt;show_testsuite_contents = DISABLED;</pre>
+允许在旧的执行上编辑执行评论，注意，用户必须有测试用例的执行权力。
+<pre>ENABLED -&gt; user can edit execution notes, on old executions (Attention: user must have test case execution right)
+DISABLED -&gt; no edit allowed [DEFAULT VALUE]
+$tlCfg-&gt;exec_cfg-&gt;edit_notes = DISABLED;</pre>
+过滤测试用例，‘tester’角色的用户能根据测试执行分配查看。
+<pre>'all' -&gt; 所有测试用例.
+'assigned_to_me' -&gt;测试用例分配给数据用户 [DEFAULT VALUE]
+'assigned_to_me_or_free' -&gt; 分配给数据用户或未分配
+$tlCfg-&gt;exec_cfg-&gt;view_mode-&gt;tester='assigned_to_me';</pre>
+过滤测试用例，‘tester’角色的用户能根据测试执行分配执行。
+<pre>'all' -&gt; all test cases.
+'assigned_to_me' -&gt; test cases assigned to the current user. [DEFAULT VALUE]
+'assigned_to_me_or_free' -&gt; test cases assigned to logged user or not assigned
+$tlCfg-&gt;exec_cfg-&gt;exec_mode-&gt;tester='assigned_to_me';</pre>
+用户过滤，在测试执行导航：
+<pre>'logged_user' -&gt; 调到当前用户
+'none' -&gt; 默认无过滤应用[DEFAULT VALUE]
+$tlCfg-&gt;exec_cfg-&gt;user_filter_default='none';</pre>
+通过优先级过滤TC，优先级根据公式定义的权限值：
+<pre>Priority = (urgency x importance)
+• LOW = 所有测试用例优先级 &lt; LOW_Threshold • HIGH =所有测试用例优先级&gt;= HIGH_Threshold
+• MEDIUM =所有测试用例优先级&gt;= LOW_Threshold AND 优先级 &lt; HIGH_Threshold $tlCfg-&gt;urgencyImportance_LOW_Threshold = 3;
+$tlCfg-&gt;urgencyImportance_HIGH_Threshold = 6;</pre>
+<h3>8.3、在执行页面添加一个新的结果类型</h3>
+1.需要用到的配置文件有：
+<pre>• cfg/const.inc.php
+• custom_config.inc.php &lt;-- 创建它，如果它还不存在的话
+• locale/en_GB/custom_strings.txt &lt;-- 创建它，最好不要编辑 strings.txt • gui/themes/theme_m2/css/testlink.css 配置过程： 1. 打开 cfg/const.inc.php ，找到字段: $tlCfg-&gt;results['status_code']</pre>
+2. 拷贝下面这几行到 custom_config.inc.php文件:
+<pre>$tlCfg-&gt;results['status_code'] = array (
+"failed" =&gt; 'f',
+"blocked" =&gt; 'b',
+"passed" =&gt; 'p',
+"not_run" =&gt; 'n',
+"not_available" =&gt; 'x',
+"unknown" =&gt; 'u',
+"all" =&gt; 'all'
+);
+$tlCfg-&gt;results['status_label'] = array(
+"all" =&gt; "test_status_all_status",
+"not_run" =&gt; "test_status_not_run",
+"passed" =&gt; "test_status_passed",
+"failed" =&gt; "test_status_failed",
+"blocked" =&gt; "test_status_blocked",
+"not_available" =&gt; "test_status_not_available",
+"unknown" =&gt; "test_status_unknown"
+);
+$tlCfg-&gt;results['status_label_for_exec_ui'] = array(
+"passed" =&gt; "test_status_passed",
+"failed" =&gt; "test_status_failed",
+"blocked" =&gt; "test_status_blocked"
+);
+$tlCfg-&gt;results['default_status'] = "passed";</pre>
+3. 加入新状态，并保存:
+<pre>tcstatus_1 -&gt; code q
+tcstatus_2 -&gt; code w</pre>
+4. custom_config.inc.php 文件变为:
+<pre>$tlCfg-&gt;results['status_code'] = array (
+"failed" =&gt; 'f',
+"blocked" =&gt; 'b',
+"passed" =&gt; 'p',
+"not_run" =&gt; 'n',
+"not_available" =&gt; 'x',
+"unknown" =&gt; 'u',
+"all" =&gt; 'all',
+"tcstatus_1" =&gt; 'q',
+"tcstatus_2" =&gt; 'w'
+);
+$tlCfg-&gt;results['status_label'] = array(
+"all" =&gt; "test_status_all_status",
+"not_run" =&gt; "test_status_not_run",
+"passed" =&gt; "test_status_passed",
+"failed" =&gt; "test_status_failed",
+"blocked" =&gt; "test_status_blocked",
+"not_available" =&gt; "test_status_not_available",
+"unknown" =&gt; "test_status_unknown",
+"tcstatus_1" =&gt; "test_status_new_one",
+"tcstatus_2" =&gt; "test_status_new_two"
+);
+$tlCfg-&gt;results['status_label_for_exec_ui'] = array(
+"passed" =&gt; "test_status_passed",
+"failed" =&gt; "test_status_failed",
+"blocked" =&gt; "test_status_blocked",
+"tcstatus_1" =&gt; "test_status_new_one",
+"tcstatus_2" =&gt; "test_status_new_two"
+);
+$tlCfg-&gt;results['default_status'] = "blocked";</pre>
+5. 修改 css 如果你想要新的颜色的话.
+<pre>.tcstatus_1, div.tcstatus_1 {
+color: black;
+background: yellow;
+}
+.tcstatus_2, div.tcstatus_2 {
+color: black;
+background: orange;
+}
+div.tcstatus_1, div.tcstatus_2 {
+margin: 8px;
+padding: 6px;
+text-align: center;
+}</pre>
+<h2>9、测试规约</h2>
+步骤和预期结果文本域的设置：
+<pre>'horizontal' - steps and expected results panes are side-by-side，水平
+'vertical' - steps pane is above the expected results (default behaviour) 垂直
+$g_spec_cfg-&gt;steps_results_layout = 'vertical';</pre>
+在测试规约导航的测试集过滤有效性：
+<pre>ENABLED -&gt; User will see a test suite filter (default behaviour)
+DISABLED -&gt; no filter available
+$g_spec_cfg-&gt;show_tsuite_filter = ENABLED;</pre>
+测试规约导航的刷新：
+<pre>ENABLED -&gt; 每次用户做了编辑操作，刷新
+DISABLED -&gt; 树不会自动刷新，用户手工
+$g_spec_cfg-&gt;automatic_tree_refresh = ENABLED;</pre>
+允许编辑一个测试用例的执行版本。
+<pre>ENABLED -&gt; user can edit executed Test case versions
+DISABLED -&gt; editing of executed Test case versions is blocked. [DEFAULT VALUE]
+$tlCfg-&gt;testcase_cfg-&gt;can_edit_executed = DISABLED;</pre>
+用户可以从测试计划移除一个测试用例的已执行版本（至少有一个测试结果存在）：
+<pre>$tlCfg-&gt;testcase_cfg-&gt;can_remove_executed = ENABLED;</pre>
+测试规约模板：
+对于测试用例，用户初始需要定义的内容是：summary，steps,预期结果。每个对象的配置包含类型和值，类型：
+<pre>• 'none' -&gt;模板不被使用，默认是空的编辑域，[DEFAULT VALUE]
+• 'string' -&gt; 值成员的值被分配给 FCK object
+• 'string_id' -&gt; value member is used in a lang_get() call, and return value is assigned to FCK object. 配置 string_id 在文件 custom_strings.txt
+• 'file' -&gt; value member is used as file name. The file is read and it's contents assigned to a text area component as input
+$g_testcase_template-&gt;summary-&gt;type = 'string';
+$g_testcase_template-&gt;summary-&gt;value = '
+
+Objective: TBD
+
+Precondition:
+N/A
+
+';
+$g_testcase_template-&gt;steps-&gt;type = 'none';
+$g_testcase_template-&gt;steps-&gt;value = '';
+$g_testcase_template-&gt;expected_results-&gt;type = 'none';
+$g_testcase_template-&gt;expected_results-&gt;value = '';
+User can define the initial content of a new Test Suite description similar way:
+$g_testsuite_template-&gt;details-&gt;type='file';
+$g_testsuite_template-&gt;details-&gt;value='D:\w3\tl\head_20080103\logs\tsuite.txt';</pre>
+<h2>10、附件</h2>
+$g_attachments-&gt;enabled = TRUE; （true or false）设置是否可以上传附件
+储存类型可以是数据库也可以文件系统
+<pre>• TL_REPOSITORY_TYPE_DB =&gt; database
+• TL_REPOSITORY_TYPE_FS =&gt; filesystem
+$g_repositoryType = TL_REPOSITORY_TYPE_FS;（文件系统）
+$g_repositoryPath = TL_ABS_PATH . "upload_area" . DS;（文件系统的存储路径，推荐改变路径，增强安全性）</pre>
+在存储系统中可以使用压缩，配置字段是：
+<pre>• TL_REPOSITORY_COMPRESSIONTYPE_NONE =&gt; no compression
+• TL_REPOSITORY_COMPRESSIONTYPE_GZIP =&gt; gzip compression</pre>
+配置：
+<pre>$g_repositoryCompressionType = TL_REPOSITORY_COMPRESSIONTYPE_NONE;</pre>
+对每一个存储文件的默认最大size是1MB.
+<pre>define("TL_REPOSITORY_MAXFILESIZE_MB", 1);</pre>
+也可检查你的php设置 (通常默认为 2MBs)
+用户需要为每一个附件加标题。
+// TRUE -&gt; 上传的文件可以没有标题，默认为true
+$g_attachments-&gt;allow_empty_title = TRUE;
+此时你可以要求系统完成：
+<pre>// 'none'         -&gt; 写入db一个空标题
+// 'use_filename' -&gt;使用文件名作为标题
+//$g_attachments-&gt;action_on_save_empty_title='use_filename';
+$g_attachments-&gt;action_on_save_empty_title='none';</pre>
+表示是用来作为下载时的链接描述的，如果标题为空，那么显示时系统需要完成的操作可以有：
+<pre>• 'show_icon' -&gt;字段$g_attachments-&gt;access_icon 被使用.
+• 'show_label' -&gt; $g_attachments-&gt;access_string 的值被使用 .
+$g_attachments-&gt;action_on_display_empty_title='show_icon';
+$g_attachments-&gt;access_icon='<img style="border: none;" src="' . TL_THEME_IMG_DIR . '/new_f2_16.png" alt="" />';
+$g_attachments-&gt;access_string="[*]";</pre>
+你可以设置上传文件的显示顺序：
+<pre>$g_attachments-&gt;order_by=" ORDER BY date_added DESC ";</pre>
+<h2>11、需求支持</h2>
+需求功能对每一个测试产品水平可以是有效或无效的，作为管理员进入编辑测试产品页面，TL的一个特性就是需求管理。
+需求的经典结构允许两种层次：SRS文档和需求列表。字段child_requirements_mgmt允许的需求的树形组织。
+<pre>• ENABLED: 允许N层树
+• DISABLED: 仅一层
+$tlCfg-&gt;req_cfg-&gt;child_requirements_mgmt = DISABLED;</pre>
+需求标识字符串（req_doc_id）必须是唯一的，
+<pre>• TRUE -&gt; req_doc_id 在整个 DB (system_wide)中是唯一的
+• FALSE -&gt; req_doc_id 在SRS中是唯一的
+$g_req_cfg-&gt;reqdoc_id-&gt;is_system_wide = FALSE;</pre>
+在创建了软件需求点后（srs），你可以选择为每个requirement创建test case（部件和分类也同时被创建）。
+配置字段：$g_req_cfg
+<pre>$g_req_cfg-&gt;use_req_spec_as_testsuite_name = TRUE;
+（FALSE -&gt; test cases被创建和分配给以$g_req_cfg-&gt;default_testsuite_name为名称的test suite，
+TRUE  -&gt; REQuirement Specification 标题 被用来作为 testsuite 的名字）
+$g_req_cfg-&gt;default_testsuite_name = "Test suite created by Requirement - Auto";</pre>
+<h2>12、混合功能配置</h2>
+<h3>12.1、数据导入限制</h3>
+<pre>• file_uploads
+• upload_max_filesize
+• max_input_time
+• memory_limit
+• max_execution_time
+• post_max_size
+$tlCfg-&gt;import_max_size = '204800'; 最大的上传文件大小，单位bytes,你可以自定义，如果需要的话
+$tlCfg-&gt;import_max_row = '10000'; 导出文件一行的最大size,10000最够了。</pre>
+<h3>12.2、默认用户角色</h3>
+设置给新用户的默认角色。这个值被用来给这些用户：
+从登录页面创建的
+默认提供的
+当原始角色被删除时
+<pre>$tlCfg-&gt;default_roleid = TL_ROLES_GUEST;
+可能的值: TL_ROLES_TESTER, TL_ROLES_GUEST, TL_ROLES_NO_RIGHTS 和你定义的相似的值. See const.inc.php for more.</pre>
+<h3>12.3．超时限制</h3>
+<pre>$tlCfg-&gt;sessionInactivityTimeout = 60;</pre>
+不活动时的会话超时限制。他也被php.ini限制。低的那个被应用。
+<h3>12.4、Test Projects, Test Suites and Test Cases的重名</h3>
+$g_check_names_for_duplicates=TRUE
+该配置将会执行下列操作：
+<pre>1. Test Project name 是唯一的
+2. Test Suite Name 在 Test Project 中 是唯一的
+3. Test Case Name 在 Category 里是唯一的</pre>
+当它的值是true时，你可以配置$g_action_on_duplicate_name来指定当重复的名称被发现的时候，系统将要执行的操作。选项包括：
+<pre>•  'allow_repeat' : 允许名称重复
+•  'generate_new':产生一个新的名称，使用$g_prefix_name_for_copy的值和原始对象名称合并
+•  'block' :返回一个错误</pre>
+举例：
+<pre>$tlCfg-&gt;name_duplicity_checking = 'generate_new';</pre>
+<h3>12.5、字符串检查和转换</h3>
+允许WWW URLs和Email地址的转换到可点击链接，使用函数string_display_links()，例如通过自定义字段。
+有效值是ENABLED/DISABLED.
+<pre>$tlCfg-&gt;html_make_links = ENABLED;</pre>
+Html标签定义：
+<pre>$tlCfg-&gt;html_valid_tags = 'p, li, ul, ol, br, pre, i, b, u, em';
+$tlCfg-&gt;html_valid_tags_single_line = 'i, b, u, em';</pre>
+4.本地化
+Testlink允许本地化时间，文本，数据。配置字段$g_default_language = 'en_GB';
+TestLink登陆界面，此时登陆界面为英文，如果需要修改为中文则按以下步骤操作
+打开config.inc.php文件
+查找$g_default_language = 'en_GB';
+修改为
+$g_default_language = 'zh_CN';
+则可以解决登陆界面汉化的问题
+f.1、 String 本地化
+对于每个本地化都存在一个目录，存放有标准的string.txt的文件。/locale/de_DE/strings.txt
+/locale/de_DE/custom_strings.txt
+/locale/en_GB/strings.txt
+中文在locale/zh_cn
+如果想要改变原翻译，但不想改动系统提供的源文件，那么，可以使用custom_strings.txt. 你需要放置文件在相应的本地化目录，使用与strings.txt相同的格式和规则。
+说明和帮助页面在/gui/help/下。
+f.2、 Date 和 Time 本地化
+配置字段: $g_locales_date_format 和$g_locales_timestamp_format.
+配置:
+<pre>$g_locales_date_format = array(
+'en_GB' =&gt; "%d/%m/%Y", 'it_IT' =&gt; "%d/%m/%Y",
+'es_AR' =&gt; "%d/%m/%Y", 'es_ES' =&gt; "%d/%m/%Y",
+'de_DE' =&gt; "%d.%m.%Y", 'fr_FR' =&gt; "%d/%m/%Y",
+'pt_BR' =&gt; "%d/%m/%Y" );
+$g_locales_timestamp_format = array(
+'en_GB' =&gt; "%d/%m/%Y %H:%M:%S",
+'it_IT' =&gt; "%d/%m/%Y %H:%M:%S",
+'es_AR' =&gt; "%d/%m/%Y %H:%M:%S",
+'es_ES' =&gt; "%d/%m/%Y %H:%M:%S",
+'de_DE' =&gt; "%d.%m.%Y %H:%M:%S",
+'fr_FR' =&gt; "%d/%m/%Y %H:%M:%S",
+'pt_BR' =&gt; "%d/%m/%Y %H:%M:%S", );</pre>
+如果以上数组是空的，下面的配置变量将被使用： $g_date_format 和$g_timestamp_format.
+例如:
+<pre>$g_date_format ="%d/%m/%Y";
+$g_timestamp_format = "%d/%m/%Y %H:%M:%S";</pre>
+f3、字符集
+<pre>$tlCfg-&gt;charset = 'UTF-8'</pre>
+f4、GUI 特殊字符
+特殊字符被用来环绕文本，在你的用户接口。
+<pre>$tlCfg-&gt;gui-&gt;role_separator_open = '[';
+$tlCfg-&gt;gui-&gt;role_separator_close = ']';</pre>
+分隔符，第一个“object : name” (for example: Test Plan : MyTestLink 1.0).第二个，“parent – child”.
+<pre>$tlCfg-&gt;gui_title_separator_1 = ' : ';
+$tlCfg-&gt;gui_title_separator_2 = ' - ';</pre>
+每个测试用例都有一个唯一的标识码。你可以设置和使用“external ID”作为标识符代替它。The “external ID” is composed from a Test project
+<pre>prefix, a separator defined below and a number related to a parent Test Suite.
+$tlCfg-&gt;testcase_cfg-&gt;glue_character = '-';</pre>
+需要配置的字段
+<pre>Appendix A: Recommended configuration parameters
+There is a list of parameters that users modify in the most of cases:
+$g_smtp_host
+$g_tl_admin_email
+$g_from_email
+$g_return_path_email
+$g_interface_bugs
+$tlCfg-&gt;document_generator-&gt;company_name
+$tlCfg-&gt;document_generator-&gt;company_copyright
+$tlCfg-&gt;document_generator-&gt;confidential_msg
+$tlCfg-&gt;company_logo
+$tlCfg-&gt;fckeditor_default_toolbar
+$g_default_language
+$tlCfg-&gt;api_enabled</pre>
+OK,好好利用的你的TestLink吧

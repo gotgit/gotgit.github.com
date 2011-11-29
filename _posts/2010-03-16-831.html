@@ -1,0 +1,86 @@
+---
+layout: post
+title: "CoSign 3.x 介绍及与 CoSign 2.x 的协议比较"
+---
+
+想必您已经读过 <a href="/2010/03/16/824.html">《CoSign 2.x 协议介绍》</a> 的博客，知道了 CoSign 2.x 协议存在的一个安全漏洞，可能会被人恶意利用，通过钓鱼的手段获取用户的权限。
+
+CoSign 3.1.0 版本已经于 2010 年 1月4日发布。在 <a href="http://www.umich.edu/~umweb/software/cosign/">密歇根大学的CoSign网站</a> 上 记载的 3.1.1 的发布时间有误，笔误写成了 2009 年1月（整整提前了一年）。不过这也正常，毕竟日历刚刚由2009年翻到2010，一下子有些适应不过来。
+
+CoSign 3.x 版本，在协议上进行了彻底的改造，解决了 CoSign 2.x 的安全漏洞：
+<ul>
+	<li>服务 Cookie 将不再由 Web 应用本身签发，而是在单点认证成功后，由单点登录服务器随机生成</li>
+	<li>单点登录随机生成的124位字串组成 ，通过 URL 重定向到 Web 应用所在服务器的特殊 url：/cosign/valid 进行校验，通过后，再设置服务 cookie。</li>
+	<li>跳转的 /cosign/valid 的 Web 地址，需要预先在单点登录服务器上配置好，不同的 服务 cookie 名称要有不同的 /cosign/valid/ 网址对应。</li>
+	<li>登录 cookie 和服务 cookie 的关联因此更为安全，因为服务 cookie 的随机数由单点登录服务器生成，而非应用本身</li>
+	<li>因此黑客在没有通过认证之前，无法得到 应用 cookie 值，也就无法通过“钓鱼”，来获得权限...</li>
+</ul>
+<h2><span id="more-831"></span>CoSign 3.x 协议原理</h2>
+一个图片胜过千言万语。先来看看在<a href="http://cosign.sourceforge.net/overview.shtml">官网</a>上的示例图：
+
+<img class="aligncenter" title="CoSign v3 协议示意图" src="http://cosign.sourceforge.net/media/cosignv3flow.png" alt="CoSign v3 协议示意图" width="600" height="820" />
+
+CoSign 3.x 流程和 CoSign 2.x 有很大的不同：
+<ul>
+	<li>浏览器访问 Web 应用，将不再设置 Cookie。跳转到单点登录的 URL 中也没有 Cookie 值，只有一个孤孤零零的 cookie 名称</li>
+	<li>登录成功后，不但由单点登录服务器设置登录 cookie，而且还产生一个随机的 cookie 值，通过 query string 带给一个特殊的返回 URL</li>
+	<li>登录成功后跳转的 URL 不是跳转至单点登录服务器的原始 Web URL，而是在单点登录服务器针对 cookie 名称事先配置好的一个地址。这个地址的结尾一般是 /cosign/valid/</li>
+	<li>服务 cookie的签发是由 ..../cosign/valid  的 URL 地址在验证完毕 cookie 值有效性后，再进行签发。之后在跳转到应用URL</li>
+	<li>注意：如果由于配置错误，/cosign/valid 所在的域名和应用 URL 不一致，将导致循环重定向错误</li>
+</ul>
+<h2>CoSign 3.x 组成模块</h2>
+CoSign 3.x 的模块组成和 CoSign 2.x 一致，但是作用却不一样：
+<ul>
+	<li>Daemon：服务器。采用新的 cosign 通讯协议，除了用于 登录cookie 和服务 cookie的关联，cookie 的过期，cookie有效性查询等功能外，还负责产生 124 位的随机码，作为服务 cookie 的取值</li>
+	<li>CGI：登录界面。除了用于提供登录的 WEB 界面以及进行口令验证外，重定向的地址是在服务器端配置的，cookie名字唯一对应的一个地址</li>
+	<li>Factor：同 CoSign 2.x, 是外挂的身份验证模块</li>
+	<li>Filter：Web服务器挂件，安装在 Web 应用所在的 Web 服务器上。不同于 CoSign 2.x 的是，不再负责产生随机数用于 服务 cookie，而是提供一个新的 URL 处理器，实现 /cosign/valid 的 cookie 验证和设置 cookie</li>
+</ul>
+<h2>CoSign 2.x 到 CoSign 3.x 应用迁移</h2>
+<h3>重新设置 Cookie 名称，保证唯一性</h3>
+在 CoSign 2.x 时代，服务 cookie 的名字可以随意选取，甚至不同的服务器可以使用相同的 cookie。例如群英汇研发组，每个人的笔记本的服务都可能配置成和北京研发的服务器做单点认证。
+
+在 CoSign 3.x 中，必须要做到 cookie 名字和网站 URL 的匹配。对于一个 cookie，必须只有一个URL地址何其对应；一个网站倒是可以支持多个不同名称的 cookie。
+
+在 CoSign 3.x 的服务器配置中，可以通过正则表达式建立 cookie 和域名URL的一一对应。如：
+<pre>service cosign-(.*)\.moon           http://$1.moon.ossxp.com/cosign/valid 0 insecure-filter-1</pre>
+如名称为 cc.moon 的 cookie 会重定向到 http://cc.moon.ossxp.com/cosign/valid 的地址上。（BTW，moon.ossxp.com 是群英汇的月球分公司的域名，暂时尚未正式营业，被开发人员临时征用）
+<h3>配置 /cosign/valid 地址</h3>
+要为每个Web虚拟机设定一个特殊的 URL 地址：/cosign/vald。该地址用于 cookie 值校验，以及完成设置 cookie 和重定向任务。
+
+需要在 Apache 虚拟机的配置中增加下面的内容：
+<pre>&lt;Location /cosign/valid&gt;
+ SetHandler  cosign
+ CosignProtected Off
+ Allow from any
+ Satisfy all
+&lt;/Location&gt;</pre>
+<h3>应用的登录处理</h3>
+简单的应用，一般通过配置 Apache 中的 CoSign Filter 插件，即可实现单点认证。对于这些简单的应用，只要满足了上面提到的两个步骤，一般就能够平滑迁移了。
+
+对于复杂的应用，例如需要同时支持匿名访问和授权访问，就需要通过编程实现。即当点击登录的时候，要用程序来实现 CoSign Filter 的一些功能。因为 CoSign 2.x 升级到 3.x，协议改动很多，导致原来的实现在新的登录框架下无法继续工作，必须重新编码实现。
+
+简单的说，只要将原来设置服务 cookie 的步骤撤销，并且修改到单点登录服务器的 URL 的格式进行调整，就基本能够满足需要了。当然为了同时兼容 CoSign 2.x 和 3.x，需要添加一些兼容性的代码。
+<h2>CoSign 3.x 中的循环重定向和其他错误</h2>
+除了 CoSign 2.x 中固有的几种出现循环重定向的可能之外，CoSign 3.x 还有另外的一些可能：
+<h3>一个网站只应该设置一个访问地址</h3>
+当一个网站可以有多个访问地址，单点登录可能会出现循环重定向问题。
+
+例如群英汇的网址可以通过： www.ossxp.com, ossxp.com, www.opensourcexpress.com 访问到。
+
+如果在 Apache 虚拟主机中用服务别名来设置，允许上述三个网址都能够直接访问，问题就来了。
+
+因为 www.ossxp.com 是单点登录服务器中注册的处理相应 cookie 的地址，因此当访问 www.ossxp.com 授权页面时，重定向会定位到正确的地址： www.ossxp.com/cosign/valid 。但是如果访问的是 www.opensourcexpress.com，则重定向的网址仍然是 www.ossxp.com/cosign/valid，导致服务 cookie 设置在另外的域名下，而 www.opensourcexpress.com 域名没有 cookie 设置，导致认证失败，又重新指向单点登录服务器，周而复始造成循环重定向。
+
+解决办法是，单独为 www.opensourcexpress.com 和 ossxp.com 设置虚拟主机，将所有请求重定向到 www.ossxp.com。
+<h3>没有设置 /cosign/valid，或因 URL 重写导致失效</h3>
+从前面的协议描述中我们可以看到 /cosign/valid 这个特殊地址，对于 CoSign 3.x 登录过程中的作用非常之大。必须为每一个Web虚拟机进行配置。
+
+但是有时候，明明配置了，但是单点登录仍然不能成功：在重定向到 .../cosign/valid 时，显示 404 （无法找到地址）错误。这通常是因为网站配置了 URL 重写，使得整个网站的 URL 全部交由某个应用来处理，导致 /cosign/valid 的设置没有生效。
+
+对于这种情况，就需要调整 Apache 的设置，甚至修改软件本身代码，让 /cosign/valid 地址能够交由 CoSign Filter 处理。
+
+示例：
+<ul>
+	<li><a href="http://github.com/ossxp-com/wordpress-hacks/commit/a28cabb347f0ef45a32cfaeb831d0787f362d1e5">群英汇修改 WordPress 重定向，让 /cosign/valid 能够生效</a></li>
+</ul>

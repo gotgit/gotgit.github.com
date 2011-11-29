@@ -1,0 +1,36 @@
+---
+layout: post
+title: "群英汇 TopGit 改进 (2): tg 导出全部分支"
+---
+
+实际上这个补丁 <em>export_quilt_all</em> 才是我们在 topgit 上的第一个补丁。那么是什么原因导致我们奇痒无比，需要改动 Topgit 的代码呢？
+
+我们使用 topgit 维护了几个开源项目，其工作模式是在几个特性分支中工作，工作结束后，将特性分支导出到 Quilt 格式的补丁列表。导出特性分支为 quilt 补丁的命令行是：
+<ul>
+	<li>将当前工作的特性分支及其依赖的特性分支导出到 quilt 格式的补丁中
+<pre>$ <strong>tg export --quilt EXPORT_DIR</strong></pre>
+</li>
+	<li>如果需要导出多个特性分支，需要使用命令
+<pre>$ <strong>tg export -b BRANCH1,BRANCH2,... --quilt EXPORT_DIR
+</strong></pre>
+这个命令主要的问题是，难以维护。如果我们把导出命令写入脚本，一旦特性分支增加或者删除，还要维护脚本。</li>
+</ul>
+为了方便将所有的特性分支一次性导出，我们曾经采用这个办法，避免过于复杂的命令行：
+<ul>
+	<li>创建一个分支名为 t/all</li>
+	<li>t/all 分支依赖其他所有特性分支</li>
+	<li>当在 t/all 分支，导出到 quilt 格式补丁列表时，包含了所有的特性分支</li>
+</ul>
+但是，这么做的副作用更大：
+<ul>
+	<li>仍然难以维护。在创建一个新的特性分支时，会忘记将其加入到 t/all 的依赖中</li>
+	<li>当任何分支有提交，t/all 分支都要重新执行 rebase，最后导致代码库历史极为混乱</li>
+</ul>
+当我们决定公开代码库到 Github 上时，我们觉得 t/all 分支实在是太难看了。 :-P   于是决定 Hack！
+
+最终的结果：使用一个简单的命令导出所有分支
+<pre>$ <strong>tg export --all --quilt EXPORT_DIR</strong></pre>
+这就是我们的 “tg 导出全部分支”的补丁。参见：
+<ul>
+	<li><a href="http://github.com/ossxp-com/topgit/commits/t/export_quilt_all">群英汇 在 Github 上的代码库</a></li>
+</ul>

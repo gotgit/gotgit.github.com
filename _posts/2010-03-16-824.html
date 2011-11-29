@@ -1,0 +1,57 @@
+---
+layout: post
+title: "CoSign 2.x 协议介绍"
+---
+
+CoSign 是美国密歇根大学研发的一个开源软件，提供跨域支持的单点登录认证。
+
+群英汇的单点登录架构最早源自于 CoSign 2.0。增加了多语模板支持，HTTP/HTTPS混杂目标网站的重定向，等多个方面的改进和增强。
+<h2><span id="more-824"></span>CoSign 2.x 协议原理</h2>
+在 <a href="http://webapps.itcs.umich.edu/cosign/index.php/Cosign_Wiki:Overview">CoSign wiki 网站上</a>，有两个协议实现的示例图，我们截取其中一个，用以说明。
+
+<img class="alignnone" src="http://webapps.itcs.umich.edu/cosign/uploads/f/f2/Cosigncase2.png" alt="" width="600" height="590" />
+<ul>
+	<li>图示纵向三条线，代表了单点登录中涉及到的三个实体。</li>
+	<li>中间的一条线代表浏览器客户端，是 IE，FireFox, Google Chrome 之类的啦</li>
+	<li>左边的一条线代表Web应用</li>
+	<li>右边的一条线代表单点登录服务器（CGI+Daemon）</li>
+	<li>浏览器访问 Web 应用网站，若尚未登录，则：1. 由<strong>应用网站发放 Cookie（应用cookie）；</strong>2. 重定向到单点登录服务器的登录界面</li>
+	<li>CoSign 2.x 的秘技：cookie 不是不能跨站么，CoSign 就通过 URL/Query string，将cookie的值 K/V 对传递到单点登录网站实现跨域；</li>
+	<li>在单点登录服务器的登录界面，由<strong>单点登录服务器签发cookie（登录 cookie）</strong></li>
+	<li>登录成功后，CoSign Daemon 将登录cookie 和服务cookie两者做关联。</li>
+	<li>浏览器再次被重定向回 Web 应用网站。（浏览器会将 服务 cookie 传递给Web应用）</li>
+	<li>Web应用所在的服务器，不会因为客户端发送了一个服务 cookie 就对客户端盲从，而是要通过专有协议（CoSign 协议, 6663 端口）和 CoSign Daemon 服务器连接，查询该服务器cookie的状态</li>
+	<li>如果经 CoSign Daemon 确认 服务 cookie 有效，则 Web 应用完成后续的登录注册工作;</li>
+	<li>如果 CoSign Daemon 返回了服务 cookie 无效的信息，则视同浏览器未登录，重新跳转到单点登录站点，开始新一轮的循环。</li>
+</ul>
+<h2>CoSign 2.x 的模块组成</h2>
+总共分为以下几个部分，分别是：
+<ul>
+	<li>Daemon：服务器。实现 cosign 专有通讯协议，用于 登录cookie 和服务 cookie的关联，cookie 的过期，cookie有效性查询等功能</li>
+	<li>CGI：登录界面。用于提供登录的 WEB 界面以及进行口令验证</li>
+	<li>Factor：外挂的身份验证模块，用于实现口令认证或者其他方式的认证。例如 LDAP 认证，邀请码认证...</li>
+	<li>Filter：Web服务器挂件，安装在 Web 应用所在的 Web 服务器上，用于自动实现登录的重定向，以及签发服务 cookie。</li>
+</ul>
+<h2>CoSign 2.x 中的循环重定向或者其他错误</h2>
+单点登录涉及到服务器之间的多次跳转，如果因为某种原因导致跳转出现死循环，CoSign 服务器的跳转计数器会捕捉到异常，停止跳转，报告循环重定向错误。常见的错误有：
+<h3>Cookie 名称在应用程序以及 Apache 中的配置不一致，导致循环重定向</h3>
+有的应用，cookie 值的随机生成和设置是由应用本身完成的，而不是 Apache 中的 CoSign 过滤器插件完成的。这种情况下，在应用中有一个 cookie 名字的设置，在 Apache 的 CoSign filter 配置中也有 cookie 名称 的设置。如果这两者不匹配，在单点登录认证完成后，重定向回应用，因为浏览器传递给应用的 Cookie 名称不正确，Apache 的 CoSign 过滤器插件不能完成登录。应用发现没有登录，又一次重定向到单点登录服务器，从而造成循环重定向。
+
+如果软件刚刚安装或者调整了配置，出现循环重定向，往往就是由于服务名配置不匹配造成的。
+<h3>客户端或者服务器端的时钟设置设置错误，导致不能成功登录或者登录后马上退出</h3>
+CoSign 的登录 cookie 是有时间限制的，一般设置为 4.5 小时有效，但通常可以设置为 一天内有效。但即使这样，也可能有的客户的本机时钟大大超前，导致浏览器误认为服务器端发放的 cookie 已经过期，在访问服务器时没有携带cookie（误认为是过期cookie）。
+
+这种情况的现象是，访问服务，能够重定向到单点登录，登录成功后，访问应用仍然显示没有登录，或者马上又自动退出登录。
+
+如果发生这种情况，检查以下机器的时钟，将时钟调整正确，即可解决这个问题。
+<h2>CoSign 2.x 的安全漏洞</h2>
+CoSign 2.x 版本存在一个安全风险，虽然不会影响服务器本身安全性，但存在被人利用，通过钓鱼手段获取权限的风险。CoSign 3.x 版本解决了这个问题。
+
+CoSign 2.x 的这个安全风险源自于：
+<ul>
+	<li>服务 cookie 由Web应用服务器发放，这时用户可能尚未登录</li>
+	<li>单点登录服务器建立登录 cookie 和服务 cookie 的关联非常随意，会被利用</li>
+	<li>黑客访问某个应用网帐，当重定向到单点登录服务器后，黑客的机器已经存在了相应的 服务 cookie，并且浏览器的地址栏会显示单点登录服务器跳转的 URL，并带有黑客自己的 cookie 值。</li>
+	<li>黑客只需要欺骗一个已经登录的用户点击这个URL，黑客就能够获取登录用户的权限，这是因为受害者已经通过点击伪装的 URL 对自己的 登录 cookie 和黑客的 服务 cookie 做了关联。</li>
+</ul>
+CoSign 3.x 解决了这个安全漏洞，详见相关博客: 《<a title="永久链接: CoSign 3.x 介绍及与 CoSign 2.x 的协议比较" rel="bookmark" href="/2010/03/16/831.html">CoSign 3.x 介绍及与 CoSign 2.x 的协议比较</a>》

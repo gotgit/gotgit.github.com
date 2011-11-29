@@ -1,0 +1,40 @@
+---
+layout: post
+title: "用 Rails 2.x.x 和 MySQL 搭建一个Web项目的步骤"
+---
+
+众所周知，Rails是一个敏捷的Web MVC开发框架，它可以帮助开发者瞬间完成一个Web项目框架的搭建，省去了J2EE里SSH框架大量复杂的配置工作。它只需要几条命令，就可以完成从数据库到应用曾所有组件的生成以及项目框架的搭建，让人简直难以相信。下面就介绍一下整个搭建的过程。
+
+<span id="more-713"></span>前提，你的机器上已经安装过 Rails 和 MySQL。
+<ol>
+	<li><strong>创建使用MySQL数据库的项目</strong>
+<pre>workspace$ rails --database=mysql projectName</pre>
+说明：Rails 自动创建使用MySQL数据库的 projectName 项目框架</li>
+	<li><strong>打开projectName/config/database.yml，修改连接数据库的配置信息</strong>
+<pre>development:
+adapter: mysql
+encoding: utf8
+reconnect: false
+database: sphinx_development
+pool: 5
+<strong>username: user
+password: pass</strong>
+socket: /var/run/mysqld/mysqld.sock</pre>
+说明：添加访问数据库所需的用户名和密码，为下一步连接数据库作准备</li>
+	<li><strong>根据数据库配置，让Rails给我们创建数据库，借助于 rake 工具</strong>
+<pre>projectName$ rake db:create RAILS_ENV='development'</pre>
+说明：Rails 约定开发使用的数据库是以_development结尾（即该命令会在数据库中
+创建一个名为projectName_development的数据库）。</li>
+	<li><strong>迁移数据</strong>
+<pre>projectName$ rake db:migrate</pre>
+说明：在projectName_development中建立schema_migrations表，记录该项目数据迁移的信息</li>
+	<li><strong>生成 model, view, controller 各层以及创建实体表所需的脚本</strong>
+<pre>projectName$ ruby script/generate scaffold entityName [fieldName1:fieldType] [fieldName2:fieldType] ......</pre>
+说明：生成MVC各层的组件以及entityName实体表创建的脚本
+Rails 约定数据库表名为实体名的复数（即该操作生成的数据库表名为entityNames）</li>
+	<li><strong>借助上步生成的脚本在数据库中创建实体表
+</strong><pre>projectName$ rake db:migrate</pre></li>
+	<li><strong>启动应用程序，查看已经搭建好的Web应用</strong>
+<pre>projectName$ ruby script/server</pre>
+在浏览器输入 http://localhost:3000/entityNames便可以浏览已经搭建好的应用程序了</li>
+</ol>

@@ -1,0 +1,32 @@
+---
+layout: post
+title: "redmine 邮件服务的配置"
+---
+
+<h2>1.将config/email.yml.example重命名为config/email.yml</h2>
+<pre> REDMINE_ROOT$ mv config/email.yml.example config/email.yml</pre>
+<h2>2.修改config/email.yml文件，修改信息如下：</h2>
+<pre>production:
+  delivery_method: :smtp
+  smtp_settings:
+  address: mail.foo.bar
+  port: 25
+  domain: foo.bar
+  # authentication: :login
+  # user_name: xxx
+  # password: xxx
+
+development:
+  delivery_method: :smtp
+  smtp_settings:
+  address: mail.foo.bar
+  port: 25
+  domain: foo.bar
+  # authentication: :login
+  # user_name: xxx
+  # password:xxx</pre>
+注意用#注销掉的那三行信息，那是邮件服务器身份验证信息，但是如果你的用户已经使用了域验证，就不需要那三行信息。
+
+<strong>注：这是针对Redmine 0.8.x版本以及以后版本适用的。对于之前的版本并不存在config/email.yml.example文件，这时邮件的配置是在config/environment.rb文件里，找到“# SMTP server configuration”字样，然后在下面进行参数配置，配置的参数和新版本的一样。</strong>
+<h2>3.保存退出之后，重新启动服务器。</h2>
+然后访问redmine，以管理员的身份登录系统，点击"管理"----&gt;"配置"----&gt;"邮件通知"，然后点击右下角的"发送测试邮件"，就可以测试你的邮件服务配置是否成功了。

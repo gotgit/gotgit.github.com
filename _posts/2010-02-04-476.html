@@ -1,0 +1,104 @@
+---
+layout: post
+title: "版本库整理的内存溢出问题"
+---
+
+我在博客 <a href="/2010/01/27/430.html">Subversion 版本库整理实战</a> 中为用户提供的 Subversion 版本库整理宝典  :sweat: ，在客户那里没有奏效。通过几个邮件的往来，决定还是专门写一个博客，因为通过博客后面的评论来回复，编辑功能太弱，要写 HTML，所以以文章形式汇总一下。
+
+客户目前遇到了两个问题：
+<ol>
+	<li>一个是导入到新版本时提示目录不存在</li>
+	<li>另外一个就非常诡异，错误输出是：
+<pre>svnadmin: 转存流在“Out of memory - term”包含错误头部（没有“:”）</pre>
+</li>
+</ol>
+第一个问题很好解决，第二个问题可真是一个大麻烦。
+
+<span id="more-476"></span>
+<h2>关于第一个问题的回复</h2>
+<p style="padding-left: 30px;">我在博客中的例子和你的不一样，是因为我的例子中，svndumpfilter 包含是整个
+branches 目录（是一级目录），而你的操作是二级目录。</p>
+<p style="padding-left: 30px;">我的例子中导出文件是一级目录，可以直接导入，因为根 ／ 已经存在。
+你的例子是二级目录，不存在 branches，在创建空的版本库后，需要创建一级子目录
+然后再导入。</p>
+<p style="padding-left: 30px;">即创建完毕空版本库（svnadmin create test）后，执行
+svn mkdir file:///path/to/repos/branches
+诸如此类。。。</p>
+<p style="padding-left: 30px;">如果您在导入时，提示已经存在了某个目录或文件，您则需要执行
+svn rm file:///path/to/repos/path/to/conflict
+删除已经存在的目录或者文件。</p>
+
+<h2>关于第二个问题的回复</h2>
+第二个问题，我的第一个判断是内存溢出，可能是用户的库太大了。于是我回复客户：
+<ul>
+	<li>看来是导出文件太大了，导致内存不足。
+（当时的这个分析不太准确。实际上是导出的时候出现了异常。导致导出文件的格式不正确，出现了不包含冒号的一个Header）</li>
+	<li>解决方法是：在用 svnadmin dump 的时候，使用 -r X:Y 参数，分批导出。
+例如第一次先导出 1000 个提交，第二次再导出 1000 个提交。
+注意：在第二次之后的导出时，要使用 --incremental 增量导出。</li>
+	<li>我还要求他们在执行命令时最好设置环境变量 LC_ALL=C，以便产生不那么别扭的错误输出。</li>
+</ul>
+客户的回复大意如下：
+<ul>
+	<li>svn库大小为21G(压缩后的gz文件大小,不是原始的目录文件大小，最新版本号为428113)，整个库dump出来的文件夹大概在50G左右，dump时间也大概在18个小时左右。但是如果我们指定了一个版本号区间，248253：424935，指定版本区间的dump时间远远大于整个库的dump时间，大概花了53个小时才完成，dump的文件居然有200多G。 dump后进行filter过滤后的文件才1.5G左右，这种文件的大小应该不会引起内存溢出的。(因为服务器内存足够)</li>
+	<li>当设置为英文语种后，错误输出为：
+<pre>svnadmin: Dump stream contains a malformed header (with no ':') at 'Out of memory - term'</pre>
+</li>
+	<li>在load的过程中，整个机器的内存使用都不超过50％，机器的物理内存绝对足够。</li>
+	<li>Dump stream contains a malformed header 这个错好象是说dump文件头有问题，但是又没有具体的异常信息，在网上也没有找到相关的错误消息。</li>
+</ul>
+既然客户说 Google 无望，我也就没有上 google 搜，更没有上百度。直接去查看 Subversion 的源代码：
+
+下面是我给客户的回复：
+<ul>
+	<li>你查看你的导出文件，应该会看到下面这一行：
+Out of memory - terminating application.</li>
+	<li>看一看这一行是在那里产生的？是在最开始的导出文件就已经存在了，还是 svndumpfilter 的过滤后的文件出现了这一行?
+通过这一点可以确认：是在 svnadmin dump 导出的时候出现了内存溢出？还是在 svndumpfilter 执行时内存不足？</li>
+	<li>Subversion 在执行 svnadmin load 的时候，会执行下面的代码：
+源文件： libsvn_repos/load.c
+<pre>/* Find the next colon in the stringbuf. */
+ while (header_str-&gt;data[i] != ':')
+   {
+     if (header_str-&gt;data[i] == '\0')
+       return svn_error_createf(SVN_ERR_STREAM_MALFORMED_DATA, NULL,
+                                _("Dump stream contains a malformed "
+                                  "header (with no ':') at '%.20s'"),
+                                header_str-&gt;data);
+     i++;
+   }</pre>
+</li>
+	<li>Subversion 在执行 svnadmin load 的时候，要检查导入文件的格式。
+当发现有一个应该是 Header 的地方，格式不正确，没有冒号出现，于是报错。报错时显示导入文件中格式不正确的一行的内容。导入文件的不正确格式内容为：
+Out of memory - terminating application.
+注意：在错误输出时，只显示了该行的头20个字符。</li>
+	<li>至于 "Out of memery - term..." 的信息是从哪里产生的？我也作了查找。
+是在文件 subversion/libsvn_subr/pool.c 中产生的：
+<pre>/* Pool allocation handler which just aborts, since we aren't generally
+ prepared to deal with out-of-memory errors.
+ */
+static int
+abort_on_pool_failure(int retcode)
+{
+ /* Don't translate this string! It requires memory allocation to do so!
+ And we don't have any of it... */
+ printf("Out of memory - terminating application.\n");
+ abort();
+}</pre>
+</li>
+</ul>
+<h2>关于 Subversion 使用的看法</h2>
+Subversion 的代码库如果增长到了几个 GB 或者更多，就可能意味着出现了一些问题。
+<ul>
+	<li>不应该检入版本库的文件被检入了
+例如 Java 项目的 .class 文件， .jar 文件；Visual Stdio 项目的 .exe, .obj 文件等。
+应该使用 subversion 的文件忽略功能，防止误将此类文件检入。</li>
+	<li>分支的创建没有使用 subversion 的 cp 方式，而是重新导入的代码
+这不是没有可能，我就看到有的客户是这么干的</li>
+	<li>文件删除后的恢复，没有采用正确的恢复方式导致文件空间占用加倍
+Subversion 的文件删除的恢复实际上是反向的 merge 操作，如果采用重新添加新文件（CVS 工作模式），实际上不是恢复文件，而是产生另外文件，导致空间加倍。</li>
+	<li>版本库应该分拆，不相干的项目应该使用各自独立的版本库</li>
+</ul>
+以上的问题出现，大多是项目的开发经理在代码管理上的关注不够造成的。对版本库的关注，不应该只是配置管理工程师的职责，而应该是每个开发经理都应该重点关注的问题。
+
+选择群英汇的产品实施而不只是我们的培训服务，会从根本上解决企业版本控制的难题。

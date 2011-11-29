@@ -1,0 +1,64 @@
+---
+layout: post
+title: "Topgit 安装"
+---
+
+Topgit 用 shell 脚本语言开发，可以安装在所有类Unix环境中，例如 Linux、Mac OS X[1] ，以及Windows下的Cygwin、msysGit等。下面的官方网站链接介绍了Topgit的安装和使用方法：
+<ul>
+	<li>http://repo.or.cz/w/topgit.git?a=blob;f=README 。</li>
+</ul>
+<h2>1.    Linux下安装Topgit</h2>
+安装官方的 Topgit 版本，直接克隆官方的版本库，执行 make 即可：
+<pre>$ git clone git://repo.or.cz/topgit.git
+$ cd topgit
+$ make
+$ make install</pre>
+默认会把可执行文件 tg 安装在 $HOME/bin （用户主目录下的 bin 目录）下，如果没有将 ~/bin 加入环境变量 $PATH 中，可能无法执行 tg。
+如果具有 root 权限，也可以在编译和安装时向make命令传递prefix环境变量，将 tg 安装在系统目录中。
+<pre>$ make prefix=/usr
+$ sudo make prefix=/usr install</pre>
+我对 Topgit 做了一些增强和改进，在后面的章节将予以介绍。如果想安装改进的版本，需要预先安装 quilt 补丁管理工具，然后进行如下操作。
+<pre>$ git clone git://github.com/ossxp-com/topgit.git
+$ cd topgit
+$ QUILT_PATCHES=debian/patches quilt push -a
+$ make prefix=/usr
+$ sudo make prefix=/usr install</pre>
+如果用的是 Ubuntu 或 Debian Linux 操作系统，还可以这么安装。
+（1）    先安装 Debian/Ubuntu 打包依赖的相关工具软件。
+<pre>$ sudo aptitude install quilt debhelper \
+build-essential fakeroot dpkg-dev</pre>
+（2）    再调用 dpkg-buildpackage 命令，编译出 DEB 包，再安装。
+<pre>$ git clone git://github.com/ossxp-com/topgit.git
+$ cd topgit
+$ dpkg-buildpackage -b -rfakeroot
+$ sudo dpkg -i ../topgit_*.deb</pre>
+（3）    安装完毕后，重新加载命令行补齐，可以更方便地使用 tg 命令。
+<pre>$ . /etc/bash_completion</pre>
+<h2>2.    Mac OS X 下安装Topgit</h2>
+在Mac OS X下安装官方版本的Topgit，在使用中会遇到问题。这是因为Mac OS X下部分shell命令的行为和相应的GNU命令的行为不一致，例如echo、paste和sed命令等。
+在Mac OS X下可以使用Homebrew安装所需的GNU工具。如下：
+<pre>$ brew install gnu-sed
+$ brew install coreutils
+$ brew install quilt</pre>
+然后别忘了安装改造后的Topgit。
+<pre>$ git clone git://github.com/ossxp-com/topgit.git
+$ cd topgit
+$ QUILT_PATCHES=debian/patches quilt push -a
+$ make prefix=/usr
+$ sudo make prefix=/usr install</pre>
+<h2>3.    Windows下安装Topgit</h2>
+<span style="text-decoration: line-through;">Windows下的msysGit因为缺乏Topgit依赖的命令行工具，因此很难在msysGit下运行Topgit。</span>
+
+Windows下的msysGit因为缺乏Topgit依赖的命令行工具（如：fgrep, install, make, mkfifo, mktemp, tsort 等），安装和运行Topgit会遇到困难。从安装好的 MSYS[2] 或 MSYS-CN[3]中可以提取所需软件到 msysGit 环境，实现Topgit在msysGit中的安装和运行。
+
+Windows下的Cygwin拥有一个完整的POSIX环境，当安装了所需的工具（quilt 、make等）后，就可以正常的编译和使用Topgit。但是如果克隆的Topgit版本库的工作区文件的换行符是DOS格式换行符（CRLF），在安装过程中会遇到麻烦。从下面地址克隆的Topgit版本库，因为工作区根目录下存在一个.gitattributes[4] 文件，可以保证检出的工作区文件采用Unix格式的换行符（LF）。具体的安装方法同前。
+
+<hr /><span style="text-decoration: line-through;">[1] MsysGit的shell环境因缺乏Topgit需要用到的部分命令和编译工具不能安装和运行Topgit。</span>
+
+[1] Mac OS X及BSD中安装的sed命令和Topgit不兼容，需要安装 GNU sed，并使用改造后的Topgit。
+
+[2] http://www.mingw.org/wiki/msys
+
+[3] http://code.google.com/p/msys-cn/
+
+[4] 参见第8篇第40章“40.3 换行符问题”

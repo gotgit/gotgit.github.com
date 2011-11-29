@@ -1,0 +1,16 @@
+---
+layout: post
+title: "群英汇 Mailman 人性化设计(3): 列表订阅的人性化设计"
+---
+
+在邮件列表一览页面，当点击某个列表，将进入相应列表的首页。在 Mailman 本身的实现中，这个首页会包含该列表的订阅对话框（需要手动填写），还包含该列表的订阅编辑对话框。例如：<a href="http://mail.python.org/mailman/listinfo/python-ideas">Python-idea 列表的首页 </a>。
+
+而群英汇为每个列表的首页都加入的身份认证的判别。如果用户已经登录，则显示类似下面的界面：
+
+<a href="/wpfiles/2010/05/mailman3-listinfo-svn.png"><img class="aligncenter size-medium wp-image-1137" title="mailman3-listinfo-svn" src="/wpfiles/2010/05/mailman3-listinfo-svn-300x275.png" alt="" width="300" height="275" /></a>
+<ul>
+	<li>如果列表已经订阅，会显示“用户已经订阅本列表”的信息</li>
+	<li>如果用户尚未订阅列表，会显示订阅对话框，不过对话框中的邮件地址信息已经自动填好。</li>
+	<li>在花名册查看对话框以及订阅编辑对话框等，不再显示口令输入等输入对话框，而是简化成一个按钮，因为认证已经完成或者认证会在点击对话框后开始。</li>
+</ul>
+另外一个主要的不同，订阅的策略的改进，增加了新的订阅策略，更加符合公司/团队的使用习惯。请听下回分解。

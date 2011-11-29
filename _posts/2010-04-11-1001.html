@@ -1,0 +1,67 @@
+---
+layout: post
+title: "从 CoSign 看开源软件本地化（3）"
+---
+
+上文谈到 CoSign 虽然模板的本地化已经很方便了（有了 Include 宏），但是静态页面尚未本地化。那么又哪些静态文件呢？
+
+CoSign 2.x 有两个静态页面：looping.html 和 post_error.html。CoSign 3.x 又增加了一个静态页面：validation_error.html。
+<ul>
+	<li>looping.html:  当发生循环重定向时，跳转到该页面</li>
+	<li>post_error.html: 当由于单点登录退出导致应用提交过期导致可能的数据丢失，重定向到该说明页面</li>
+	<li>validation_error.html: 当重定向的地址和预设地址不匹配跳转到该警告页面</li>
+</ul>
+这些页面以静态页面出现，而不是模板文件由CGI调用，因此其本地化就不可能用之前的运行时模板选择以及模板中的 include 宏来实现多语种。那么该怎么办呢？
+
+<span id="more-1001"></span>这个问题在 2008 年，刚刚进行 CoSign 产品化的时候，选择了 Apache 内容协商的方式进行本地化。这个方法在今天看来有些笨拙而且冗余，并且我们现在使用了更好的方法实现。但是当时的办法也不失一个经典的本地化方法。
+<h2>Apache 的内容协商</h2>
+Apache 内容协商是在一个目录下存在多个 index 文件，根据浏览器的语种优先级的不同，选择最符合用户语言的 index 页面。Apache 的部分页面，还有 <a href="http://www.debian.org/">Debian 官方网站</a> 就是用这个方法实现的多语种支持。
+
+<span style="text-decoration: underline;"><strong>首先，Apache 需要加载相应模组</strong></span>
+<pre>$ sudo a2enmod negotiation
+$ sudo a2enmod mime
+$ sudo a2enmod include
+
+其中：
+</pre>
+<ul>
+	<li>negotiation 模组提供了根据浏览器语种自动内容协商功能</li>
+	<li>mime 模组提供文件扩展名和语种匹配的指令</li>
+	<li>include 模组提供服务器端包含，这样可以在 HTML 中实现页面嵌套，就像我们前面在模板页面中用 Include 宏实现的那样</li>
+</ul>
+<span style="text-decoration: underline;"><strong>而且相关目录要配置 MultiViews 选项</strong></span>
+
+要为提供语言自动协商的目录提供 MultiViews 设置，并添加其他语言选择相关设置。示例如下：
+<pre>&lt;Directory /opt/cosign/lib/html-local/&gt;
+ # Multi-language support, and SSI enabled
+ Options +FollowSymLinks +MultiViews +Includes
+
+ AddLanguage zh-CN .zh
+ AddLanguage zh-TW .zh
+ AddLanguage zh .zh
+ LanguagePriority zh en
+ ForceLanguagePriority Prefer Fallback
+
+ AddOutputFilter INCLUDES .html
+
+ AllowOverride All
+ order allow,denY
+ allow from all
+&lt;/Directory&gt;
+</pre>
+<span style="text-decoration: underline;"><strong>关于 SSI （服务器端包含）</strong></span>
+
+服务器端包含能够在静态页面中包含其他文件，从而实现页面设计的模块化，减少页面的冗余。类似前面我们在模板中通过 Include 宏实现的功能。
+
+SSI 的启用也要对相应的目录进行设置。包括增加 Include 的参数设置，以及用“AddOutputFilter INCLUDES” 指令设置对哪些扩展名的文件提供 SSI 扩展支持。参见上面的示例。
+
+页面中使用特殊的注释语法实现 SSI。这样的好处是，对于错误配置的 SSI，包含指令当做注释，不会破坏页面结构。示例：
+<pre>...
+    &lt;!--#include file="zh/inc/header.inc" --&gt;
+      ...
+    &lt;!--#include file="zh/inc/footer.inc" --&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre>
+虽然，通过Apache内容协商，可以实现静态页面的本地化，但是副作用是冗余度再次提高了。本来只有两三个静态页面进行风格定制，本地化后页面的风格定制工作量成倍增加。
+
+解决这个问题我们后来使用了一个静态页面模板化的方法。但是在这之前，先介绍一下我们是如何实现 CoSign 核心的本地化，进而实现了对认证因子的错误提示信息的本地化。

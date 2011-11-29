@@ -1,0 +1,74 @@
+---
+layout: post
+title: "Rails与Sphinx的整合"
+---
+
+如何在 Rails 项目里添加全文索引功能呢。下面介绍一下用sphinx-for-chinese 提供的Rails插件给Rails项目添加全文索引的过程
+
+<span id="more-728"></span>
+前提是你的机器上已经成功安装了 Sphinx-for-chinese，如果还没有安装，可以参考 <a href="/2010/03/04/720.html" target="_blank">Debian/Linux下 sphinx-for-chinese的安装</a>
+<ol>
+	<li> 创建项目目录
+<pre>$ rails --database=mysql demo
+$ cd demo</pre>
+</li>
+	<li>修改 config/database.yml文件，添加连接数据库的信息
+<pre>development:
+adapter: mysql
+encoding: utf8
+reconnect: false
+database: demo_development
+pool: 5
+<strong>username: user
+password: pass</strong>
+socket: /var/run/mysqld/mysqld.sock</pre>
+说明：加粗部分是添加的</li>
+	<li>创建数据库
+<pre>demo$ rake db:create RAILS_ENV='development'</pre>
+</li>
+	<li>创建搜索控制器
+<pre>demo$ ruby script/generate controller search index result</pre>
+</li>
+	<li>修改 app/controllers/search_controller.rb 文件
+<pre>class SearchController &lt; ApplicationController
+  def index
+  end
+  def result
+    <strong>@query = params['query']
+    @sphinx = Sphinx::Client.new
+    @results = @sphinx.Query(@query)</strong>
+  end
+end</pre>
+说明：加粗部分是添加的</li>
+	<li>修改 app/views/search/index.html.erb 文件，以下是修改后的文件内容
+<pre>&lt;% form_tag :action =&gt;'result' do %&gt;
+  &lt;%= text_field_tag :query,'' %&gt;
+  &lt;%= submit_tag '查询' %&gt;
+&lt;% end %&gt;</pre>
+</li>
+	<li>修改 app/views/search/result.html.erb 文件，以下是修改后的文件内容
+<pre>搜索 &lt;strong&gt;&lt;%= @query %&gt;&lt;/strong&gt; 获得 &lt;%= @results['total_found'] %&gt; 条匹配结果，用时 &lt;%= @results['time'] %&gt;秒。&lt;/br&gt;
+&lt;legend&gt;查询统计：&lt;/legend&gt;
+&lt;% @results['words'].each do |word, info| %&gt;
+&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;strong&gt;&lt;%= word%&gt;&lt;/strong&gt;在总共 &lt;%= info['docs']%&gt; 个文档中命中 &lt;%= info['hits']%&gt; 次。
+&lt;% end %&gt;
+&lt;ol&gt;
+&lt;% @results['matches'].each do |doc| %&gt;
+  &lt;li&gt;doc_id=&lt;%= doc['id']%&gt;, weight=&lt;%= doc['weight']%&gt;
+  &lt;% doc['attrs'].each do |attr, value|
+    %&gt;, &lt;%= attr%&gt;=&lt;%= value%&gt;
+  &lt;% end %&gt;&lt;/li&gt;
+&lt;% end %&gt;
+&lt;/ol&gt;</pre>
+</li>
+	<li>启动服务
+<pre>demo$ ruby script/server</pre>
+打开浏览器，输入 http://3000/search 你就可要看到一个搜索框，输入查询关键字，点击“查询”按钮就可以看到搜索结果。
+以下是我使用 sphinx-for-chinese自带的测试数据截的图。
+<ul>
+	<li>查询界面截图
+<a href="/wpfiles/2010/03/search.png"><img class="aligncenter size-medium wp-image-729" title="search" src="/wpfiles/2010/03/search-300x200.png" alt="搜索界面截图" width="300" height="200" /></a></li>
+	<li>查询结果界面截图<a href="/wpfiles/2010/03/result.png"><img class="aligncenter size-medium wp-image-733" title="result" src="/wpfiles/2010/03/result-300x198.png" alt="搜索结果截图" width="300" height="198" /></a></li>
+</ul>
+</li>
+</ol>

@@ -1,0 +1,40 @@
+---
+layout: post
+title: "Repo 新增 hack：URL 自动 DotGit 后缀控制等"
+---
+
+在《Git权威指南》书中提到的 Repo 的 Hack 主要是增加了两条新的子命令，实现脱离 Gerrit 服务器直接向 Git 服务器提交。即：
+<ul>
+	<li>子命令 repo config 用于在清单库（Manifest）设置配置变量。
+例如设置 repo.pushurl 配置变量，以便在直接向服务器推送时使用该地址（实际上还要在该地址后面添加版本库名称和 .git 后缀）。</li>
+	<li>子命令 repo push 用于绕过 Gerrit 服务器，直接向 Git 服务器推送。
+该命令要参考清单库的 repo.pushurl 配置变量。</li>
+</ul>
+最近的使用过程中，又发现有改进的必要，于是做了如下新的开发：
+<h3>版本库URL自动DotGit后缀控制</h3>
+发现 FreeMind 在 SourceForge 上的版本库地址不能在地址的后面出现 ".git" 后缀后，必须对 Repo 进行改造，否则无法使用 Repo 克隆不带 ".git" 后缀的 Git 版本库。
+
+新增的 Hack 见 <a href="http://github.com/ossxp-com/repo/">repo@github//ossxp-com</a>上的 <a href="https://github.com/ossxp-com/repo/commit/7bd936c170ea56a053a798bec96b07e846bad310">这个提交</a>。改进后的 Repo 会读取清单库中 XML 文件的 remote 元素中的 autodotgit 属性，如果该属性设置为 "false" ，则不会在构建 URL 时添加 ".git" 后缀。
+
+例如 <a href="https://github.com/ossxp-com/freemind-manifest">freemind-manifest.git 版本库</a>的 default.xml 文件就有这么一段：
+<pre>&lt;manifest&gt;
+  &lt;remote  name="sf"
+           fetch="git://freemind.git.sourceforge.net/gitroot/freemind/"
+           <strong>autodotgit="false"</strong> /&gt;
+...</pre>
+加粗显示的 autodotgit 属性可以确保使用该远程版本库服务器克隆版本库时不会自动在URL后添加 ".git" 后缀。
+<h3>为每个远程版本库服务器设置单独的 pushurl 模板</h3>
+之前在清单版本库添加一个 repo.pushurl 配置变量，于是就设置了一个全局的 PUSH URL 模板，在执行推送时（repo push），向该配置变量设置的 URL 后面添加版本库路径便形成版本库的地址。
+
+但是之前的这个实现太粗放，如果一个清单文件中使用了多个 remote 元素，设定了不同的远程版本库服务器，一个通用的 PushURL 模板是不存在的。于是做了如下改进。
+<ul>
+	<li>例如为名为 sf (SourceForge) 的远程版本库服务器设置推送地址模板，可以如下：
+<pre>$ <strong>repo config repo.sf.pushurl \</strong>
+  <strong>ssh://git@freemind.git.sourceforge.net/gitroot/freemind/</strong></pre>
+</li>
+	<li>为名为 github 的远程版本库服务器设置推送地址模板，如下设置：
+<pre>$ <strong>repo cofnig repo.github.pushurl \
+  git@github.com:ossxp.com/</strong></pre>
+</li>
+</ul>
+如果某个远程版本库服务器没有在清单库中设置 repo.&lt;remote&gt;.pushurl 变量，默认会使用 repo.pushurl 配置变量。

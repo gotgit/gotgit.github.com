@@ -1,0 +1,91 @@
+---
+layout: post
+title: "rst2pdf中图片的处理"
+---
+
+<div id="rst2pdf" class="section">
+
+一般情况下，使用 <cite>reStructuredText(ReST)</cite> 生成 <cite>PDF</cite> 格式的文件需要先转化成 <cite>LaTeX</cite> 格式。而 <cite>rst2pdf</cite> 通过调用 <cite>reportlab</cite> 工具包直接生成 <cite>PDF</cite> 文件。
+
+<span id="more-1450"></span>
+<div id="id2" class="section">
+<h2><a class="toc-backref" href="#id4">配置文件</a></h2>
+<cite>rst2pdf</cite> 会读取配置文件 <tt class="docutils literal">(如果存在)/etc/rst2pdf.conf</tt> 和 <tt class="docutils literal"><span class="pre">~/.rst2pdf/config</span></tt> ，也可以通过命令参数 <cite>--config=FILE</cite> 来设置配置文件的路径。配置文件的格式如下:
+<pre class="literal-block">    [general]
+
+    # Footnote backlinks enabled or not (default: enabled)
+    footnote_backlinks=True
+
+    # Show footnotes inline instead of at the end of the document
+    inline_footnotes=False</pre>
+配置文件的选项可以从 <cite>rst2pdf</cite> 命令选项中得到,从源代码 <cite>createpdf.py</cite> 文件 <cite>parse_commandline()</cite> 方法中就可以看出配置文件的作用是设定默认值:
+<pre class="literal-block">def_footnote_backlinks = config.getValue("general",
+        "footnote_backlinks", True)
+parser.add_option('--no-footnote-backlinks', action='store_false',
+        dest='footnote_backlinks', default=def_footnote_backlinks,
+        help='Disable footnote backlinks.'\
+        ' Default=%s' % str(not def_footnote_backlinks))</pre>
+</div>
+<p id="image" class="section"></p>
+
+<h2><a class="toc-backref" href="#id5">图片处理</a></h2>
+<cite>rst2pdf</cite> 是通过 <cite>PIL</cite> (Python Imaging Library)来处理图片。图片宽和高的单位可以使用 <em>em ex px in cm mm pt pc %</em> 或者什么都不写,默认的单位是 <cite>px</cite> 。<em>rst2pdf</em> 默认是300 dpi，但是可以通过命令选项 <cite>--default-dpi</cite> 或者在配置文件中设置。但是命令参数 <cite>--default-dpi</cite> 也并不是万能的，图片后缀的不同，图片的大小最后也不同。 <cite>--default-dpi</cite> 的值是通过 <cite>createpdf.py</cite> 文件传给了 <cite>style.py</cite> 文件中的类<em>StyleSheet</em>的属性<em>def_dpi</em>如下:
+<pre class="literal-block">def_dpi = config.getValue("general", "default_dpi", 300)
+parser.add_option('--default-dpi', dest='def_dpi', metavar='NUMBER',
+           default=def_dpi,
+           help='DPI for objects sized in pixels. Default=%d'%def_dpi)
+
+......
+
+self.styles = sty.StyleSheet(styleSheets,
+                             self.font_path,
+                             self.style_path,
+                             def_dpi=self.def_dpi)</pre>
+命令选项 <em>--default-dpi</em> 的值赋予xdpi,ydpi，但是根据图片后缀的不同又将进一步变化。
+<pre class="literal-block">xdpi, ydpi = client.styles.def_dpi, client.styles.def_dpi   # 赋值
+extension = imgname.split('.')[-1].lower()                  # 后缀 
+
+if extension in ['svg','svgz'] and SVGImage.available():
+      iw, ih = SVGImage(imgname, srcinfo=srcinfo).wrap(0, 0)
+      iw = iw * xdpi / 72
+      ih = ih * ydpi / 72
+ elif extension in ["ai", "ccx", "cdr", "cgm", "cmx",
+                   "sk1", "sk", "xml", "wmf", "fig"] and VectorImage.available():
+      iw, ih = VectorImage(imgname, srcinfo=srcinfo).wrap(0, 0)
+      iw = iw * xdpi / 72
+      ih = ih * ydpi / 72
+
+      ......
+
+ else:
+      keeptrying = True
+      if LazyImports.PILImage:
+         try:
+            img = LazyImports.PILImage.open(imgname)
+            img.load()
+            iw, ih = img.size
+            xdpi, ydpi = img.info.get('dpi', (xdpi, ydpi))
+            keeptrying = False
+
+  ......</pre>
+图片处理中 <em>ydpi xdpi </em>的值我们可以通过以下代码来验证，在 <cite>image.py</cite> 380行代码出加入 <em>print xdpi,ydpi</em>。如果图片后缀是<em> gif，</em>则与 <em>--default-dpi </em>相同，后缀是 <em>png</em> ，则返回 <em>72,72</em>。
+<pre class="literal-block">w = node.get('width')
+h = node.get('height')
+<em><strong>print xdpi,ydpi</strong></em></pre>
+以上代码中出现的<em>iw,ih</em>表示图片原宽和原高，<em>w,h,scale</em>是从<em>ReST</em>文档中得到的数值。
+<pre> iw = img.size().width()
+ ih = img.size().height()
+
+ w = node.get('width')
+ h = node.get('height')
+ scale = float(node.get('scale', 100))/100
+</pre>
+最后图片通过以下几种情况的处理，就会得到最后的宽和高:
+<ul>
+	<li>如果 <em>w,h </em>都为<em>none</em>，则 <em>w = iw*inch/xdpi   h = ih*inch/ydpi。
+</em></li>
+	<li><em>如果w,h </em>都不为<em> none, </em>则<em>w = client.styles.adjustUnits(w, client.styles.tw,default_unit='px')    h = client.styles.adjustUnits(h, ih*inch/ydpi, default_unit='px')。</em></li>
+	<li>如果 <em>w,h</em> 只有一个为<em> none</em>，则会通过 <em>iw/ih </em>来得到另一个。</li>
+	<li>scale的默认值为100%,最后的宽和高都会乘以scale，即<em>w = w*scale    h = h*scale</em>。</li>
+</ul>
+不一致的图片处理方式，最终导致 PDF 中图片忽大忽小，而且和 HTML 的输出非常不一致。解决这个问题，参见博文<a href="/2010/07/26/1533.html">《rst2pdf图片处理（续）》</a></div>

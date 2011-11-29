@@ -1,0 +1,101 @@
+---
+layout: post
+title: "Gistore（基于 git 的数据备份软件）升级至 0.2.x"
+---
+
+在 10年1月份的一篇 <a href="/2010/01/23/406.html">Gistore 发布声明的博客</a>中 ，我介绍了我们自己开发的一个用户数据备份的小工具 Gistore。
+
+是什么原因让我们开发备份工具呢？这是因为：
+<ul>
+	<li>我们公司的数据备份的需要</li>
+	<li>客户数据备份需要更好用的软件</li>
+	<li>rdiff-backup 和 flexbackup 的备份方案不够好</li>
+</ul>
+实际上 rdiff-backup 用做数据备份，已经足够好了，你可以从我们公司的维基中看到 rdiff-backup 的使用方法：
+<ul>
+	<li><a href="http://www.ossxp.com/HelpCenter/50000_Admin/00020_Backup">《存储可靠性、数据备份和恢复》</a></li>
+</ul>
+但是 rdiff-backup 的解决方案的问题是：
+<ul>
+	<li>命令难记，包括我自己在数据恢复的时候还要一遍一遍的查阅文档</li>
+	<li>之所以命令难记，实际上是因为备份工具本身的使用率很低，只有在灾难恢复时候会用到，所以命令不熟悉是一定的。</li>
+	<li>数据的异地镜像比较复杂，需要引入其它工具</li>
+</ul>
+为什么不用 Git 开发一款工具呢？
+<ul>
+	<li>Git 的命令天天在用，实在是太熟悉了</li>
+	<li>Git 的数据同步太方便了，在同步过程能够实时查看进度</li>
+</ul>
+此次 Gistore 升级，解决了半年多的使用过程中积累问题，并且增加了易用性。
+<h2><span id="more-1604"></span>备份时的提交说明简单、易懂、有用</h2>
+例如我们公司一台服务器最近的备份日志：
+<pre>/backup/gistore/default$ <strong>git --git-dir=repo.git log</strong>
+<strong>commit cf23ccd2e51ce04941871cae0e1062b685fa4640</strong>
+Author: root &lt;root@ossxp.com&gt;
+Date:   Thu Jul 29 16:20:52 2010 +0800
+
+ Changes summary: total= 29, A: 7, D: 1, M: 21
+ ---------------------------------------------
+ A =&gt; opt/redmine/files/100729102244_add_redmine_task_repository.png, opt/redmine/files/100729102301_setting_redmine_task_repository.png, opt/redmine
+ D =&gt; opt/mailman/lists/jobs/digest.mbox                                                                                                             
+ M =&gt; opt/cosign/lib/templates-local/inc/en/0030_bugtrac.html, opt/mailman/lists/jobs/config.pck.last, opt/trac/sites.ossxp/freemind/db/trac.db, opt/
+
+<strong>commit 46fab3dab8a96856b544fea480d6df42f1115447</strong>
+Author: root &lt;root@ossxp.com&gt;
+Date:   Thu Jul 29 08:48:49 2010 +0800
+
+ Changes summary: total= 117, A: 15, D: 1, M: 91, R: 10
+ ------------------------------------------------------
+ A =&gt; .gistore/.gistore-lock-commit, backup/ldap/dc=ossxp,dc=com.ldif, opt/mailman/lists/jobs/digest.mbox, opt/redmine/web/config/locales/lv.yml, opt
+ D =&gt; opt/moin/sites/ossxp.com/data/cache/wikiconfig/user/name2id
+ M =&gt; .gitignore, opt/mailman/archives/private/jobs/pipermail.pck, opt/redmine/web/config/locales/bg.yml, opt/redmine/web/config/locales/ko.yml, opt/
+ R =&gt; .gistore_history/config -&gt; .gistore/config, data/backup/databases/redmine/r -&gt; backup/databases/redmine/r, data/backup/databases/testlink/testl</pre>
+自动生成的 log 可以看到每次备份更改文件的概要信息。
+<h2>支持备份回滚，使备份空间占用可控</h2>
+Git 用户数据备份，很难做到的一点就是备份的回滚。之前总是想如何能够删除历史提交而维持新提交不变，这在分布式版本控制系统是难以实现的。
+
+在某一天我突然顿悟，有了如下的设计：
+<ul>
+	<li>首先创建一个空提交，并打上 tag： gistore/0</li>
+	<li>当在 master 分支中提交超过一定的次数，例如 200 次，进行备份的回滚，如下所示</li>
+	<li>为当前 master 分支打上新的 tag，如 gistore/1，或者 gistore/2，依次类推。</li>
+	<li>当 gistore/ 命名空间下的 tag 数量达到预设的值，例如5, 对 tag 进行重置</li>
+	<li>tag 重置，即 gistore/2 =&gt; gistore/1, gistore/3=&gt;gistore/2 。</li>
+	<li>上面是简单的说明，实现起来要考虑更多情况</li>
+	<li>当 tag 重置后，执行 <em><strong>git gc</strong></em> 就可以清除无用的历史提交</li>
+</ul>
+<h2>采用 bare 形式的版本库，并且改变缺省版本库名称</h2>
+在 0.1 版本的 gistore，创建的备份库的名字是 .git，这样做的危险在于：
+<ul>
+	<li>因为是带有工作区的版本库，很容易使用 git 命令误操作</li>
+	<li>工作区直接作为备份目标文件和目录的挂载地址，在尚未卸载时，会被误删或者数据被覆盖</li>
+</ul>
+最新实现的版本库保存在 repo.git 目录中，并且设置为无工作区的版本库。备份文件目录的挂载地址设置为 run-time 目录。
+<h2>Git 库增加容错性设置</h2>
+为了避免 git 全局配置文件 /etc/gitconfig 对 Gistore 数据备份库的影响，对 gistore 的备份库增加了一些设置，可以避免全局 git 设置导致对备份数据的校验甚至自动更改（换行符等）。
+
+为git库增加的缺省设置有：
+<pre>[core]
+ repositoryformatversion = 0
+ filemode = true
+ bare = true
+ logallrefupdates = true
+ autocrlf = false
+ safecrlf = false
+ symlinks = true
+ trustctime = false
+ sharedRepository = group
+[merge "ours"]
+ name = \"always keep ours\" merge driver
+ driver = touch %A</pre>
+<h2>更好的诊断和日志输出</h2>
+Gistore 会将日志保存在 logs/gistore.log 文件中，当使用 -vvv 参数调用 gistore 会看到更详细的日志输出。
+
+日志输出保存在文件中，就可以帮助我们更好的发现备份失败的原因。可能是：
+<ul>
+	<li>备份的目标本身就是 git 库作为 submodule 加入备份，其中包含未提交的修改...
+(注：已在最新的版本忽略此信息）</li>
+	<li>捕获软件本身的 Bug。
+例如：发现调用 os.getlogin() 获取登录名，当 gistore 脱离控制台运行时，引发 OSError 异常。</li>
+</ul>
+btw，可以从 github.com/ossxp-com/gistore 上克隆 gistore 代码库，进行安装、研究和改进。

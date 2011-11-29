@@ -1,0 +1,37 @@
+---
+layout: post
+title: "为 TestLink 增加从 LDAP 同步用户的功能"
+---
+
+管理员在配置 TestLink 时，经常会问我们一个问题：用户管理平台（使用LDAP）中创建的用户，并没有出现在 testlink 的用户数据库中，如何为用户指派权限？
+
+之前我们的实现是这样的：
+<ul>
+	<li>用户帐号已经在 LDAP 中存在了</li>
+	<li>用户访问 testlink，点击“登录”则跳转到“单点登录系统”</li>
+	<li>在“单点登录系统”认证成功后，浏览器重定向，跳转到 TestLink</li>
+	<li>TestLink 发现用户已经登录，但是内置帐号不存在，会自动从 LDAP 中查询登录用户的信息，自动为该用户创建 TestLink 内置帐号，并设置缺省权限（缺省是游客，管理员可配置）。</li>
+</ul>
+所以，我们之前会告诉客户：“先让用户登录一次 TestLink，再为他分配权限。” 就是因为这个原因。 :-P
+
+最近 TestLink 上游发布新版本，在迁移我们的特性分支之时，重新考虑了这个问题，决定动手实现“LDAP用户同步功能”。
+<ul>
+	<li>配置了LDAP和单点登录后，在管理员面板，点击“管理”，可以在用户查看界面的下方看到 LDAP 同步的按钮：
+<a href="/wpfiles/2010/07/tl-view-users.png"><img class="aligncenter size-medium wp-image-1513" title="tl-view-users" src="/wpfiles/2010/07/tl-view-users-300x143.png" alt="" width="300" height="143" /></a></li>
+	<li>LDAP 用户同步界面，选中用户，便可以进行用户同步：
+<a href="/wpfiles/2010/07/tl-sync-user.png"><img class="aligncenter size-medium wp-image-1514" title="tl-sync-user" src="/wpfiles/2010/07/tl-sync-user-300x143.png" alt="" width="300" height="143" /></a></li>
+</ul>
+增加这个功能后，管理员就可以更加方便的为 TestLink 用户授权，而不用再要求用户在授权前先前登录系统。
+
+实际上这个功能在我们支持的其它系统中也有类似实现。例如 Redmine  我们也实现了类似功能。比较一下 Redmine 和 Testlink 中增加同样功能的代码行，是一个很有意思的事情。
+<ul>
+	<li>TestLink 实现 “LDAP用户同步” 功能： 增加了 365 行
+<pre>$ tg patch t/ldap_account_sync | grep "^+" | wc -l
+365</pre>
+</li>
+	<li>Redmine 实现同样功能，只用了不到一半的代码量：141 行
+<pre>$ tg patch t/synchronization_account_from_ldap | grep "^+" | wc -l
+141</pre>
+</li>
+</ul>
+Redmine 是用 ROR 框架开发的，而 TestLink 使用的是 PHP。PHP 也许在学习曲线上看比较容易上手，但是长远来看，代码的维护量和开发难度还是要大很多。

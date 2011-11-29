@@ -1,0 +1,126 @@
+---
+layout: post
+title: "buildout使用小例"
+---
+
+<h1><span style="letter-spacing: normal; line-height: 24px; font-size: 13.3333px;">使用setuptools能够用来打包应用程序，生成egg包，但对于有些应用程序来说，可能需要依赖很多egg包，在此基础上进行开发。这时setuptools就无能为力了。幸运的是，我们还有buildout。buildout不但能够像setuptools一样自动更新或下载安装依赖包，而且还能够像virtualenv一样，构建一个封闭的开发环境。使用buildout开发Zope产品是很方便的，Plone从3.2版本开始，所有的实例都是基于buildout构建的。下面我们通过一个小例子来学习如何使用buildout。<span id="more-2207"></span></span></h1>
+<div id="id1">
+<h1>安装buildout</h1>
+首先建立我们的开发目录，假设叫做buildout-demo，建立buildout配置文件buildout.cfg：
+<pre>$ mkdir buildout-demo
+$ cd buildout-demo
+$ touch buildout.cfg</pre>
+然后下载buildout的引导脚本 <a href="http://svn.zope.org/*checkout*/zc.buildout/trunk/bootstrap/bootstrap.py">bootstrap.py</a> 。运行bootstrap.py来生成buildout相关的文件和目录：
+<pre>$ python bootstrap.py
+Downloading http://pypi.python.org/packages/2.4/s/setuptools/setuptools-0.6c11-py2.4.egg
+Creating directory '/home/amoblin/Projects/gitar/buildout-demo/bin'.
+Creating directory '/home/amoblin/Projects/gitar/buildout-demo/parts'.
+Creating directory '/home/amoblin/Projects/gitar/buildout-demo/eggs'.
+Creating directory '/home/amoblin/Projects/gitar/buildout-demo/develop-eggs'.
+Getting distribution for 'setuptools'.
+Got setuptools 0.6c12dev-r85381.
+Generated script '/home/amoblin/Projects/gitar/buildout-demo/bin/buildout'.</pre>
+从上面可以看出，引导脚本下载了setuptools egg包，创建了目录bin，parts，eggs，develop-eggs，在bin目录下生成了buildout脚本。没错，buildout是基于setuptools开发的。
+
+各文件夹的作用如下:
+<ul>
+	<li>bin目录用来存放生成的脚本文件</li>
+	<li>parts目录存放生成的数据，大多用不上。</li>
+	<li>develop-eggs 存放指向开发目录的链接文件。和buildout.cfg中develop选项相关。</li>
+	<li>eggs 是存放从网络上下载下来的egg包。这些包一般在buildout.cfg中的egg选项里定义。</li>
+</ul>
+如果运行时出现类似下面的错误：
+<pre>$ python bootstrap.py
+Downloading http://pypi.python.org/packages/2.6/s/setuptools/setuptools-0.6c11-py2.6.egg
+Traceback (most recent call last):
+  File "bootstrap.py", line 256, in &lt;module&gt;
+    ws.require(requirement)
+  File "/tmp/tmp2cI1LD/setuptools-0.6c11-py2.6.egg/pkg_resources.py", line 666, in require
+  File "/tmp/tmp2cI1LD/setuptools-0.6c11-py2.6.egg/pkg_resources.py", line 565, in resolve
+pkg_resources.DistributionNotFound: zc.buildout==1.5.2</pre>
+则可能是python的版本不正确。使用python 2.4版本即可。
+
+</div>
+<div id="id2">
+<h1>使用buildout生成脚本</h1>
+将 <a href="/2010/12/08/2178.html">python egg学习笔记</a> 中的egg例子拿过来，我们通过它来生成一个脚本。
+<pre>$ mv ../egg-demo .
+$ tree egg-demo
+egg-demo/
+|-- setup.py
+`-- src
+    `-- demo
+        `-- __init__.py
+
+2 directories, 2 files</pre>
+首先要修改setup.py文件，在setup函数中增加一行：
+<pre>entry_points = {'console_scripts':
+    ['test = demo:test']},</pre>
+然后编辑buildout配置文件buildout.cfg：
+<pre>$cat buildout.cfg
+[buildout]
+develop = egg-demo
+parts = test
+
+[test]
+recipe = zc.recipe.egg
+eggs = demo
+scripts = test</pre>
+buildout.cfg配置文件使用INI格式。下面具体讲一下这个文件的内容：
+<pre>[buildout]</pre>
+定义buildout段。这是配置文件中唯一一个必选段。
+<pre>develop = egg-demo</pre>
+这告诉buildout我们要为我们的recipe安装一个开发中的egg。可以是多个路径，绝对的或者相对的。相对路径是相对buildout的主目录下的，这里就是buildout-demo目录。也可以是文件名，但这是只能是setup脚本。目录的话必须是包含setup.py文件的目录。这里我们使用egg-demo作为我们的开发egg包。
+<pre>parts = test</pre>
+每个buildout都要有一个parts列表，也可以为空。parts用来指定构建什么。如果parts中指定的段中还有parts的话，会递归构建。
+<pre>[test]</pre>
+开始新的一段。
+<pre>recipe = zc.recipe.egg</pre>
+每一段都要指定一个recipe。recipe包含python的代码，用来安装这一段。
+<pre>eggs = demo</pre>
+这里是egg-demo里我们的egg的名称。
+<pre>scripts = test</pre>
+指定要生成的脚本名称。和setup.py中entry_points参数的值 test对应。
+
+保存buildout.cfg文件，执行buildout来构建：
+<pre>$bin/buildout
+Develop: '/home/amoblin/Projects/gitar/buildout-demo/egg-demo'
+Uninstalling test.
+Installing test.
+Generated script '/home/amoblin/Projects/gitar/buildout-demo/bin/test'.</pre>
+执行生成的test文件：
+<pre>$bin/test
+Hello, I'm amoblin.</pre>
+和上一篇的输出结果完全一样。
+
+</div>
+<div id="python">
+<h1>使用自定义python解释器</h1>
+编辑buildout配置文件buildout.cfg为如下内容：
+<pre>$cat buildout.cfg
+[buildout]
+develop = .
+parts = mypy
+
+[mypy]
+recipe = zc.recipe.egg
+eggs = zope.component
+interpreter = py</pre>
+保存以后，运行buildout：
+<pre>$bin/buildout
+Installing mypy.
+Getting distribution for 'zope.component'.
+Got zope.component 3.10.0.
+Getting distribution for 'zope.event'.
+Got zope.event 3.5.0-1.
+Getting distribution for 'zope.interface'.
+Got zope.interface 3.6.1.
+Generated interpreter '/home/amoblin/Projects/gitar/buildout-demo/bin/py'.</pre>
+你会发现在bin目录下多了一个脚本py。执行将产生一个python解释器：
+<pre>$bin/py
+
+&gt;&gt;&gt;print "hello, world"
+hello, world</pre>
+通过上面buildout.cfg的配置，buildout完成了相关egg包的下载，生成了我们想要的脚本文件。现在我们可以使用这个局部python环境啦，是不是可以取代virtualenv了呢？
+
+</div>

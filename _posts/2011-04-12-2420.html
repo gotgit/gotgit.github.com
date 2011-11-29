@@ -1,0 +1,122 @@
+---
+layout: post
+title: "搭建本地YUM软件仓库"
+---
+
+通过前面RPM打包的学习，我们了解了如何制作RPM软件包，然后就可以HLL地通过rpm命令安装了，但是，一个很严肃的问题是，rpm不支持解决安装依赖，如果你的软件包安装时需要依赖神马神马包的话，RPM会这样告诉你：
+<pre class="literal-block">$ rpm -ivh ~/rpmbuild/RPMS/i386/hello-0.2-1.i386.rpm
+error: Failed dependencies:
+    world is needed by hello-0.2-1.i386</pre>
+看，rpm说，我需要整个世界，这个包木有安装，这个包你有木有？有木有？
+
+如果很幸运，你这里刚好有一个world包，赶紧安装：
+<pre class="literal-block">$ rpm -ivh ~/rpmbuild/RPMS/i386/world-0.1-1.i386.rpm
+error: Failed dependencies:
+    freedom is needed by world-0.1-1.i386</pre>
+看来这个世界缺少自由呀，不行，还得寻找自由。。。怎么这么麻烦？有没有更好的解决方法？
+
+你可能想到yum了。对，yum就是为解决依赖而生的，如果说redhat的rpm就像debian里的dpkg的话，那么yum就像aptitude了。
+
+通过yum安装yum软件仓库里的软件包，它会自动解决软件安装依赖，一条命令就全部解决。
+
+但，如果俺们的软件包并未在yum软件仓库里咋办呢？那么，咱家就自己搭建一个yum仓库吧~
+
+在搭建yum软件仓库之前，先了解一下yum源的配置吧。
+<div id="id1" class="section">
+<h1>YUM源探秘</h1>
+centos中yum的主配置文件在/etc/yum.conf中，粘贴如下：
+<pre class="literal-block">[main]
+cachedir=/var/cache/yum
+keepcache=0
+debuglevel=2
+logfile=/var/log/yum.log
+distroverpkg=redhat-release
+tolerant=1
+exactarch=1
+obsoletes=1
+gpgcheck=1
+plugins=1
+
+# Note: yum-RHN-plugin doesn't honor this.
+metadata_expire=1h
+
+# Default.
+# installonly_limit = 3
+
+# PUT YOUR REPOS HERE OR IN separate files named file.repo
+# in /etc/yum.repos.d</pre>
+这又是一个INI文件。第一行的cachedir定义了缓存的目录，最后一行说的就是可以把自己的软件仓库放在这个文件里或者以repo为后缀名放在/etc/yum.repos.d目录下。
+
+为了方便起见，最好将配置文件存放在yum.repos.d目录下，而不是修改这个文件。
+
+在软件源列表目录/etc/yum.repo.d/下，其中有一个是必须且唯一的，就是Base源文件。
+
+<dl class="docutils"> <dt>源文件是ini格式的。大致结构如下： ::</dt> <dd>[server-id]
+name=
+mirrorlist=
+baseurl=
+gpgcheck= 0,不检查，1,检查
+enabled= 0,禁用，1,启用</dd> </dl>server-id，指代软件库服务器id，在生成缓存时会生成对应的目录。如果是我们自己写的配置文件，这个地方可以任意，但注意看CentOS-Base.repo文件，这个是yum软件仓库的主要配置文件，有base,updates,addons,extras,centosplus,contrib这几个章节，这是不能随意修改的，这就是传说中的Base文件。
+
+mirrorlist和baseurl两者使用一个即可，一般大型的官网，比如centos，fedora-epel会使用mirrorlist形式的，通过传递参数，自动选择最快的源，而对于咱们自己搭建的源来说，使用baseurl即可。
+
+上面会使用几个变量：
+<ul class="simple">
+	<li>$releasever  发行版版本，如5.5</li>
+	<li>$arch        CPU体系，如i686,i386，x86_64等</li>
+	<li>$basearch    CPU基础体系，如i386,x86_64,ppc</li>
+</ul>
+官方的源比较慢，我们可以修改使用国内的源，比如163的，sohu的等，具体可以去mirrors.163.com和mirrors.sohu.com查看。
+
+再到/var/cache/yum目录下，可以看到有很多子目录，这些和上面的章节名一一对应，如base，addons，contrib等。
+
+此外，还有一个timedhost.txt文件，这个文件记录了各个软件源仓库的链接速度。
+
+其实这个文件是由yum的一个插件yum-fastestmirror生成的，默认的yum貌似安装了这个插件：
+<pre class="literal-block">$ yum list yum-fastestmirror
+yum-fastestmirror.noarch     1.1.16-14.el5.centos.1  installed</pre>
+如果没有的话，直接在官方源里安装：
+<pre class="literal-block">$ sudo yum install yum-fastestmirror</pre>
+使用clean命令清理所有缓存：
+<pre class="literal-block">$ sudo yum clean all</pre>
+这下缓存目录里的文件都被删除了，只剩下各个文件夹。执行makecache命令生成缓存：:
+<pre class="literal-block">$ sudo yum makecache</pre>
+使用check-update也会生成缓存：
+<pre class="literal-block">$ sudo yum check-update</pre>
+</div>
+<div id="id2" class="section">
+<h1>搭建本地源</h1>
+工欲善其事，必先利其器。开始之前，我们需要找到一款合适的工具，这就是，createrepo，这个软件官方源里就有：
+<pre class="literal-block">$ sudo yum install createrepo</pre>
+安装完毕以后我们就可以行动了。
+
+首先创建目录：
+<pre class="literal-block">$ sudo mkdir -p /var/www/html/centos/5.5/{i386,x86_64,noarch,updates,SRPMS}</pre>
+这个目录结构是参照前面的repo文件和163,sohu等的centos仓库源目录结构写出来的。
+
+接下来把自己的软件包分门别类，对号入座，放到上面各个目录下。然后，createrepo隆重出场：
+<pre class="literal-block">$ cd /var/www/html/centos/5.5/
+$ ls | xargs -i sudo createrepo {}</pre>
+这样，createrepo在每个目录下创建了repodata目录，里面存放的就是文件列表数据，从而可以被yum寻找到。
+
+当目录下的RPM包更新以后，记得使用createrepo更新数据库文件：
+<pre class="literal-block">$ ls | xargs -i sudo createrepo --update {}</pre>
+接下来需要编写一份我们自己的repo文件，参照系统中的例子，编写如下：
+<pre class="literal-block">[ossxp]
+name=Extra Packages for Enterprise Linux 5 - $basearch
+baseurl=http://localhost/centos/5.5/$basearch
+failovermethod=priority
+enabled=1
+gpgcheck=0
+
+[ossxp-source]
+name=Extra Packages for Enterprise Linux 5 - $basearch - Source
+baseurl=http://localhost/centos/5.5/SRPMS
+failovermethod=priority
+enabled=0
+gpgcheck=0</pre>
+默认启用ossxp软件仓库，停用ossxp-source仓库，如果需要使用yumdonwloader在ossxp-source下载源代码，可以在命令行里启用：
+<pre class="literal-block">$ sudo yumdownloader --enablerepo=ossxp-source --source hello</pre>
+当然前提是启动了Apache服务器。
+
+</div>

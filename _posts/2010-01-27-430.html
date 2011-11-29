@@ -1,0 +1,492 @@
+---
+layout: post
+title: "Subversion 版本库整理实战"
+---
+
+<p id="HelpCenter.2BAC8-00030_Subversion.2BAC8-00040_CommandLine-1">在使用 svnadmin dump, svnadmin load, svndumpfilter 等命令对 Subversion 版本库裁减，可真的不是 a piece of cake. 有很多技巧，窍门和陷阱。</p>
+这不，今天一个客户的电话，就涉及到了 svn 版本库裁减的好些问题：
+<ul>
+	<li>svndumpfilter 命令后面的 include 或者 exclude 子语句，后面的多个路径用逗号分割可以么？</li>
+	<li>svndumpfilter 命令后面的 include 或者 exclude 子语句，后面的路径可以使用通配符么？如何使用？</li>
+	<li>svndumpfilter 命令涉及的路径非常多，在命令行写太复杂了，甚至可能超过 SHELL 对命令行长度的限制，该如何？</li>
+	<li>重新整理的版本库为什么有很多空的提交，说是为了占位之用？</li>
+	<li>重新整理后的版本库的路径可以改变么？</li>
+</ul>
+<span id="more-430"></span>
+<h2>简要回答</h2>
+客户的实际需求是将几十个GB的代码库，将某一个或某几个分支拆分出来形成新的版本库。但是在执行 svndumpfilter 后产生的过滤文件只有几十MB，而且在导入到新版本库后，版本库当中无内容，只有空的提交。
+
+后来查看客户的命令，发现 svndumpfilter 命令的格式不正确，include 或者 exclude 子命令的参数是一个路径列表，这个路径列表应该用空格分隔，而不能用逗号。
+
+还有：路径不支持通配符，因此需要一个一个的写，如果太多，可以放在一个文件中，用回车符分割。
+
+<span style="text-decoration: underline;"><strong>在命令行中应该用空格分割包含或者排除的路径列表。看看 svndumpfilter 的这段代码：</strong></span>
+<pre>if (subcommand-&gt;cmd_func != subcommand_help)
+{
+    opt_state.prefixes = apr_array_make(pool, os-&gt;argc - os-&gt;ind,
+    sizeof(const char *));
+    for (i = os-&gt;ind ; i&lt; os-&gt;argc; i++)
+    {
+        const char *prefix;
+        /* Ensure that each prefix is UTF8-encoded, in internal
+           style, and absolute. */
+        SVN_INT_ERR(svn_utf_cstring_to_utf8(&amp;prefix, os-&gt;argv[i], pool));
+        prefix = svn_path_internal_style(prefix, pool);
+        prefix = svn_path_join("/", prefix, pool);
+        APR_ARRAY_PUSH(opt_state.prefixes, const char *) = prefix;
+    }</pre>
+<ul>
+	<li>将 os-&gt;argv 的数组转换为列表。即：<strong>用空格分割各个包含或者排除的路径</strong></li>
+	<li>prefix 进行了整理，包括在前面增加 "/" 字符，就是说路径前面的 "/" 字符<strong>可有可无</strong></li>
+</ul>
+<span style="text-decoration: underline;"><strong>如果包含或者排除的路径太长，可以将路径写入文件中，用  --targets target_file 指定。参见下面 svndumpfilter 的代码片段：</strong></span>
+<pre>if (opt_state.targets_file)
+{
+    svn_stringbuf_t *buffer, *buffer_utf8;
+    const char *utf8_targets_file;
+
+    /* We need to convert to UTF-8 now, even before we divide
+       the targets into an array, because otherwise we wouldn't
+       know what delimiter to use for svn_cstring_split().  */
+
+    SVN_INT_ERR(svn_utf_cstring_to_utf8(&amp;utf8_targets_file,
+    opt_state.targets_file, pool));
+
+    SVN_INT_ERR(svn_stringbuf_from_file2(&amp;buffer, utf8_targets_file,
+ pool));
+    SVN_INT_ERR(svn_utf_stringbuf_to_utf8(&amp;buffer_utf8, buffer, pool));
+
+    opt_state.prefixes = apr_array_append(pool,
+    svn_cstring_split(buffer_utf8-&gt;data, "\n\r", TRUE, pool),
+ opt_state.prefixes);
+ }</pre>
+其含义为：
+<ul>
+	<li>如果在 include 或者 exclude 语句包含路径列表太长，可以将包含路径写入文件，使用 --targets 命令指向该文件</li>
+	<li>在该文件中，用回车键分割各个路径</li>
+	<li>在该文件中，除了路径不能有其他参数</li>
+</ul>
+<h2>一个不太简单的例子</h2>
+要求：一个版本库（包含 /trunk, /branches/1.x, /tags/1.0），只将其中的分支  /branches/1.x 导出
+<h3>1. 先初始化示例版本库，包含主线 /trunk, 分支 /tags/1.0 和 /branches/1.x</h3>
+<pre>/tmp/svn$ <strong>svnadmin create repos</strong>
+/tmp/svn$ <strong>svn co file:///tmp/svn/repos work</strong>
+取出版本 0。
+/tmp/svn$ <strong>cd work/</strong>
+/tmp/svn/work$ <strong>mkdir trunk branches tags</strong>
+/tmp/svn/work$ <strong>svn add *</strong>
+A         branches
+A         tags
+A         trunk
+/tmp/svn/work$ <strong>svn ci -m "初始化项目目录"</strong>
+增加           branches
+增加           tags
+增加           trunk
+
+提交后的版本为 1。
+/tmp/svn/work$ <strong>cd trunk</strong>
+/tmp/svn/work/trunk$ <strong>mkdir src doc</strong>
+/tmp/svn/work/trunk$ <strong>echo hello &gt; readme.txt</strong>
+/tmp/svn/work/trunk$ <strong>echo source file &gt; src/hello.c</strong>
+/tmp/svn/work/trunk$ <strong>svn add *</strong>
+A         doc
+A         doc/api.txt
+A         readme.txt
+A         src
+A         src/hello.c
+/tmp/svn/work/trunk$ <strong>svn ci -m "文件初始化"</strong>
+增加           trunk/doc
+增加           trunk/doc/api.txt
+增加           trunk/readme.txt
+增加           trunk/src
+增加           trunk/src/hello.c
+传输文件数据...
+提交后的版本为 2。
+/tmp/svn/work/trunk$ <strong>date &gt;&gt; readme.txt</strong>
+/tmp/svn/work/trunk$ <strong>date &gt;&gt; src/hello.c</strong>
+/tmp/svn/work/trunk$ <strong>svn st</strong>
+M       src/hello.c
+M       readme.txt
+/tmp/svn/work/trunk$ <strong>svn ci -m "修改文件..."</strong>
+正在发送       trunk/readme.txt
+正在发送       trunk/src/hello.c
+传输文件数据..
+提交后的版本为 3。
+/tmp/svn/work/trunk$ <strong>cd ..</strong>
+/tmp/svn/work$ <strong>svn cp trunk branches/1.x</strong>
+A         branches/1.x
+/tmp/svn/work$ <strong>svn ci -m "创建分支 1.x"</strong>
+增加           branches/1.x
+增加           branches/1.x/doc
+增加           branches/1.x/readme.txt
+增加           branches/1.x/src
+增加           branches/1.x/src/hello.c
+
+提交后的版本为 4。
+/tmp/svn/work$ <strong>svn cp trunk tags/1.0.0</strong>
+A         tags/1.0
+/tmp/svn/work$ <strong>svn ci -m "创建里程碑 1.0"</strong>
+增加           tags/1.0
+增加           tags/1.0/doc
+增加           tags/1.0/readme.txt
+增加           tags/1.0/src
+增加           tags/1.0/src/hello.c
+
+提交后的版本为 5。
+/tmp/svn/work$ <strong>cd branches/1.x/</strong>
+/tmp/svn/work/branches/1.x$ <strong>echo branch &gt;&gt; readme.txt</strong>
+/tmp/svn/work/branches/1.x$ <strong>svn ci -m "分支中修改 readme.txt"</strong>
+正在发送       1.x/readme.txt
+传输文件数据.
+提交后的版本为 6。
+/tmp/svn/work/branches/1.x$ <strong>echo branch &gt;&gt; src/hello.c</strong>
+/tmp/svn/work/branches/1.x$ <strong>svn ci -m "分支中修改 hello.c"</strong>
+正在发送       1.x/src/hello.c
+传输文件数据.
+提交后的版本为 7。
+/tmp/svn/work/branches/1.x$ <strong>cd ../trunk/</strong>
+/tmp/svn/work/trunk$ ls
+doc  readme.txt  src
+/tmp/svn/work/trunk$ <strong>echo new api &gt;&gt; doc/api.txt</strong>
+/tmp/svn/work/trunk$ <strong>svn ci -m "new 主线中增加"
+</strong>正在发送       trunk/doc/api.txt
+传输文件数据.
+提交后的版本为 8。
+/tmp/svn$ <strong>svn log file:///tmp/svn/repos</strong>
+------------------------------------------------------------------------
+r8 | jiangxin | 2010-01-27 11:00:18 +0800 (三, 2010-01-27) | 1 行
+
+主线中增加 new api
+------------------------------------------------------------------------
+r7 | jiangxin | 2010-01-27 10:59:17 +0800 (三, 2010-01-27) | 1 行
+
+分支中修改 hello.c
+------------------------------------------------------------------------
+r6 | jiangxin | 2010-01-27 10:59:05 +0800 (三, 2010-01-27) | 1 行
+
+分支中修改 readme.txt
+------------------------------------------------------------------------
+r5 | jiangxin | 2010-01-27 10:58:33 +0800 (三, 2010-01-27) | 1 行
+
+创建里程碑 1.0
+------------------------------------------------------------------------
+r4 | jiangxin | 2010-01-27 10:58:12 +0800 (三, 2010-01-27) | 1 行
+
+创建分支 1.x
+------------------------------------------------------------------------
+r3 | jiangxin | 2010-01-27 10:57:42 +0800 (三, 2010-01-27) | 1 行
+
+修改文件...
+------------------------------------------------------------------------
+r2 | jiangxin | 2010-01-27 10:57:15 +0800 (三, 2010-01-27) | 1 行
+
+文件初始化
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-01-27 10:55:58 +0800 (三, 2010-01-27) | 1 行
+
+初始化项目目录
+------------------------------------------------------------------------</pre>
+<h3>2. 导出版本4到版本7的数据到导出文件</h3>
+通过 log 可以看出和 branches/1.x 相关的提交只是从第4个版本到第7个版本，于是只导出这些版本到 dumpfile
+<pre>/tmp/svn$ <strong>svnadmin dump /tmp/svn/repos -r4:7 &gt; r4-7.dump</strong>
+* 已转存版本 4。
+警告: 版本 1 的参考数据比最旧的转存数据版本 (4)还旧。
+警告:  装载这个转存到空的版本库会失败。
+
+警告: 版本 2 的参考数据比最旧的转存数据版本 (4)还旧。
+警告:  装载这个转存到空的版本库会失败。
+
+警告: 版本 3 的参考数据比最旧的转存数据版本 (4)还旧。
+警告:  装载这个转存到空的版本库会失败。
+
+警告: 版本 2 的参考数据比最旧的转存数据版本 (4)还旧。
+警告:  装载这个转存到空的版本库会失败。
+
+警告: 版本 3 的参考数据比最旧的转存数据版本 (4)还旧。
+警告:  装载这个转存到空的版本库会失败。
+
+* 已转存版本 5。
+* 已转存版本 6。
+* 已转存版本 7。</pre>
+<h3>3. 新版本库由 r4-8.dump 加载失败</h3>
+从上一步导出的 r4-7.dump 导入到新版本库。
+<pre>/tmp/svn$ <strong>svnadmin create newrepos</strong>
+/tmp/svn$ <strong>svnadmin load newrepos &lt; r4-7.dump</strong>
+&lt;&lt;&lt; 开始新的事务，基于原始版本 4
+ * 正在增加路径: trunk ...完成。
+ * 正在增加路径: trunk/doc ...完成。
+ * 正在增加路径: trunk/doc/api.txt ...完成。
+ * 正在增加路径: trunk/src ...完成。
+ * 正在增加路径: trunk/src/hello.c ...完成。
+ * 正在增加路径: trunk/readme.txt ...完成。
+ * 正在增加路径: branches ...完成。
+ * 正在增加路径: branches/1.x ...完成。
+ * 正在增加路径: branches/1.x/doc ...完成。
+ * 正在增加路径: branches/1.x/doc/api.txt ...完成。
+ * 正在增加路径: branches/1.x/src ...完成。
+ * 正在增加路径: branches/1.x/src/hello.c ...完成。
+ * 正在增加路径: branches/1.x/readme.txt ...完成。
+ * 正在增加路径: tags ...完成。
+
+------- 提交新版本 1 (从原始版本 4 装载) &gt;&gt;&gt;
+
+&lt;&lt;&lt; 开始新的事务，基于原始版本 5
+svnadmin: 当前版本库不存在相对源版本 -2
+ * 正在增加路径: tags/1.0 ...
+
+/tmp/svn$ <strong>svn log file:///tmp/svn/newrepos</strong>
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-01-27 10:58:12 +0800 (三, 2010-01-27) | 1 行
+
+创建分支 1.x
+------------------------------------------------------------------------</pre>
+导入出错，这是为什么呢？因为在导出包含的 r5 ，是从 trunk 版本 2 创建里程碑 1.0，因为我们的导出是从版本4开始的，不包含版本2，因此导致 r5 的导出记录导入出错。
+<h3>4. 对 r4-7.dump 过滤，只包含 branches 内容，再导入，成功</h3>
+<pre>/tmp/svn$ <strong>svnadumpfilter --drop-empty-revs --renumber-revs include branches &lt; r4-7.dump &gt; branch_only.dump</strong>
+包含 (以及丢弃空版本) 的前缀:
+ '/branches'
+
+版本 4 提交为 4。
+跳过版本 5。
+版本 6 提交为 5。
+版本 7 提交为 6。
+
+删除 1 个版本。
+
+版本被重新编号如下:
+ 7 =&gt; 6
+ 6 =&gt; 5
+ 5 =&gt; (丢弃)
+ 4 =&gt; 4
+
+丢弃 12 个节点:
+ '/tags'
+ '/tags/1.0'
+ '/tags/1.0/doc'
+ '/tags/1.0/readme.txt'
+ '/tags/1.0/src'
+ '/tags/1.0/src/hello.c'
+ '/trunk'
+ '/trunk/doc'
+ '/trunk/doc/api.txt'
+ '/trunk/readme.txt'
+ '/trunk/src'
+ '/trunk/src/hello.c'
+/tmp/svn$ <strong>rm -rf newrepos</strong>
+/tmp/svn$ <strong>svnadmin create newrepos</strong>
+/tmp/svn$ <strong>svnadmin load newrepos &lt; branch_only.dump</strong></pre>
+<h3>5. 新版本库中的路径由 branches/1.x 修改为 trunk，如何操作？</h3>
+按照上面的步骤，创建的新版本库中的路径都是在 branches/1.x ，如下：
+<pre>/tmp/svn$ <strong>svn log file:///tmp/svn/newrepos</strong>
+------------------------------------------------------------------------
+r3 | jiangxin | 2010-01-27 10:59:17 +0800 (三, 2010-01-27) | 1 行
+
+分支中修改 hello.c
+------------------------------------------------------------------------
+r2 | jiangxin | 2010-01-27 10:59:05 +0800 (三, 2010-01-27) | 1 行
+
+分支中修改 readme.txt
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-01-27 10:58:12 +0800 (三, 2010-01-27) | 1 行
+
+创建分支 1.x
+------------------------------------------------------------------------
+/tmp/svn$ <strong>svn ls -R file:///tmp/svn/newrepos</strong>
+branches/
+branches/1.x/
+branches/1.x/doc/
+branches/1.x/doc/api.txt
+branches/1.x/readme.txt
+branches/1.x/src/
+branches/1.x/src/hello.c</pre>
+<strong><span style="text-decoration: underline;">如果创建过程中对导出文件进行进一步的处理，就可以实现新版本中，提交都在 /trunk 而非 branches 中：</span></strong>
+
+查看导出文件中 Node-path 字段，同时输出行号：
+<pre>/tmp/svn$ <strong>grep -n "^Node-path" branch_only.dump</strong>
+23:Node-path: branches
+32:Node-path: branches/1.x
+41:Node-path: branches/1.x/doc
+50:Node-path: branches/1.x/doc/api.txt
+71:Node-path: branches/1.x/src
+80:Node-path: branches/1.x/src/hello.c
+102:Node-path: branches/1.x/readme.txt
+142:Node-path: branches/1.x/readme.txt
+173:Node-path: branches/1.x/src/hello.c</pre>
+过滤掉 branches 目录创建相关内容，因为我们需要的是 branches/1.x 开始的内容
+<pre>/tmp/svn$ <strong>head -22 branch_only.dump  &gt; top</strong>
+/tmp/svn$ <strong>tail -n +32 branch_only.dump &gt; tail</strong>
+/tmp/svn$ <strong>cat top tail &gt; branch_only_strip.dump</strong>
+/tmp/svn$ <strong>grep -n "^Node-path" branch_only_strip.dump</strong>
+23:Node-path: branches/1.x
+32:Node-path: branches/1.x/doc
+41:Node-path: branches/1.x/doc/api.txt
+62:Node-path: branches/1.x/src
+71:Node-path: branches/1.x/src/hello.c
+93:Node-path: branches/1.x/readme.txt
+133:Node-path: branches/1.x/readme.txt
+164:Node-path: branches/1.x/src/hello.c</pre>
+对导出文件的内容进行字符串替换，将 branches/1.x 替换为 trunk
+<pre>/tmp/svn$ <strong>sed -e "s@^\(Node-path: \|Node-copyfrom-path: \)branches/1.x@\1trunk@" branch_only_strip.dump &gt; new_trunk.dump</strong>
+/tmp/svn$ <strong>grep -n "^Node-path" new_trunk.dump</strong>
+23:Node-path: trunk
+32:Node-path: trunk/doc
+41:Node-path: trunk/doc/api.txt
+62:Node-path: trunk/src
+71:Node-path: trunk/src/hello.c
+93:Node-path: trunk/readme.txt
+133:Node-path: trunk/readme.txt
+164:Node-path: trunk/src/hello.c</pre>
+使用字符串替换之后的导出文件 (new_trunk.dump)，导入到新版本中
+<pre>/tmp/svn$ <strong>rm -rf newrepos/</strong>
+/tmp/svn$ <strong>svnadmin create newrepos</strong>
+/tmp/svn$ <strong>svnadmin load newrepos &lt; new_trunk.dump</strong>
+&lt;&lt;&lt; 开始新的事务，基于原始版本 4
+ * 正在增加路径: trunk ...完成。
+ * 正在增加路径: trunk/doc ...完成。
+ * 正在增加路径: trunk/doc/api.txt ...完成。
+ * 正在增加路径: trunk/src ...完成。
+ * 正在增加路径: trunk/src/hello.c ...完成。
+ * 正在增加路径: trunk/readme.txt ...完成。
+
+------- 提交新版本 1 (从原始版本 4 装载) &gt;&gt;&gt;
+
+&lt;&lt;&lt; 开始新的事务，基于原始版本 5
+ * 正在修改路径: trunk/readme.txt ...完成。
+
+------- 提交新版本 2 (从原始版本 5 装载) &gt;&gt;&gt;
+
+&lt;&lt;&lt; 开始新的事务，基于原始版本 6
+ * 正在修改路径: trunk/src/hello.c ...完成。
+
+------- 提交新版本 3 (从原始版本 6 装载) &gt;&gt;&gt;
+
+/tmp/svn$ <strong>svn log file:///tmp/svn/newrepos</strong>
+
+3 | jiangxin | 2010-01-27 10:59:17 +0800 (三, 2010-01-27) | 1 行
+
+分支中修改 hello.c
+------------------------------------------------------------------------
+r2 | jiangxin | 2010-01-27 10:59:05 +0800 (三, 2010-01-27) | 1 行
+
+分支中修改 readme.txt
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-01-27 10:58:12 +0800 (三, 2010-01-27) | 1 行
+
+创建分支 1.x
+------------------------------------------------------------------------
+/tmp/svn$ <strong>svn ls -R file:///tmp/svn/newrepos</strong>
+trunk/
+trunk/doc/
+trunk/doc/api.txt
+trunk/readme.txt
+trunk/src/
+trunk/src/hello.c
+/tmp/svn$ exit</pre>
+下面是相关版本库整理相关命令的手册，摘抄自：<a href="http://www.ossxp.com/HelpCenter/00030_Subversion/00040_CommandLine">群英汇版本控制帮助中心</a>
+<h2>版本库整理相关命令</h2>
+<h3 id="HelpCenter.2BAC8-00030_Subversion.2BAC8-00040_CommandLine-2">1. 导出 ── svnadmin dump</h3>
+<dl> <dt>svnadmin dump</dt> <dd>该命令将版本库导出到一个格式文件，该导出文件包含所有版本库历史信息，可以用于版本库备份，或导入其它版本库。
+
+</dd> </dl><strong>用法：</strong>
+<pre>svnadmin dump REPOS_PATH [-r LOWER[:UPPER]] [--incremental] [-q]</pre>
+<strong>参数：</strong>
+<ul>
+	<li> <dt>REPOS_PATH必须是本地路径
+如： /opt/svn/svnroot/repos2/</dt></li>
+	<li> <dt>-r LOWER[:UPPER]</dt> <dd>导出从版本 LOWER 到版本 UPPER（或仅导出 LOWER 版本，如果UPPER不提供）的版本库历史。如果不提供该参数，则导出全部历史。</dd></li>
+	<li> <dt>--incremental</dt> <dd>导出的第一个版本是和前一次版本的变更，用于增量备份和导入。如果不提供该参数，第一个导出版本是完整内容。</dd></li>
+	<li> <dt>-q</dt> <dd>在标准错误输出不显示进度 (仅错误)</dd></li>
+	<li> <dt>--help</dt> <dd>查看 svnadmin dump 命令的用法</dd></li>
+</ul>
+<strong>示例：</strong>
+<pre>$ <strong>svnadmin dump /opt/svn/svnroot/repos2 &gt; dumpfile.txt</strong></pre>
+<h3 id="HelpCenter.2BAC8-00030_Subversion.2BAC8-00040_CommandLine-3">2. 导入 ── svnadmin load</h3>
+<dl> <dt>svnadmin load</dt> <dd>从标准输入读取版本库转存（导出）的格式文件，并导入到新版本库中。
+
+</dd> </dl><strong>用法：</strong>
+<pre>svnadmin load [--ignore-uuid|--force-uuid] [--use-pre-commit-hook] [--use-post-commit-hook] [--parent-dir ARG] REPOS_PATH</pre>
+<strong>参数：</strong>
+<ul>
+	<li> <dt>REPOS_PATH</dt> <dd>必须是本地路径。如： /opt/svn/svnroot/repos2/。如果是空版本库（即刚刚用 svnadmin create 创建），则会用标准输入流中的 UUID 替换该库的 UUID。</dd></li>
+	<li> <dt>--ignore-uuid</dt> <dd>即使目标版本库是空的，也不用标准输入流中的 UUID 替换版本库的 UUID。</dd></li>
+	<li> <dt>--force-uuid</dt> <dd>即使目标版本库非空（含一次以上的提交），如果流中存在UUID,则设定为版本库的 UUID。</dd></li>
+	<li> <dt>--use-pre-commit-hook</dt> <dd>提交版本前调用 pre-commit 钩子</dd></li>
+	<li> <dt>--use-post-commit-hook</dt> <dd>提交版本后调用 post-commit 钩子</dd></li>
+	<li> <dt>--parent-dir ARG</dt> <dd>加载到版本库指定的目录中，缺省加载到根</dd></li>
+	<li> <dt>-q [--quiet]</dt> <dd>在标准错误输出不显示进度 (仅错误)</dd></li>
+	<li> <dt>--help</dt> <dd>查看 svnadmin load 命令的用法</dd></li>
+</ul>
+<strong>示例：</strong>
+
+$ <strong>svnadmin load --parent-dir new/subdir/for/project /opt/svn/svnroot/new_repos  &lt; dumpfile.txt</strong>
+<h3 id="HelpCenter.2BAC8-00030_Subversion.2BAC8-00040_CommandLine-4">3. 裁减 ── svndumpfilter</h3>
+<dl> <dt>svndumpfilter</dt> <dd>从标准输入读取版本库转存（导出）的格式文件，并导入到新版本库中。
+
+</dd> </dl><strong>用法：</strong>
+<pre>svndumpfilter help [include] [exclude]
+svndumpfilter exclude PATH_PREFIX ... [OPTIONS ...]
+svndumpfilter include PATH_PREFIX ... [OPTIONS ...]</pre>
+<strong>子命令：</strong>
+<ul>
+	<li> <dl> <dt>exclude
+从标准输入中排除某个/某些路径下的内容，仅输出其它未指定路径下的内容。 </dt> </dl></li>
+	<li> <dt>include</dt> <dd>仅从标准输入中包含某个/某些路径下的内容，其它未指定的路径下的内容被抛弃。 </dd></li>
+	<li> <dt>help
+查看帮助。后面提供 include 或者 exclude 参数，则输出 include 或 exclude 子命令的详细帮助。</dt></li>
+</ul>
+<strong>参数：</strong>
+<ul>
+	<li> <dt>PATH_PREFIX ...</dt> <dd>路径前缀。可以是<span style="text-decoration: underline;"><strong>空格分隔</strong></span>的多个前缀，将对 svn 导出文件中属于该前缀之下路径的文件或者目录进行相应的处理（忽略或者包含）。前缀如果不包含"/"，将会自动添加一个"/"。 </dd></li>
+	<li> <dt>--drop-empty-revs</dt> <dd>删除因过滤而产生的空版本。 </dd></li>
+	<li> <dt>--renumber-revs</dt> <dd>过滤后重编余下的版本。 </dd></li>
+	<li> <dt>--skip-missing-merge-sources</dt> <dd>跳过缺少的合并源。 </dd></li>
+	<li> <dt>--targets ARG</dt> <dd>传递文件 ARG 的内容为额外的参数 </dd></li>
+	<li> <dt>--preserve-revprops</dt> <dd>不过滤版本属性。 </dd></li>
+	<li> <dt>--quiet</dt> <dd>不显示过滤的统计数据。</dd></li>
+</ul>
+<strong>示例：</strong>
+<ul>
+	<li>将 svn 的 dump 文件 inputfile 中出现的以 /trunk/module1 或者 /trunk/module2 为前缀的文件和路径忽略，其余文件和目录转存到文件 filteredfile。
+<pre>$ svndumpfilter --drop-empty-revs --renumber-revs --skip-missing-merge-sources exclude /trunk/module1 /trunk/module2  &lt; inputfile &gt; filteredfile</pre>
+</li>
+</ul>
+<h3 id="HelpCenter.2BAC8-00030_Subversion.2BAC8-00040_CommandLine-5">4. 导入后目录降级</h3>
+<dl> <dt>导入后目录降级</dt> <dd>即导入到一个子目录中。如旧版本库 old_repos 中的 /trunk, /tags, /branches 等目录，导入到新库 new_repos 中的新路径为 repos1/trunk, repos1/tags, repos1/branches。
+
+</dd> </dl>实现目录降级非常简单：
+<ul>
+	<li>在新版本库中创建要导入到的子目录。如在新版本库 new_repos 中创建目录 repos1:
+<pre>svn mkdir file:///opt/svn/svnroot/new_repos/repos1 -m "create new subdir for import"</pre>
+</li>
+	<li>在使用 svnadmin load 导入时，提供参数 <strong>--parent-dir DIR_NAME</strong>。如导入到新库的 repos1 目录：
+<pre>svnadmin load --parent-dir repos1 /opt/svn/svnroot/new_repos &lt; old_repos_dumpfile</pre>
+</li>
+</ul>
+<h3 id="HelpCenter.2BAC8-00030_Subversion.2BAC8-00040_CommandLine-6">5. 导入后目录升级</h3>
+<dl> <dt>导入后目录升级</dt> <dd>即 从旧版本的一个子目录的导出内容，导入到一个新版本库的根目录中。如旧版本库 old_repos 中的 repos1/trunk, repos1/tags, repos1/branches 等目录，导入到新库 new_repos 中的新路径为 trunk, tags, branches。
+
+</dd> </dl>实现目录升级稍微复杂，需要对导出文件进行替换操作。
+<ul>
+	<li>将旧版本的 repos1 模块下的文件（repos1/trunk, repos1/tags, repos1/branches）导出：
+<pre>$ svnadmin dump /opt/svn/svnroot/old_repos | svndumpfilter include /repos1 --drop-empty-revs --renumber-revs &gt; filteredfile
+版本被重新编号如下:
+   10 =&gt; 7
+   9 =&gt; 6
+   8 =&gt; 5
+   7 =&gt; 4
+   6 =&gt; 3
+   5 =&gt; 2
+   4 =&gt; (丢弃)
+   3 =&gt; 1
+   2 =&gt; (丢弃)
+   1 =&gt; (丢弃)
+   0 =&gt; 0</pre>
+</li>
+	<li>将导出文件 filteredfile 中的路径 repos1 替换为空。
+<pre>sed -e "s@^\(Node-path: \|Node-copyfrom-path: \)repos1/@\1@"  filteredfile &gt; filteredfile.fixed</pre>
+</li>
+	<li>用替换过的导出文件，导入到新库。如导入到 new_repos 版本库：
+<pre>svnadmin load /opt/svn/svnroot/new_repos &lt; filteredfile.fixed</pre>
+</li>
+	<li>删除新库中可能包含的 /repos1<img title="(!)" src="http://www.ossxp.com/m/monobook/img/idea.png" alt="(!)" width="15" height="15" /> 如果要避免在新库中出现 /repos1 空目录，在导出旧版本库时使用 --revision X:Y 参数。X 是创建 /repos1 目录后的下一个版本，Y是版本库最新版本。</li>
+</ul>

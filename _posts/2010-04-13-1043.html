@@ -1,0 +1,94 @@
+---
+layout: post
+title: "Apt 级联缓存以及 apt-cacher-ng 的一个 Bug"
+---
+
+今天在配置 APT 级联代理时遇到了麻烦，最终定位了 apt-cacher-ng 的一个 Bug。关于群英汇是如何使用 apt 代理服务器有效的进行软件升级管理以及级联代理应该如何设置，本文做了简要的描述。
+
+<span id="more-1043"></span>
+<h2>公司内部 APT 代理使用情况</h2>
+群英汇北京在内网架设了一个 Debian/Ubuntu 代理服务器，对访问的 deb 包在代理服务器建立缓存，有效的避免了带宽和时间上的浪费。
+<ul>
+	<li>在 http://mirrors.bj.ossxp.com/ 上建立了一个仅包含 INDEX 的 Debian/Ubunt 镜像，每天同步 Index 两次
+这样当执行 <em>aptitude update</em> 命令时，不必连接远程服务器，获取 APT 的 INDEX 可以获得本地网络的访问速度。</li>
+	<li>为什么我们不去建立完全镜像而是只镜像 Index 呢？
+很简单，因为我们没有带宽。想要同时镜像 Debian, Debian-security, Debian-backports, Debian-multimedia, Ubuntu 的带宽要求非常非常高，除非我们公司的接入带宽达到 100MB，才又可能去尝试。
+而只镜像 Index ，也需要差不多 1 个GB。</li>
+	<li>我们使用 apt-cacher-ng 作为缓存服务器，只对升级/更新访问过的 Debian/Ubuntu 包才做缓存。
+目前我们公司内网的 apt 代理的缓存已经达到 30 GB，而且我们基本上使用 Debian amd64 系统。只在编译服务器上部署 Debian i386 和 Ubuntu。</li>
+	<li>Apt-cacher-ng 和 Index 缓存的整合涉及到复杂的重定向和映射配置，不再详述。</li>
+</ul>
+在有了 APT 代理（端口设置为9999）情况下，Apt 源的设置方法：
+<ul>
+	<li>在 /etc/apt/sources.list 文件中直接设定。
+<pre>## BJ.OSSXP.COM MIRRORS
+deb http://mirrors.bj.ossxp.com:9999/debian/ stable main contrib non-free
+deb http://mirrors.bj.ossxp.com:9999/debian/ testing main contrib non-free
+deb http://mirrors.bj.ossxp.com:9999/debian/ unstable main contrib non-free
+deb http://mirrors.bj.ossxp.com:9999/debian-security/ stable/updates main contrib non-free
+deb http://mirrors.bj.ossxp.com:9999/debian-security/ testing/updates main contrib non-free
+deb http://mirrors.bj.ossxp.com:9999/debian-backports/ lenny-backports main contrib non-free
+deb http://mirrors.bj.ossxp.com:9999/debian-volatile/ stable/volatile main contrib non-free
+deb http://mirrors.bj.ossxp.com:9999/debian-multimedia/ stable main non-free
+deb http://mirrors.bj.ossxp.com:9999/debian-multimedia/ testing main non-free
+deb http://mirrors.bj.ossxp.com:9999/debian-multimedia/ unstable main non-free</pre>
+</li>
+	<li>或者修改 Apt 的设置而不对 sources.list 进行改动。
+可以创建一个配置文件 <em>/etc/apt/apt.conf.d/02proxy </em>， 内容如下：
+<pre>Acquire::http { Proxy "http://mirrors.bj.ossxp.com:9999"; };</pre>
+</li>
+</ul>
+<h2>为什么要代理要实现级联</h2>
+所谓代理的级联，就是多个代理服务器，一个代理（A）使用另外一个代理（B）的缓存。
+<ul>
+	<li>一级代理：当缓存中没有相应的 DEB 包，直接连接互联网上的官方镜像源服务器，下载 DEB 包，并建立缓存</li>
+	<li>二级代理：当缓存中没有相应的 DEB 包，连接一级代理服务，从一级代理服务器上获取 DEB 包，建立缓存</li>
+</ul>
+今天想通过建立 APT 级联代理的方法，在我的笔记本中建立一个缩减版的代理。原因是：
+<ul>
+	<li>公司内网的 APT 代理服务器的缓存已经达到了 30 GB。而我的笔记本可用空间不超过 20GB。</li>
+	<li>如果能在笔记本中建立代理服务器，在其他环境（如客户的环境中）安装系统，会极大的提升速度</li>
+</ul>
+<h2>Apt-cacher-ng 的 Bug 导致级联代理失败</h2>
+但是建立级联代理的初次尝试以失败告终，是为什么呢。
+
+首先当配置文件（Debian 的 backends 设置）采用如下地址，apt 代理能够正常使用：
+<pre>http://ftp.us.debian.org/debian/</pre>
+但是如果将下面的地址放在第一个的时候，apt 代理不能工作，总是返回 404 错误（deb 包找不到）：
+<pre>http://mirrors.bj.ossxp.com:9999/real-debian/</pre>
+经过分析和服务器 mirrors.bj.ossxp.com 的通讯，终于查到原因：
+<ul>
+	<li>二级代理服务器没有连接一级代理服务器的9999 端口</li>
+	<li>而是连接一级代理服务器的 80 端口</li>
+	<li>即 apt-cacher-ng 没有对 URL 中的端口进行处理</li>
+</ul>
+您可能会问道，你可以指向 80 端口的一个 URL，然后通过重定向跳转到 9999 端口啊。是的，我也如此尝试过。
+
+修改 debian 代理的 backends 如下
+<pre>http://mirrors.bj.ossxp.com:80/real-debian/</pre>
+并配置 Apache，进行地址重定向：
+<pre>## Casecade proxy failed to connect port other than 80, so redirect here.
+RedirectMatch ^/(real-.*\.u?deb)$   http://192.168.0.2:9999/$1</pre>
+如此设置之后：
+<ul>
+	<li>使用二级 apt 代理，能够下载到代理缓存尚不存在的软件包</li>
+	<li>但是通过二级代理获取的新的软件包，实际上并没有通过代理服务器，因此代理服务器中不会建立缓存</li>
+	<li>这时因为 apt 的客户端（apt-get, aptitude等）从二级缓存获得的是上游 apt 源返回的一个 302 地址重定向。是apt客户端对重定向后的一级缓存的 9999 端口进行直接访问，而不是二级缓存获取数据/建立缓存/提供客户端。</li>
+</ul>
+<span style="text-decoration: line-through;">因此只有解决这个bug，才能实现 APT 的级联代理。</span>这么做之后 ，apt 代理的可用性将大大增强。我们会把这个问题命名为“痒痒-n”，找合适的时间解决之。
+<h2>后记</h2>
+在写完博客，吃过饭后，翻看了 apt-cacher-ng 的代码，虽然没有解决上面提到的 Bug，但是发现一段醒目的代码：
+<pre>// 代码: tcpconnect.cc
+bool tcpconnect::_Connect(const string &amp; sHostname, string &amp; sErrorMsg)
+{
+ _Disconnect();
+ ldbg("Resolving " + sHostname);
+ CAddrInfo::SPtr dns = m_proxy ?
+     CAddrInfo::CachedResolve(m_proxy-&gt;sHost, m_proxy-&gt;sPort, sErrorMsg)
+     : CAddrInfo::CachedResolve(sHostname, acfg::remoteport, sErrorMsg);
+</pre>
+Proxy？不正是我想要的么。原来在 apt-cacher-ng 的配置文件中，就有代理的设置。这样对于二级代理只要将一级代理添加在配置文件中就可以了。问题解决。
+<pre>CacheDir: /var/cache/apt-cacher-ng
+LogDir: /var/log/apt-cacher-ng
+Port:9999
+<strong>Proxy: http://bj.ossxp.com:9999</strong></pre>

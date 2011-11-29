@@ -1,0 +1,33 @@
+---
+layout: post
+title: "Debian启动中的错误信息源自删除软件包遗留的配置文件，哦哈"
+---
+
+好长好长的时间了（两个月以上），我笔记本（Debian操作系统）在启动过程中总会产生大量的警告信息，一直因为没有大碍，就没有去理会。今日得闲，解决了此问题。
+
+<span id="more-648"></span>Debian 启动过程中产生的错误信息：
+<pre>BUS= will be removed in a future udev version, please use SUBSYSTEM= to match the event device, or SUBSYSTEMS= to match a parent device, in /etc/udev/rules.d/025_logitechmouse.rules:1
+SYSFS{}= will be removed in a future udev version, please use ATTR{}= to match the event device, or ATTRS{}= to match a parent device, in /etc/udev/rules.d/025_logitechmouse.rules:5
+SYSFS{}= will be removed in a future udev version, please use ATTR{}= to match the event device, or ATTRS{}= to match a parent device, in /etc/udev/rules.d/025_logitechmouse.rules:6
+SYSFS{}= will be removed in a future udev version, please use ATTR{}= to match the event device, or ATTRS{}= to match a parent device, in /etc/udev/rules.d/025_logitechmouse.rules:7
+SYSFS{}= will be removed in a future udev version, please use ATTR{}= to match the event device, or ATTRS{}= to match a parent device, in /etc/udev/rules.d/025_logitechmouse.rules:8
+SYSFS{}= will be removed in a future udev version, please use ATTR{}= to match the event device, or ATTRS{}= to match a parent device, in /etc/udev/rules.d/025_logitechmouse.rules:9
+...
+SYSFS{}= will be removed in a future udev version, please use ATTR{}= to match the event device, or ATTRS{}= to match a parent device, in /etc/udev/rules.d/56-hpmud_support.rules:10
+</pre>
+按图索骥，原来是因为 udev 包升级后，对配置文件的解析语法改变，旧的设备的配置文件使用 SYSFS 的应该换成 ATTR，诸如此类。
+
+这样就简单了，直接修改出现问题的配置文件，用新的语法代替旧的语法不就行了么？
+
+但是慢着。为什么配置文件会和 udev 包不匹配呢，难道是相应的软件包没有升级？可是刚刚执行完 <span style="text-decoration: underline;"><em>aptitude upgrade</em></span> 呀？
+
+通过命令<span style="text-decoration: underline;"><em> dpkg -S /etc/udev/rules.d/025_logitechmouse.rules </em></span>命令找到该配置文件属于的软件包，原来该软件包已经被删除，但是该软件包的配置仍然在系统中保留，最终过时的配置文件导致 udev 在加载过程报错。
+
+解决过程很简单，直接用命令 <em><span style="text-decoration: underline;">dpkg -P &lt;包名&gt;</span></em> ，就完成了对该软件包遗留的配置文件的彻底删除。
+
+但是慢着，可能还有其他的已删除软件包的遗留配置造成新的问题，于是：
+<ul>
+	<li>用 <span style="text-decoration: underline;"><em>dpkg -l '*'</em></span> 命令查看所有的软件包</li>
+	<li>注意上个命令输出中以 <em>"rc"</em> 开始的行的软件包就是：已经删除，但是配置文件依然保留的软件包</li>
+	<li>对以<em> "rc" </em>开头的行的软件包一一检查，如果不是必须，用 <span style="text-decoration: underline;"><em>dpkg -P</em></span> 命令将其彻底“斩草除根”。</li>
+</ul>

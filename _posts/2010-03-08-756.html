@@ -1,0 +1,106 @@
+---
+layout: post
+title: "关于机器人 /robots.txt 文件的常识"
+---
+
+<h2>一、概述</h2>
+网站所有者使用/ robots.txt文件提供有关其网站网络机器人的指示;这就是所谓的机器人排除协议 (<em>The Robots Exclusion Protocol</em>)。
+
+<strong>它的作用机理： </strong>一个网络机器人想要访问一个 Web 站点，比如说：http://www.example.com/welcome.html。在这之前，它会首先访问http://www.example.com/robots.txt，并发现：
+<span id="more-756"></span>
+<pre>User-agent: *
+Disallow: /</pre>
+"User-agent: *"意味这该小节的配置适用于所有的网络机器人。
+“Disallow: /" 告诉网络机器人不应该访问该站点的任何页面。
+<span style="font-size: medium;">
+</span><span style="font-size: medium;">使用 /robots.txt 时有两个重要的地方需要考虑：</span>
+<ul>
+	<li>网络机器人可以忽略你的 /robots.txt文件。尤其是“脚本小子”进行漏洞扫描使用的恶意网络机器人，收集邮件地址的垃圾邮件发送器根本就不会理睬这些。</li>
+	<li>/ robots.txt文件是一个公开的文件。不要在 /robots.txt 中包含私秘的网址信息，因为任何人都可以看到您的服务器哪些部分你不想让机器人访问。</li>
+</ul>
+参见：
+<ul>
+	<li> <a href="http://www.robotstxt.org/faq/blockjustbad.html">Can I block just bad robots?</a></li>
+	<li> <a href="http://www.robotstxt.org/faq/ignore.html">Why did this robot ignore my /robots.txt?</a></li>
+	<li> <a href="http://www.robotstxt.org/faq/nosecurity.html">What are the security implications of /robots.txt?
+</a></li>
+</ul>
+<h2>二、详解</h2>
+<h3>/ robots.txt 是一个事实上的标准，而不是由任何团体拥有的标准。有两个历史性的描述:</h3>
+<ul>
+	<li> the original 1994 <a href="http://www.robotstxt.org/orig.html">A Standard for Robot Exclusion</a> document.</li>
+	<li> a 1997 Internet Draft specification <a href="http://www.robotstxt.org/norobots-rfc.txt">A Method for Web Robots Control</a></li>
+</ul>
+此外，还有外部资源：
+<ul>
+	<li> <a href="http://www.w3.org/TR/html4/appendix/notes.html#h-B.4.1.1">HTML 4.01 specification, Appendix B.4.1</a></li>
+	<li> <a href="http://en.wikipedia.org/wiki/Robots.txt">Wikipedia - Robots Exclusion Standard</a></li>
+</ul>
+/robots.txt 的发展并不积极。参见  <a href="http://www.robotstxt.org/faq/future.html">What about further development of /robots.txt?</a> 的更多讨论。
+<h3>下面介绍如何在您的服务器上使用 /robots.txt 。</h3>
+<h4><strong>/robots.txt 放在哪里？</strong></h4>
+答案很简单：在您 Web 服务的顶极目录。
+
+当机器人通过 URL 查找 “/robots.txt ”时，它会从URL中删除路径的组成部分（从第一个斜线起的所有东西），并用"/robots.txt"替换原来的位置。
+
+例如：对于"http://www.example.com/welcome.html", 它会删除 "/welcome.html"并用“/robots.txt"代替，最后就成为了"http://www.example.com/robots.txt"。
+
+因此，作为一个网站所有者，你必须将 "/robots.txt"放在正确的位置。通常情况下，它和你放“index.html"的位置一样。它的具体精确位置取决于你的 Web 应用程序。
+
+记住：文件名所有字母都是小写：是"robots.txt"，而不是"Robots.TXT"。
+
+参见：
+<ul>
+	<li><a href="http://www.robotstxt.org/faq/editor.html">What program should I use to create /robots.txt?</a></li>
+	<li><a href="http://www.robotstxt.org/faq/virtual.html">How do I use /robots.txt on a virtual host?</a></li>
+	<li><a href="http://www.robotstxt.org/faq/shared.html">How do I use /robots.txt on a shared host?</a></li>
+</ul>
+<h4><strong>robot.txt文件里都写些什么：</strong></h4>
+“/robots.txt" 文件是包含一个或者多个记录的文本文件。通常它包含像下面那样的一个记录：
+<pre>User-agent: *
+Disallow: /cgi-bin/
+Disallow: /tmp/
+Disallow: /~joe/</pre>
+在该示例里，有三个目录被排除。
+
+注意"Disallow"后只能跟一个你想排除的URL，您不能这样些写 "Disallow:/cgi-bin/ /tmp/"。
+同时在一个记录里也不能出现空白行，因为空白行使用来界定每个记录的。
+
+还要注意，通配符和正则表达式即不能用在 User-agent 行也不能用在Disallow行。
+"*"用在 User-agent 字段是一个特殊值，表示任何机器人。尤其是你不能这样用：
+"User-agent: *bot*", "Disallow: /tmp/*" or "Disallow: *.gif"。
+<h4><strong>究竟隐藏什么依赖于你的应用程序。以下是一些例子：</strong></h4>
+(1) 对所有机器人隐藏整个应用服务
+<pre>User-agent: *
+Disallow: /</pre>
+(2)允许机器人访问所有
+<pre>User-agent: *
+Disallow:</pre>
+(或者仅仅创建一个空的 "/robots.txt" 文件，或者根本就不创建)
+
+(3) 对所有机器人隐藏部分应用
+<pre>User-agent: *
+Disallow: /cgi-bin/
+Disallow: /tmp/
+Disallow: /junk/</pre>
+(4) 对某一个具体的机器人隐藏
+<pre>User-agent: BadBot
+Disallow: /</pre>
+(5) 仅允许某一个机器人访问
+<pre>User-agent: Google
+Disallow:  
+
+User-agent: *
+Disallow: /</pre>
+(6) 除了一个文件以外，其他的全部隐藏
+由于当前没有"Allow"字段，所以做这件事有点尴尬。最简单的方法是把所有将被隐藏的文件放在一个单独的目录，
+例如 "stuff"，并将允许访问的文件放在于"stuff"同一级别的位置。
+<pre>User-agent: *
+Disallow: /~joe/stuff/</pre>
+另外，您可以明确地禁止所有不允许访问的网页：
+<pre>User-agent: *
+Disallow: /~joe/junk.html
+Disallow: /~joe/foo.html
+Disallow: /~joe/bar.html</pre>
+<h2>三、扩展用法</h2>
+参见令一篇博客 <a href="/2010/03/09/768.html" target="_blank">robots.txt 文件的非标准扩展</a>

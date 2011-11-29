@@ -1,0 +1,114 @@
+---
+layout: post
+title: "ruby中的实例方法、类方法、单体方法、私有方法、protected方法"
+---
+
+<span style="font-size: small;"><strong>1、ruby的的实例方法和Java等其他语言的定义类似</strong></span>
+<pre>irb(main):065:0&gt; class Dog
+irb(main):066:1&gt;   def run
+irb(main):067:2&gt;     puts "I'm running!"
+irb(main):068:2&gt;   end
+irb(main):069:1&gt; end
+=&gt; nil
+irb(main):070:0&gt; dog = Dog.new
+=&gt; #&lt;Dog:0x7fabbbefd918 @name="Dog"&gt;
+irb(main):071:0&gt; dog.run
+I'm running!</pre>
+<span style="font-size: small;"><strong>2、类方法定义时需要在方法前加入类名称或者self关键字</strong></span>
+<span id="more-1387"></span>
+<pre>irb(main):059:0&gt; class Dog
+irb(main):060:1&gt;   def Dog.species   # 或者 def self.species
+irb(main):061:2&gt;     puts "I belong to the canine"
+irb(main):062:2&gt;   end
+irb(main):063:1&gt; end
+=&gt; nil
+irb(main):064:0&gt; Dog.species
+I belong to the canine</pre>
+注意：在ruby中类方法只能被类对象调用，不能被实例对象调用。在这里就是指：species方法只能这样调用Dog.species，而不能这样调用Dog.new.species。这与Java中不同（Java中类只能调用类方法，而实例既可以调用实例方法，也可以调用类方法）。
+<span style="font-size: small;"><strong>3、单体方法只在该对象上起作用</strong></span>
+<pre>irb(main):072:0&gt; dog1 = Dog.new
+=&gt; #&lt;Dog:0x7fabbbef6208 @name="Dog"&gt;
+irb(main):073:0&gt; def dog1.speak
+irb(main):074:1&gt;   puts "I'm talking"
+irb(main):075:1&gt; end
+=&gt; nil
+irb(main):076:0&gt; dog1.speak
+I'm talking
+=&gt; nil
+irb(main):077:0&gt; dog2 = Dog.new
+=&gt; #&lt;Dog:0x7fabbbedfc88 @name="Dog"&gt;
+irb(main):078:0&gt; dog2.speak
+NoMethodError: undefined method `speak' for #&lt;Dog:0x7fabbbedfc88 @name="Dog"&gt;
+from (irb):78
+from :0</pre>
+<span style="font-size: small;"><strong>4、和Java一样，用private标识私有方法。但ruby中的私有方法可以在子类中调用（Java中只允许在本类内部调用）。</strong></span><span style="font-size: small;"><strong>位于private之后的方法都会被认为是私有方法。</strong></span>
+<pre>irb(main):001:0&gt; class Demo
+irb(main):002:1&gt;   def pub_method
+irb(main):003:2&gt;     puts "I'm public method"
+irb(main):004:2&gt;     puts "invoke private method in internal"
+irb(main):005:2&gt;     pri_method
+irb(main):006:2&gt;   end
+irb(main):007:1&gt;   private
+irb(main):008:1&gt;   def pri_method
+irb(main):009:2&gt;     puts "I'm private method"
+irb(main):010:2&gt;   end
+irb(main):011:1&gt; end
+=&gt; nil
+irb(main):012:0&gt; demo = Demo.new
+=&gt; #&lt;Demo:0x7f2e7edf7650&gt;
+irb(main):013:0&gt; demo.pub_method
+I'm public method
+invoke private method in internal
+I'm private method
+=&gt; nil
+irb(main):014:0&gt; demo.pri_method
+NoMethodError: private method `pri_method' called for #&lt;Demo:0x7f2e7edf7650&gt;
+from (irb):14
+from :0
+irb(main):024:0&gt; class SubDemo &lt; Demo
+irb(main):025:1&gt;   def pub_method
+irb(main):026:2&gt;     puts "invoke parent class private method"
+irb(main):027:2&gt;     pri_method
+irb(main):028:2&gt;   end
+irb(main):029:1&gt; end
+=&gt; nil
+irb(main):030:0&gt; subDemo = SubDemo.new
+=&gt; #&lt;SubDemo:0x7f2e7ee4ee00&gt;
+irb(main):031:0&gt; subDemo.pub_method
+invoke parent class private method
+I'm private method
+=&gt; nil</pre>
+<strong>5、protected方法</strong>
+尽管ruby中子类可以调用父类中的私有方法，但是在子类中仍然不能通过外部对象调用。只有protected和public方法才能被外部对象调用。
+<pre>irb(main):024:0&gt; class SubDemo &lt; Demo
+irb(main):025:1&gt;   def pri_pro_diff(other)
+irb(main):026:2&gt;     priv_method
+irb(main):027:2&gt; ^C
+irb(main):027:0&gt; class SubDemo &lt; Demo
+irb(main):028:1&gt;   def pri_pro_diff(other)
+irb(main):029:2&gt;     pri_method
+irb(main):030:2&gt;     other.pri_method
+irb(main):031:2&gt;   end
+irb(main):032:1&gt; end
+=&gt; nil
+irb(main):033:0&gt; subDemo1 = SubDemo.new
+=&gt; #&lt;SubDemo:0x7f4fb2bc2588&gt;
+irb(main):034:0&gt; subDemo2 = SubDemo.new
+=&gt; #&lt;SubDemo:0x7f4fb2bb5338&gt;
+irb(main):035:0&gt; subDemo1.pri_pro_diff(subDemo2)
+<strong>I'm private method</strong>
+NoMethodError: private method `pri_method' called for #&lt;SubDemo:0x7f4fb2bb5338&gt;
+from (irb):30:in `pri_pro_diff'
+from (irb):35
+from :0
+irb(main):036:0&gt;</pre>
+<em>说明：可以看出在子类内部是可以调用父类的私有方法，但在子类内部仍然不能通过外部对象调用私有方法。
+下面是将私有方法转换成protected方法的情况</em>
+<pre>irb(main):036:0&gt; class Demo
+irb(main):037:1&gt;   protected :pri_method
+irb(main):038:1&gt; end
+=&gt; Demo
+irb(main):039:0&gt; subDemo1.pri_pro_diff(subDemo2)
+I'm private method
+I'm private method
+=&gt; nil</pre>

@@ -1,0 +1,49 @@
+---
+layout: post
+title: "群英汇 TopGit 改进 (4): tg 命令补齐"
+---
+
+在 Bash 的 Shell 环境下，Linux 命令的命令补齐非常强大。
+<ul>
+	<li>首先，要确保安装了 <em>bash-completion</em> 包
+<pre>$ <strong>dpkg -l bash-completion
+</strong>||/ 名称               版本      简介
++++-=================-=========-==========================================
+ii  bash-completion   1:1.1-3   programmable completion for the bash shell</pre>
+</li>
+	<li> 还有确认 Bash 的配置文件 <em>/etc/bash.bashrc</em> 已经开启了命令补齐，如下：
+<pre>if [ -f /etc/bash_completion ]; then
+. /etc/bash_completion
+fi</pre>
+</li>
+	<li>Topgit 也提供 Bash 下的命令补齐，相应的脚本在目录 <em>/etc/bash_completion.d/</em> 下</li>
+</ul>
+但是 Topgit 的命令补齐有一个问题，就是在执行<em> tg depend</em> 命令，通过敲击 TAB 键获取分支列表或者自动补齐分支名称时出现异常！
+<pre>$ <strong>tg depend <em>&lt;TAB&gt;</em></strong> bash: __git_find_subcommand: command not found
+add</pre>
+命令补齐报错！这是如何产生的呢？如何解决呢？
+<h2><span id="more-259"></span>TopGit 命令行补齐的Bugfix</h2>
+如前所述，理解了bash命令补齐的原理，就能很容易解决这个问题。
+<ul>
+	<li>Bash 命令补齐，需要在 shell 运行时，加载 /etc/bash_completion 脚本。一般这是在 /etc/bash.bashrc 中完成加载的。</li>
+	<li>/etc/bash_completion 脚本将 /etc/bash_completion.d/ 目录下的各个命令补齐的配置脚本读入环境变量中。</li>
+</ul>
+那么我们从 tg 命令补齐的错误可以看出来，命令补齐执行了一个不存在的命令：__git_find_subcommand，那么执行下面的命令，就非常清楚了：
+<pre>$ <strong>set | grep -C3 __git_find_subcommand</strong>
+_tg_depend ()
+{
+ local subcommands="add";
+ local subcommand="$(__git_find_subcommand "$subcommands")";
+ if [ -z "$subcommand" ]; then
+ __tgcomp "$subcommands";
+ return;</pre>
+于是，剩下的事情就很简单了，找到 git 命令补齐中最新的分支扩展的实现脚本就解决问题了。改动后的相应的脚本：
+<pre>$ <strong>set | grep -C3 __git_find_subcommand
+</strong>_tg_depend ()
+{
+ local subcommands="add";
+ local subcommand="$(__git_find_subcommand "$subcommands" 2&gt;/dev/null || __git_find_on_cmdline "$subcommands" 2&gt;/dev/null)";
+ if [ -z "$subcommand" ]; then
+ __tgcomp "$subcommands";
+ return;</pre>
+代码我们提交到 Github 上，于您分享：<a href="http://github.com/ossxp-com/topgit/commit/71787600d025b31f0dafe56d43f64c6e01c3827f">群英汇 在 Github 上的 topgit 代码库的相关提交</a>。

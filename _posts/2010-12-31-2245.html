@@ -1,0 +1,187 @@
+---
+layout: post
+title: "Plone的工作流"
+---
+
+工作流是完成一项任务的业务流程。比如，写博客时，先保存草稿，待修改满意再发布。这个简单的工作流有两个状态：草稿，发布。有一个转换：从草稿状态到发布状态。在草稿状态时，只有博主能够查看，修改，同时可以随时发布。在发布状态，博主可以更新，删除，任何人都可以浏览。
+
+从上面的例子可以看出，工作流由两部分组成：状态和转换。 而每个状态下又包括不同用户的访问权限控制。
+
+其实工作流可以看做是一个状态转移图。
+
+Plone中的对象操作链就是由工作流管理的。关联工作流到特定的内容类型是由portal_workflow管理的。它包含了protal的工作流的定义。
+
+在Plone里，当创建一个内容对象后，它的状态是“保密”，同时在下拉菜单里会看到两个转换：“发布”，“提交发布”。选择“提交发布”后，状态就变成“待审”，或者选择“发布”，状态就变成“已发布”。这是Plone的默认工作流。
+
+要查看或修改Plone的工作流，在Plone控制面板中选择“类型”，可以看到当前的默认工作流是简单发布工作流（simple publication workflow）。<span id="more-2245"></span>
+<div id="id1">
+<h2>简单发布工作流</h2>
+简单发布工作流有三个状态：
+<ul>
+	<li>保密(private)</li>
+	<li>待审(pending)</li>
+	<li>已发布(published)</li>
+</ul>
+四个状态转移：
+<ul>
+	<li>提交(submit)</li>
+	<li>发布(publish)</li>
+	<li>打回(reject)</li>
+	<li>召回(retrac)</li>
+</ul>
+创建新的内容对象时初始状态为保密状态。
+
+在保密状态下，内容创建者可以修改内容，提交内容给审核者，或者直接发布。发布后创建者仍可修改。
+
+提交内容后，对象状态变为“待审”。这时创建者可以“召回”，即取消提交，而审核者会在工作台的审批清单里看到这个请求，审核者可以“发布”，也可以“打回”。待审状态时文件不可修改。
+
+创建者“召回”或审核者“打回”，文件状态都恢复到“保密”。
+
+审核者“发布”待审对象，则对象状态变为“已发布”。这时任何人都可以看到了。
+
+简单发布工作流的状态图如下所示：
+
+<a href="/wpfiles/2010/12/simple.png"><img class="alignnone size-full wp-image-2299" title="simple" src="/wpfiles/2010/12/simple.png" alt="" width="301" height="184" /></a>
+
+</div>
+<div id="id2">
+<h2>其他工作流简介</h2>
+在“新的工作流”下拉菜单里可以选择使用其他工作流。
+
+Plone还提供了5种工作流：
+<ul>
+	<li>文件夹社区工作流(folder_workflow)</li>
+	<li>文件夹内部工作流(intranet_folder_workflow)</li>
+	<li>内外网工作流(intranet_workflow)</li>
+	<li>单一状态工作流(one_state_workflow)</li>
+	<li>社区工作流(plone_workflow)</li>
+</ul>
+</div>
+<div id="id3">
+<h2>文件夹社区工作流</h2>
+有三个状态：
+<ul>
+	<li>公开草案(visible)</li>
+	<li>保密(private)</li>
+	<li>已发布(published)</li>
+</ul>
+四个状态转换：
+<ul>
+	<li>隐藏(hide)</li>
+	<li>发布(publish)</li>
+	<li>召回(retract)</li>
+	<li>变为草案(show)</li>
+</ul>
+创建内容后初始状态为公开草案。此后内容拥有者可以隐藏内容使变为保密状态，或者发布草案。
+
+保密状态时可以发布，可以变为草案。
+
+已发布状态时可以召回，变为公开草案，亦可以隐藏，变为保密状态。
+
+没有待审状态，创建者可以直接发布而不需审核。
+
+状态转移图如下：
+
+<a href="/wpfiles/2010/12/workflow_folder_community.png"><img class="alignnone size-full wp-image-2300" title="workflow_folder_community" src="/wpfiles/2010/12/workflow_folder_community.png" alt="" width="399" height="310" /></a>
+
+</div>
+<div id="id4">
+<h2>文件夹内部工作流</h2>
+文件夹内部工作流比较简单，只有两种状态，通常和内外网工作流一起使用：
+<ul>
+	<li>内部草案(internal)</li>
+	<li>保密(private)</li>
+</ul>
+两个状态转换：
+<ul>
+	<li>隐藏(hide)</li>
+	<li>内部显示(show_internally)</li>
+</ul>
+创建内容后初始状态为内部草案。此后内容拥有者可以隐藏内容使变为保密状态。
+
+保密状态下可以内部显示，从而变为公开草案。
+
+状态图如下：
+
+<a href="/wpfiles/2010/12/workflow_folder_internal.png"><img class="alignnone size-full wp-image-2301" title="workflow_folder_internal" src="/wpfiles/2010/12/workflow_folder_internal.png" alt="" width="335" height="110" /></a>
+
+</div>
+<div id="id5">
+<h2>内外网工作流</h2>
+内外网工作流比较复杂，有5种状态：
+<ul>
+	<li>内部草案(internal)</li>
+	<li>保密(private)</li>
+	<li>待审(pending)</li>
+	<li>内部发布(internally_published)</li>
+	<li>公开(external)</li>
+</ul>
+同时有7种状态转换：
+<ul>
+	<li>隐藏(hide) 成员使其变为保密</li>
+	<li>公开发布(publish_externally) 审核者使外部可见</li>
+	<li>内部发布(publish_internally) 审核者内网发布</li>
+	<li>驳回(reject) 打回</li>
+	<li>收回(retract) 收回提交</li>
+	<li>内部显示(show_internally) 转到内部草案状态</li>
+	<li>提交(submit) 提交送审</li>
+</ul>
+创建内容后初始状态为内部草案，此时可以隐藏到保密状态，可以提交送审，管理员可以直接内部发布。
+
+保密状态时可以内部显示为内部草案，可以内部发布。
+
+待审状态时可以内部发布，可以公开发布，可以打回，可以被创建者召回。
+
+内部发布状态时可以打回或被创建者召回到内部草案。可以公开发布。
+
+公开状态时，内容创建者可以召回到内部草案状态。
+
+内外网工作流的状态转移图如下所示：
+
+<a href="/wpfiles/2010/12/workflow_internal_external.png"><img class="alignnone size-full wp-image-2302" title="workflow_internal_external" src="/wpfiles/2010/12/workflow_internal_external.png" alt="" width="499" height="219" /></a>
+
+</div>
+<div id="id6">
+<h2>单一状态工作流</h2>
+故名思议，只有一种状态：
+<ul>
+	<li>已发布(published)</li>
+</ul>
+不多说。
+
+</div>
+<div id="id7">
+<h2>社区工作流</h2>
+社区工作流，又叫Plone工作流，有四个状态：
+<ul>
+	<li>公开草案(visible)</li>
+	<li>保密(private)</li>
+	<li>待审(pending)</li>
+	<li>已发布(published)</li>
+</ul>
+六种状态转换：
+<ul>
+	<li>隐藏(hide)</li>
+	<li>发布(publish)</li>
+	<li>驳回(reject)</li>
+	<li>召回(retract)</li>
+	<li>变为草案(show)</li>
+	<li>提交(submit)</li>
+</ul>
+创建内容后初始状态为公开草案。
+
+可以隐藏使变为保密状态，可以提交送审，可以直接发布。
+
+保密状态时，只能变为公开草案。
+
+待审状态时可以隐藏到保密状态，可以驳回或召回到公开草案状态，可以发布。
+
+已发布状态时可以驳回或召回到公开草案状态。
+
+内容可以被创建者或管理员提交待审。审核者可以发布或打回内容，而内容拥有者也可以收回内容。在待审期间，任何人都可以阅读。 发布后，只有管理员才能收回。
+
+状态图如下：
+
+<a href="/wpfiles/2010/12/workflow_plone.png"><img class="alignnone size-full wp-image-2303" title="workflow_plone" src="/wpfiles/2010/12/workflow_plone.png" alt="" width="425" height="251" /></a>
+
+</div>

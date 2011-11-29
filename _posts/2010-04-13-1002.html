@@ -1,0 +1,109 @@
+---
+layout: post
+title: "从 CoSign 看开源软件本地化（4）"
+---
+
+上文中我们提到，仍旧困扰我们的问题是认证因子的错误提示信息没有本地化。
+
+什么是认证因子呢？
+<ul>
+	<li>认证因子是一些独立的程序或脚本，位于 /opt/cosign/factor 目录下</li>
+	<li>认证因子对登录CGI传递的参数（如：用户名/口令，邀请码等）进行认证，认证成功返回0，认证失败返回1。</li>
+	<li>认证失败同时在标准错误（stderr）中输出错误信息。而这些错误信息被登录 CGI 捕获并显示给客户</li>
+	<li>认证因子可以级联，形成所谓双因子认证或多因子认证。例如：口令+指纹识别，口令+虹膜验证 都是非常典型的双因子认证。不过目前还没有客户要求实施这么复杂的认证方式。 ;-)</li>
+	<li>认证因子运行在独立的空间下，无法获取 HTTP 环境，就是说不知道用户的语种选择，所以只能说官话。“英文”？</li>
+</ul>
+从上面的介绍我们可以看出来认证因子的本地化，之前的方法都无效。只有从核心实现本地化一种办法可选。
+<h2><span id="more-1002"></span>底层 gettext 本地化</h2>
+Linux 中最标准的本地化方法是 Gettext。我不知道唐俊为Windows增加的本地化采用的是什么机制，但是开源软件的本地化，却无非是那么几种。如：ROR 用到的键值对，Java 用类似键值对的 properties 文件，...
+
+我觉得 Gettext 是这其中最好的一种：
+<ul>
+	<li>丰富的工具集，便于对 gettext 格式文件（.po）文件进行操作
+<ul>
+	<li>有从代码中提取字符串的命令 xgettext 命令</li>
+	<li>有图形化化的翻译软件：lokalize , kbabel （都是 Linux 下的图形客户端软件）</li>
+	<li>编译和反编译的：msgfmt，msgunfmt</li>
+</ul>
+</li>
+	<li>智能合并：能够以之前的翻译文件为字典，以最新的模板为蓝图，创建新的翻译文件</li>
+	<li>状态跟踪：对于条目更新可能导致的过时翻译的问题，通过为条目标识为 fuzzy （模糊翻译），便于对翻译文件进行维护。</li>
+</ul>
+CoSign 本身并没有实现本地化，于是我们要为他添加 Gettext 本地化功能。其实无非是要实现：
+<ul>
+	<li>Gettext 初始化：
+要知道用户的语种选择，并设置 locale 为用户的语种</li>
+	<li>字符串国际化：
+所有需要国际化的字符串，用 gettext 函数调用。约定俗成使用简介的 _() 函数包裹字符串。</li>
+	<li>字符串翻译：
+将用 _()  包裹的字符串提取为模板，然后针对不同语种进行翻译并编译</li>
+</ul>
+<span style="text-decoration: underline;"><strong>Gettext 初始化的代码</strong></span>
+<pre>/* 包含相应的头文件 */
+#include &lt;locale.h&gt;
+#include &lt;libintl.h&gt;
+
+/* 约定俗称的 _() 函数实为一个宏名 */
+#define _(String) gettext (String)
+
+/*
+ * 在 _LOCALEDIR 目录下建立名为 "cosign" 的本地化文件（域）
+ * 用于对 CoSign 核心进行本地化
+ */
+bindtextdomain("cosign", _LOCALEDIR);
+
+/*
+ * 在 _TEMPLATE_LOCALEDIR 目录下建立名为 "template" 的本地化文件（域）
+ * 用户可以自行维护对模板中出现的本地化字符串的翻译
+ */
+bindtextdomain("template",  _TEMPLATE_LOCALEDIR);
+
+/* 缺省使用 cosign 文本域的本地化 */
+textdomain("cosign");
+
+/* 获取用户语种列表 */
+lang = get_accept_language();
+while(*lang !=NULL) {
+    /* 调用 setlocale 函数设置locale */
+    ...
+}
+</pre>
+<span style="text-decoration: underline;"><strong>将代码中的字符串进行国际化，可以参考下面的代码修改（文件补丁格式）</strong></span>
+<pre>@@ -178,8 +179,8 @@ kcgi_configure()
+     } else if ( strcasecmp( val, "off" ) == 0 ) {
+         krbtkts = 0;
+     } else {
+-           fprintf( stderr, "%s: invalid setting for krbtkts:"
+-                   " defaulting off.\n", val );
++           fprintf( stderr, _("%s: invalid setting for krbtkts:"
++                   " defaulting off.\n"), val );
+            krbtkts = 0;
+     }
+ }
+</pre>
+<span style="text-decoration: underline;"><strong>国际化字符串的提取和翻译</strong></span>
+
+使用工具 xgettext, lokalize, msgfmt 可以实现国际化字符串提取为模板，模板翻译，以及将 .po 文件翻译为二进制的 .mo 文件。
+<h2>认证因子的返回信息如何本地化呢？</h2>
+实际上当我们把 CoSign 核心实现本地化后，这个问题就非常好解决了。关键是找到认证因子的返回信息是如何被 CGI 捕获的。
+
+最终定位与 cgi.c 的这段代码中，代码补丁如下：
+<pre>if (( rc = execfactor( fl, cl, &amp;msg )) != COSIGN_CGI_OK ) {
+-           sl[ SL_ERROR ].sl_data = msg;
++           sl[ SL_ERROR ].sl_data = _(msg);
+            if ( rc == COSIGN_CGI_PASSWORD_EXPIRED ) {
+                 sl[ SL_TITLE ].sl_data = "Password Expired";
+</pre>
+当然，对于认证因子的消息，我们无法通过 xgettext 提取了，只能通过人工从认证因子程序中挑选。
+<h2>真帅，模板也支持 gettext 本地化</h2>
+自从使用 Gettext 将 CoSign 本地化之后，我们发现，如果能够给模板中也增加类似 _() 的函数/宏，那么模板就可以大大简化了。
+<ul>
+	<li>模板的多语种支持，不必为每个语言建立一套模板，只需要将要显示为多语种的内容用特定的宏括起来。</li>
+	<li>不同错误输出的模板可以合并，只需要在模板加载的使用填充不同的字符串，而填充的字符串在程序中已经国际化了。</li>
+</ul>
+最终我们为模板实现了一个本地化宏。在用如下语法进行调用：
+<pre>&lt;p&gt;$!_("text in template can be localized.")&lt;/p&gt;
+</pre>
+模板实现了本地化，并非意为着我们之前的语种自适应模板选择和页面嵌套没有用处。恰好相反，几种方法的结合使用，让模板的定制更加方便。
+
+下一讲，我们介绍一下 JavaScript 在本地化中的角色。

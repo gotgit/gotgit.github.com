@@ -1,0 +1,75 @@
+---
+layout: post
+title: "安全 FTP 协议 FTPS 和防火墙"
+---
+
+在前一个博文<a href="/2010/06/29/1384.html">《FTP和LDAP认证的整合》</a>中实现了能够和 LDAP 认证整合的 FTP 服务器。但是我们知道，FTP协议并不安全，认证信息都明文传输。就像 HTTPS 之于 HTTP，FTPS 就是安全的 FTP 服务。
+
+采用 ProFTPD 架设 FTPS 是小菜一碟，但是你有可能倒在防火墙上...
+
+<span id="more-1393"></span>
+<h2>架设安全的 FTPS: ftp over tls</h2>
+使用 FTPS 可以对信道加密，避免口令被窃听。ProFTPD 对 FTPS 支持很好，配置也很简单：
+<ul>
+	<li>创建SSL安全证书</li>
+	<li>配置 tls.conf</li>
+</ul>
+/etc/proftpd/tls.conf 简单的配置如下
+<pre>TLSEngine                               on
+# 群英汇为客户签发的证书
+TLSRSACertificateFile                   /opt/ossxp/ssl/certs/mydomain/star.crt
+TLSRSACertificateKeyFile                /opt/ossxp/ssl/certs/mydomain/star.key
+# 群英汇 CA 根证书
+TLSCACertificateFile                    /opt/ossxp/ssl/ca/ossxp-ca.crt
+TLSVerifyClient                         off
+# 同时允许 FTP 和 FTPS
+TLSRequired                             off</pre>
+<h2>先在服务器本地进行测试</h2>
+为什么不直接在其它机器上用 FTP 客户端测试呢？因为要排除防火墙策略对测试的干扰。
+
+测试可以使用 ftp-ssl 包。在 Debian 上安装，只需要执行命令
+<pre>$ sudo aptitude install ftp-ssl
+</pre>
+使用 ftp-ssl 中的 pftp 命令（passive 模式）进行测试
+<pre>$ pftp localhost
+Trying 127.0.0.1...
+Connected to localhost.
+220 ProFTPD 1.3.2e Server (My Ftp) [127.0.0.1]
+Name (localhost:jiangx):
+234 AUTH SSL 成功执行
+[SSL Cipher DHE-RSA-AES256-SHA]
+331 需要为jiangx提供密码
+Password:
+230 用户jiangx登录
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp&gt; ls /
+227 Entering Passive Mode (127,0,0,1,244,223).
+150 打开ASCII模式的数据连接为file list
+drwxr-x---   5 proftpd  nogroup      4096 Jun 29 10:52 home
+drwxrwxr-x   2 ftp nogroup      4096 Jun 30 01:38 pub
+226 传送完毕
+</pre>
+<h2>FTPS 倒在了防火墙上</h2>
+Linux 的 netfilter 防火墙，缺省加载了 nf_conntrack_ftp 模组，可以通过 lsmod 命令看到。就是说简单的开放 21 端口，防火墙会根据连接状态，对 passive 模式下服务器动态打开的端口的ftp 连接自动放行。
+
+但是 FTPS 就不是那么简单了。因为信道加密，netfilter 不能获取到包的内容，也就无法得知被动FTP模式下服务器即将开放的端口。造成的现象是：
+<ul>
+	<li>使用非 SSL 加密的 ftp 协议，可以正常登录，能够显示目录和文件列表</li>
+	<li>使用 FTPS （即SSL加密）协议，可以正常登录。但是显示目录列表时，因为超时而失败</li>
+</ul>
+即 netfilter 的 nf_conntrack_ftp 在 FTPS 下不再有效。
+<h2>设置防火墙及ProFTPD，使 FTPS 能正常工作</h2>
+思路很简单，ProFTPD 工作在 passive 模式下，动态打开的端口是在 1024 以上的端口。可以将 ProFTPD 的passive 模式下打开的所有可能端口加到防火墙策略中。
+<h3>设置 ProFTPD 的 passive 模式打开的端口范围</h3>
+可以通过配置指令，指定在某个端口范围内打开 ProFTPD，以免和某些应用冲突，也更安全。
+<pre>PassivePorts                  49152 65534
+</pre>
+这是 ProFTPD 建议的端口范围，我还是觉得这个范围太大了，可以再小点。
+<h3>配置防火墙，打开 FTP 的 passive 模式可能端口</h3>
+如果使用了 shorewall 防火墙，只需要更改 rules 文件
+<pre>ACCEPT         net     $FW     tcp  49152:65534
+</pre>
+记住更改之后，要重启防火墙。
+
+如何不用上面的方法，让防火墙直接能够对 FTPS 连接做状态保持呢？我想 <a href="http://bmst.net/cn/">比蒙科技</a> 的朋友们一定有办法，因为他们的审计设备，能够对网络里面的 SSH，RDP，XWindow诸多协议进行记录和回放。SSL在他们眼里就如同空气一样。

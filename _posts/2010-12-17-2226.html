@@ -1,0 +1,127 @@
+---
+layout: post
+title: "Plone产品实例"
+---
+
+Plone作为构建在Zope之上的一个应用，它的产品扩展也首先是一个Zope产品。之前通过一个小例子了解了Zope产品的部署。但那一种方式已不再适合Plone。Plone自从使用buildout构建以后，所有的产品都打包成egg包，通过egg包来安装。下面通过&lt;&lt;The Definitive Guide to Plone&gt;&gt;上的一个例子来看如何安装Plone的egg产品。<span id="more-2226"></span>
+
+首先创建源程序文件夹，使用archetype模板初始化产品框架，这里产品的名字叫做plone.regional_news：
+<pre class="literal-block">$ mkdir src
+$ cd src
+$ paster create -t archetype plone.regional_news.</pre>
+看看这个模板都生成了哪些东东：
+<pre class="literal-block">$ ls -aF plone.regional_news
+CHANGES.txt       MANIFEST.in                    README.txt
+CONTRIBUTORS.txt  plone/                         setup.cfg
+docs/             plone.regional_news.egg-info/  setup.py</pre>
+其中plone/regional_news下就是产品开发包。
+<pre class="literal-block">$ ls -aF plone.regional_news/plone/regional_news
+browser    config.pyc      content      __init__.pyc  portlets  README.txt
+config.py  configure.zcml  __init__.py  interfaces    profiles  tests</pre>
+<ul class="simple">
+	<li>__init__.py Python包的标志，包含初始化函数。Zope在启动时运行它来注册产品</li>
+	<li>browser 这个文件夹包含产品定义的zope 3 浏览视图</li>
+	<li>config.py 包含项目的通用配置常量</li>
+	<li>configure.zcml 包含本产品的Zope 3配置参数信息</li>
+	<li>content 包含定义内容类型的Python模块</li>
+	<li>interfaces.py 本产品的Zope3接口</li>
+	<li>portlets 本产品的UI组件定义</li>
+	<li>profiles 这个文件夹包含配置信息</li>
+	<li>tests 产品的测试模块</li>
+</ul>
+产品放在那里了，但是很遗憾，Plone不知道。接下来我们要通过buildout配置文件告诉Plone，把产品注册上。
+
+修改buildout.cfg：
+<ul>
+	<li>
+<p class="first">buildout段添加develop选项，告诉plone开发包所在地：</p>
+
+<pre class="literal-block">develop = src/plone.regional_news</pre>
+</li>
+	<li>
+<p class="first">instance段增加zcml选项，这样会生成该产品的配置文件：</p>
+
+<pre class="literal-block">zcml = plone.regional_news</pre>
+</li>
+	<li>
+<p class="first">instance段中eggs增加一个：</p>
+
+<pre class="literal-block">eggs =
+    plone.regional_news</pre>
+</li>
+</ul>
+最终的buildout.cfg如下：
+<pre class="literal-block">[buildout]
+parts = instance
+extends = http://dist.plone.org/release/4.0-latest/versions.cfg
+find-links = http://dist.repoze.org/
+
+develop = src/plone.regional_news
+
+[instance]
+recipe = plone.recipe.zope2instance
+eggs =
+    Plone
+    PIL
+    plone.regional_news
+http-address = 8080
+zcml = plone.regional_news</pre>
+重新编译buildout：
+<pre class="literal-block">$ bin/buildout</pre>
+这时在develop-eggs目录下会产生一个链接文件，内容是产品开发包的绝对路径：
+<pre class="literal-block">$ ls develop-eggs
+plone.regional-news.egg-link
+$ cat develop-eggs/plone.regional-news.egg-link
+/path/to/minimal-plone4/src/plone.regional_news</pre>
+同时在parts/instance/etc/package-includes目录下生成该产品的配置文件：
+<pre class="literal-block">$ ls parts/instance/etc/package-includes
+001-plone.regional_news-configure.zcml</pre>
+这个配置文件是让Zope读取的。在parts/instance/etc/site.zcml中有一行，通过它我们能够看到如何包含其他配置文件的。
+<pre class="literal-block">&lt;include files="package-includes/*-configure.zcml" /&gt;</pre>
+接下来，重启plone服务：
+<pre class="literal-block">$ bin/instance restart</pre>
+但是现在啥也没有。现在只是制作了一个空壳罢了~
+
+还需要添油加醋。
+<pre class="literal-block">$ cd src/plone.regional_news
+$ paster addcontent -l
+Available templates:
+    atschema:      A handy AT schema builder
+    browserlayer:  A Plone browserlayer
+    contenttype:   A content type skeleton
+    form:          A form skeleton
+    formfield:     Schema field for a form
+    i18nlocale:    An i18n locale directory structure
+    portlet:       A Plone 3 portlet
+    view:          A browser view skeleton
+    zcmlmeta:      A ZCML meta directive skeleton</pre>
+列表显示的是可以进一步使用的有用的模板。下面将使用contenttype模板来创建内容。
+<pre class="literal-block">$ paster addcontent contenttype</pre>
+接下来要回答一系列问题。在Content Type Name处填写上RegionalNews，其他使用默认值。
+
+再重启。
+<pre class="literal-block">$ bin/instance restart</pre>
+这时到 <a class="reference external" href="http://localhost:8080/manage">http://localhost:8080/manage</a> ，在下拉列表里就可以看到产品了： plone.regional_news:RegionalNews。
+
+在ZMI里添加时，会给出提示信息：Note: these are normally only useful inside a CMF site.
+
+一般也不会在ZMI下使用。接下来看如何在Plone下使用。
+
+进入Plone首页，在右上角点击“网站设置”，进入Plone控制面板，点击最后一项“附加产品”，在可用的附件产品那一列，会发现regional news 1.0。
+
+或者直接链接到 <a class="reference external" href="http://localhost:8080/Plone/prefs_install_products_form">http://localhost:8080/Plone/prefs_install_products_form</a> 进行查看。
+
+安全起见，默认这些产品都没有启用。勾选以后，点击“启用”，这时产品从“可用附加组件”转移到了“活动附加组件”中去，这样就可以在页面中使用了。
+
+在Plone首页或任何地方，点击“添加新...”会出现一个下拉菜单，和Zope的add on list差不多。这时会显示刚才的RegionalNews。点击的话会出现一个表单，可以输入标题，描述。
+
+虽然这个产品很简单，但不管怎么说，一个大致的开发产品的结构已经出来了：
+<ol class="arabic simple">
+	<li>创建产品目录结构</li>
+	<li>更新buildout配置文件</li>
+	<li>重新生成buildout</li>
+	<li>增加内容类型</li>
+	<li>重启Plone实例</li>
+	<li>激活Plone产品</li>
+	<li>使用产品</li>
+</ol>

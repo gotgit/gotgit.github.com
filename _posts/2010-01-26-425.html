@@ -1,0 +1,34 @@
+---
+layout: post
+title: "删除 git submodule （git 库子模组）"
+---
+
+有两种情况会创建 git submodule （git 子模组）
+<ul>
+	<li>显性方式添加：使用 git submodule 命令将其他git库作为子目录添加，即子模组</li>
+	<li>隐性方式添加：使用 git add 添加，如果某个子目录本身是一个 git 库，就自动添加为子模组，不再递归添加该目录下面的文件</li>
+</ul>
+那么这两种方式添加的子模组有什么不同？子模组有什么副作用？如何删除模组呢？
+
+<span id="more-425"></span>
+<h2>两种方式添加模组，效果略有不同</h2>
+<ul>
+	<li>隐性方式添加，看似直接将目录加入版本库，而实际上是加入一个和目录名同名的 submodule 条目；</li>
+	<li>显性方式添加，除了像隐性方式在 index/commit 中创建submodule 条目外，还会创建一个 .gitmodules 文件，也会在 .git/config 中创建相应记录。具体参见 git submodule 命令。</li>
+</ul>
+<h2>子模组的副作用</h2>
+有时，并未意识到目录按照模组方式添加。例如在用 gistore 备份文件和目录时，当某个目录本身用 git 做了版本控制，就会以子模组的方式添加目录。
+
+如何将子模组按照正常的目录形式添加到版本控制系统呢？用下面的方法做不到：
+<ul>
+	<li>删除子模组的 .git 目录，即将子模组下的 git 版本库删除</li>
+	<li>当执行 git add 时报错：
+fatal: Path '... ...' is in submodule '...'</li>
+</ul>
+那么，该怎么办呢？
+<h2>如何删除子模组</h2>
+<code>使用 git 命令即可删除子模组
+</code>
+<pre><code>git rm --cached path/to/submodule
+</code></pre>
+对于显性定义的子模组，还要删除 .gitmodules 文件和 .git/config 文件中的相关条目。

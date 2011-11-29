@@ -1,0 +1,132 @@
+---
+layout: post
+title: "Check — 强大的c语言单元测试框架"
+---
+
+C 语言的单元测试框架，上 <a href="http://en.wikipedia.org/wiki/List_of_unit_testing_frameworks">WikiPedia</a> 可以查到很多。经过一番比较之后，选定 <a href="http://check.sourceforge.net/">check</a> 作为 c 语言的单元测试框架。Check 最主要的优点是对于每一个测试用例的运行都 fork 一个子进程，这么做的原因是因为 C 语言的独特性：
+<ul>
+	<li>其它语言如 Java，Python，Ruby等，单元测试出错最多不过是抛出异常</li>
+	<li>C 语言如果指针操作错误，乱指一气，可是会 coredump的。测试框架因此直接退出，用户是看不到任何返回的，只有郁闷的 coredump</li>
+	<li>Check 的单元测试运行在 fork 的子进程中，可以避免测试框架由于 coredump 而崩溃，优点显而易见</li>
+</ul>
+但是在 Debian 上安装 check，示例代码竟然没有办法编译通过，陷入忙等待，显然是陷入了一个死循环。
+
+Debian 上安装 check，部署了下列文件（只列出主要文件）：
+<pre>$ dpkg -L check
+/usr/include/check.h
+/usr/share/aclocal/check.m4
+/usr/share/doc/check/examples/README
+/usr/share/doc/check/examples/Makefile.am
+/usr/share/doc/check/examples/configure.ac
+/usr/share/doc/check/examples/tests/check_money.c
+/usr/share/doc/check/examples/tests/Makefile.am
+/usr/share/doc/check/examples/src/money.c
+/usr/share/doc/check/examples/src/Makefile.am
+/usr/share/doc/check/examples/src/money.h
+/usr/share/doc/check/examples/src/main.c
+...</pre>
+将示例拷贝到工作目录，运行，陷入可怕的死循环！ CPU 占用 100%：
+<pre>$ cp -a /usr/share/doc/check/examples examples
+$ cd examples
+$ autoreconf --install -v
+autoreconf: Entering directory `.'
+autoreconf: configure.ac: not using Gettext
+autoreconf: running: aclocal</pre>
+我们在运行 autoreconf 时间使用了 -v 参数，看到发生死循环是在运行 aclocal 命令时。怎么办呢？
+<h2><span id="more-1211"></span>着急的用户，看这里</h2>
+将 configure.ac 中的如下内容
+<pre># CHECK_LIBS accordingly.
+#  AM_PATH_CHECK([MINIMUM-VERSION,
+#                [ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]]])
+AM_PATH_CHECK()</pre>
+修改为：
+<pre>PKG_CHECK_MODULES([CHECK], [check &gt;= 0.9.4])</pre>
+之后再参照 README 中的说明执行就可以了：
+<pre>$ autoreconf --install
+$ ./configure
+$ make
+$ make check</pre>
+<h2>Autotools 的机理和解决过程</h2>
+为什么出错以及为什么这么做就 OK 了呢？如果要说清楚，要了解 autoconf, automake, aclocal 等，即 autotools 的机理。
+
+可以参考王胜的这个博文：《<a href="/2010/04/07/954.html">autotools系列工具—-自动生成Makefile</a>》
+
+下面是解决过程，其中饶了不少弯路
+<ul>
+	<li>在遇到这个问题时，首先想到的是生成新的 configure.ac 文件，取代示例中的 configure.ac 文件
+<pre>$ autoscan
+$ mv configure.scan configure.ac</pre>
+</li>
+	<li>再执行 aclocal ，不再死锁，但是也没有任何新文件生成
+<pre>$ aclocal</pre>
+</li>
+</ul>
+<ul>
+	<li>比较新旧的 configure.ac ，发现当注释掉 AM_PATH_CHECK() 之后，便不再死锁</li>
+	<li>AM_PATH_CHECK 是什么呢？我们从 check 软件包的部署文件中，我们看到这个文件：
+<em>/usr/share/aclocal/check.m4</em></li>
+	<li>我们打开这个文件（/usr/share/aclocal/check.m4），看到其中只包含了一个宏 AM_PATH_CHECK 的宏定义。而这个宏被标记为过时，建议使用 PKG_CHECK_MODULES 宏代替。看来在 autoconf 版本升级后，已经完全不能使用旧的宏语法了。
+<pre>AC_DEFUN([AM_PATH_CHECK],
+[
+ AC_MSG_WARN([AM_PATH_CHECK() is deprecated])
+ AC_MSG_WARN([[use PKG_CHECK_MODULES([CHECK], [check &gt;= 0.9.4]) instead]])
+ AC_ARG_WITH([check],
+ [  --with-check=PATH       prefix where check is installed [default=auto]])</pre>
+</li>
+	<li>将 AM_PATH_CHECK 的宏用 PKG_CHECK_MODULES 宏代替。diff如下：
+<pre>--- a/configure.ac
++++ b/configure.ac
+@@ -23,9 +23,7 @@ AC_PROG_LIBTOOL
+ # This macro is defined in check.m4 and tests if check.h and
+ # libcheck.a are installed in your system. It sets CHECK_CFLAGS and
+ # CHECK_LIBS accordingly.
+-#  AM_PATH_CHECK([MINIMUM-VERSION,
+-#                [ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]]])
+-AM_PATH_CHECK()
++PKG_CHECK_MODULES([CHECK], [check &gt;= 0.9.4])</pre>
+</li>
+	<li>再执行 aclocal，运行正常，并在目录下生成一个文件 aclocal.m4</li>
+	<li>运行 autoreconf -i ，创建软件包编译需要的脚本文件：
+<pre>$ autoreconf -i -v
+autoreconf: Entering directory `.'
+autoreconf: configure.ac: not using Gettext
+autoreconf: running: aclocal
+autoreconf: configure.ac: tracing
+autoreconf: configure.ac: creating directory build-aux
+autoreconf: running: libtoolize --copy
+libtoolize: putting auxiliary files in AC_CONFIG_AUX_DIR, `build-aux'.
+libtoolize: copying file `build-aux/ltmain.sh'
+libtoolize: Consider adding `AC_CONFIG_MACRO_DIR([m4])' to configure.ac and
+libtoolize: rerunning libtoolize, to keep the correct libtool macros in-tree.
+libtoolize: Consider adding `-I m4' to ACLOCAL_AMFLAGS in Makefile.am.
+autoreconf: running: /usr/bin/autoconf
+autoreconf: running: /usr/bin/autoheader
+autoreconf: running: automake --add-missing --copy --no-force
+configure.ac:19: installing `build-aux/config.guess'
+configure.ac:19: installing `build-aux/config.sub'
+configure.ac:15: installing `build-aux/install-sh'
+configure.ac:15: installing `build-aux/missing'
+src/Makefile.am: installing `build-aux/depcomp'
+autoreconf: Leaving directory `.'</pre>
+</li>
+</ul>
+<h2>运行 check 自带的单元测试框架示例</h2>
+<ul>
+	<li>运行配置
+<pre>$ ./configure</pre>
+</li>
+	<li>编译 src  和 tests
+<pre>$ make</pre>
+</li>
+	<li>运行测试用例
+<pre>$ make check
+...
+Running suite(s): Money
+100%: Checks: 3, Failures: 0, Errors: 0
+PASS: check_money
+=============
+1 test passed
+=============</pre>
+</li>
+</ul>
+测试用例示例运行成功！剩下就是照猫画虎般的模拟示例程序，为你的 C 语言项目添加测试用例框架支持了。

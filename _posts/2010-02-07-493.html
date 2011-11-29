@@ -1,0 +1,41 @@
+---
+layout: post
+title: "jQuery 跨域 AJAX"
+---
+
+jQuery 的跨域调用实际上没有那么复杂，只要明白几个概念，有一定的 JavaScript 基础即可。
+<h2><span id="more-493"></span>首先要了解 jQuery.getJSON 函数</h2>
+<pre><strong>jQuery.getJSON</strong>( url, [data], [callback] )
+===============================================
+[1] As of jQuery 1.2, you can load JSON data located on another domain if you specify a <a title="http://bob.pythonmac.org/archives/2005/12/05/remote-json-jsonp/" href="http://bob.pythonmac.org/archives/2005/12/05/remote-json-jsonp/">JSONP</a> callback. 
+
+[2] The callback takes the form "example.com?callback=?". [3] jQuery automatically replaces the '?' with a random method name that doesn't clash with the global scope. You <strong>do not</strong> have to specify the method name yourself.
+
+[4] Note that the site you're trying to call needs to support JSON-P output. The callback parameter might vary depending on the API, for instance Yahoo Pipes requires "_callback=?"
+
+[5] Keep in mind, that lines after this function will be executed before the callback.
+</pre>
+以上的英文确实不太容易明白，我就说一说：
+<ul>
+	<li>[1] 说的是：在 jQuery 1.2 版本就已经支持跨域了，是通过向其他域名的应用发起一个 JSONP 请求，返回的结果是一个 JSON 数据结构。至于什么是 JSON 数据结构，容我慢慢道来。</li>
+	<li>[2] 说的是：跨域的 JSONP 请求的 URL 的格式应该包含一个 callback=? 的部分。至于为什么这个样子，你应该看看什么叫做 JSONP。</li>
+	<li>[3] 说的是：jQuery 真的很有超级牛力，能够将跨域请求中的 callback=? 中的问号，通过一个随机字串来替换，这个随机字串保证全局的唯一性。具体参见 JSONP。</li>
+	<li>[4] 说的是： 远程域（AJAX的服务器端），返回的结果应该是一个 JSONP 的输出，而不能仅仅是一个 JSON 的数据结构。</li>
+	<li>[5] 说的是：getJSON 实际上是一个 AJAX 调用，是异步请求，因此放在 getJSON 后面的 JavaScript 语句也会先执行到。</li>
+</ul>
+<h2>那么什么是 JSON 数据结构呢？</h2>
+我认为，你看看这个 URL，最多不要花费1分钟，就应该明白 JSON 不过是一个数据结构，用于封装字串、整型、布尔值、数组、字典等数据格式。
+<ul>
+	<li><a href="http://json.org/">http://json.org/</a></li>
+</ul>
+我真的很喜欢这个网页中对于数据结构封装的图例，真的很养眼，让我不由得想多花些时间来细细品味。
+<h2>那么什么是 JSONP 呢？</h2>
+JSONP 是 JSON with Padding（即带填充的 JSON）。JSONP 的发端是  Bob Ippolito 的一个提议，参见：<a href="http://bob.pythonmac.org/archives/2005/12/05/remote-json-jsonp/">http://bob.pythonmac.org/archives/2005/12/05/remote-json-jsonp/</a> 。
+
+我在网上搜到了一个博客，可能更好的理解 JSONP： <a href="http://ajaxian.com/archives/jsonp-json-with-padding">http://ajaxian.com/archives/jsonp-json-with-padding</a>。
+
+即 JSONP 用圆括号将 JSON 数据括起来，并在前面增加一个字符串的函数名称作为远程调用的返回值，而不是简单的一个 JSON 数据结构，这就是 JSONP。
+<h2>jQuery 的 getJSON 实例</h2>
+可以参照雷巍巍的这个博客：<a href="/2010/02/04/462.html">jquery和php整合实例</a> 。
+
+在这个博客中，先演示了用 $.get 或者 $.post 进行非跨域的 AJAX 调用，然后演示了用 $.getJSON 进行跨域的 AJAX 调用。

@@ -1,0 +1,57 @@
+---
+layout: post
+title: "群英汇redmine增强版ossxp-3.0成功上线"
+---
+
+<div>
+
+经过三个多月努力，群英汇Redmine 增强版ossxp-3.0终于成功上线。
+
+下面介绍一下 ossxp-3.0 版本的新特征：
+<ol>
+	<li>上游版本库升级到Redmine官方的1.0.0版本. Redmine 1.0.0 引入的新特征：
+<ul>
+	<li> 支持子任务(subtask)
+当发现起初的任务划分过于粗粒度，可以将起初的任务再划分成若干个子任务，每个子任务指派给某个成员。这样从另一方面实现了一个父任务指派给多人。</li>
+	<li>支持通过邮件提交问题时设置指派者和问题(issue)的起始日期</li>
+	<li>支持从POP3服务器读取邮件
+redmine-1.0.0之前仅支持从IMAP服务器读取邮件。
+关于redmine通过邮件提交问题，具体可以参考 <a href="http://redmine.ossxp.com/redmine/documents/4" target="_blank">http://redmine.ossxp.com/redmine/documents/4</a></li>
+	<li>增强了wiki功能
+wiki底层库升级,使redmine的wiki更加稳定、健壮</li>
+</ul>
+<span id="more-1524"></span></li>
+	<li>群英汇扩展
+<ul>
+	<li>代码评审插件
+为了进一步提高软件的质量，降低项目的风险成本，需要在项目开发过程中尽早加入测试工作。Redmine 代码评审插件为白盒测试提供了一个很好的切入点，可以让白盒测试人员有效地参与到项目开发的早期活动中。针对代码的某一次提交，代码评审负责人可以指派评 审任务，评审人员接到评审任务后可以浏览该次提交的代码并添加评审内容。从而在代码级别上检测了软件的质量。
+具体的功能介绍可参考 <a href="http://www.ossxp.com/doc/redmine-plugins/redmine-code-review/" target="_blank">http://www.ossxp.com/doc/redmine-plugins/redmine-code-review/</a></li>
+	<li>截屏粘贴插件
+该插件允许用户将操作系统剪切板中的截屏粘贴到问题表单中。这个功能对于bug报告人员十分有用：当报告人员报告bug时，为了更好描述bug，往往将出错的界面截屏，粘贴在bug描述信息中。
+具体的功能介绍可参考 <a href="http://www.ossxp.com/doc/redmine-plugins/redmine-screenshot-paste/user_manual/user_manual.html" target="_blank">http://www.ossxp.com/doc/redmine-plugins/redmine-screenshot-paste/user_manual/user_manual.html</a></li>
+	<li>同步修订版本属性插件
+redmine用户有时会遇到这种情况：工作了半天终于修复了bug1，兴奋地提交了代码，然后登录redmine浏览版本库信息，却发现提交日志忘记引 用关键字关闭bug1,兴奋的心情一下落空。虽然版本库（如SVN）提供了修改提交日志的功能，但redmine对于已经自动获取的变更集是不能再重新获 取的，除非在版本库配置处删除再重新导入。显然，对于仅仅一次提交的失误，这样做代价似乎太大了。
+该插件正是在这种呼声中诞生的。它提供了针对某一次提交同步的功能，完美地解决了这个问题。
+具体功能介绍可参考 <a href="http://www.ossxp.com/doc/redmine-plugins/redmine-sync-revprops/user_manual/user_manual.html" target="_blank">http://www.ossxp.com/doc/redmine-plugins/redmine-sync-revprops/user_manual/user_manual.html</a></li>
+	<li>用户导入插件
+redmine管理员有时可能需要批量导入用户。如果你选择LDAP认证方式，那么可以使用群英汇为redmine拓展的从LDAP同步账号的功能。 但如果没有LDAP服务器，仅使用数据库存储账号信息，那么你就可以使用该插件，将用户信息写成csv格式的文件批量导入。
+具体功能介绍可参考 <a href="http://www.ossxp.com/doc/redmine-plugins/redmine-user-import/user_manual/user_manual.html" target="_blank">http://www.ossxp.com/doc/redmine-plugins/redmine-user-import/user_manual/user_manual.html</a></li>
+	<li>问题导入插件
+在使用redmine的过程中可能会遇到以下两种情况：
+<ul>
+	<li>有一些问题是固定的，多个项目中都需要用到这些问题，新建一个项目后，都需要手动添加这些固定问题，即繁琐又浪费时间。</li>
+	<li>大型项目异地开发可能需要将总部redmine中的一些问题导出，然后导入到异地团队使用的redmine中(这两个redmine没有部署在同一台服务器上）。</li>
+</ul>
+该插件就可以解决这些问题。
+具体功能介绍可参考 <a href="http://www.ossxp.com/doc/redmine-plugins/redmine-issue-import/user_manual/user_manual.html" target="_blank">http://www.ossxp.com/doc/redmine-plugins/redmine-issue-import/user_manual/user_manual.html</a></li>
+</ul>
+<ul>
+	<li>Scrum支持插件
+这几年来，敏捷开发风靡全球，尤其是Scrum这股风。那么Redmine作为优秀的项目管理工具，是否支持Scrum流程呢？Redmine Sprints 正是在这种呼吁中应运而生。
+具体功能介绍可参考<a href="http://www.ossxp.com/doc/redmine-plugins/redmine-sprints/user_manual/user_manual.html" target="_blank"> http://www.ossxp.com/doc/redmine-plugins/redmine-sprints/user_manual/user_manual.html</a></li>
+	<li>解决了邮件提交问题时中文附件名称乱码的问题</li>
+	<li>解决了版本库统计页面SVG柱状图IE无法显示的问题</li>
+</ul>
+</li>
+</ol>
+</div>

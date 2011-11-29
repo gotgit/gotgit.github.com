@@ -1,0 +1,101 @@
+---
+layout: post
+title: "Ruby的特点"
+---
+
+<strong>1、完全面向对象</strong>
+
+在Ruby语言中，任何东西都是对象，包括其他语言中的基本数据类型，比如整数、浮点数等。
+
+<strong>2、变量没有类型</strong>
+
+Ruby不像其他静态语言，需要事先声明变量的类型，给变量赋予什么类型数据该变量就是什么类型的。
+
+<strong>3、任何东西都有值</strong>
+<span id="more-547"></span>
+
+不管是数学或者逻辑表达式还是一个语句，都有值
+
+<strong>４、变量的命名规则</strong>
+<ul>
+	<li>变量(variable)一般由小写字母、下划线开头</li>
+	<li>全局变量(global variable)由$开头</li>
+	<li>实例变量(instance variable)由@开头</li>
+	<li>类变量(class variable)由@@开头</li>
+</ul>
+<strong>５、已经定义的类可以在运行时修改</strong>
+
+Ruby是动态语言，你可以在程序中修改先前定义过的类，也可以在某个类的实例中定义该实例特有的方法，这叫做原型方法(prototype)
+<pre>class DemoClass
+  def methodA
+    "general methodA"
+  end
+end
+
+dc = DemoClass.new
+dc.methodA                #"general methodA"
+
+def dc.methodA
+  "special for this instance."
+end
+
+dc.methodA            #"special for this instace."</pre>
+<strong>6、强大的字符串处理</strong>
+Ruby的字符串非常强大，因为它支持表达式、函数等
+<pre>say = "hello world!"
+puts "Tom said #{say}"                 #Tom said hello world!"</pre>
+<strong>注意：如果是类变量或者是实例变量可以省略花括号"{}"</strong>
+
+<strong>7、灵活的交互式环境</strong>
+打开控制台，输入irb，按回车键即可进入交互式环境
+
+<strong>8、丰富的文档支持</strong>
+例如查找字符串的replace方法，只需在控制台输入ri String#replace，按回车键即可查看到replace方法的文档说明
+
+<strong>９、Ruby吸收了Perl的正则表达式，Phthon的简单性可读性，Smalltalk的纯面向对象和单继承，LISP的无穷嵌套的语法，Java的线程...</strong>
+<ul>
+	<li>创建正则表达式
+<ul>
+	<li>从 Regexp 类创建：
+<pre> a = Regexp.new('^#.*')</pre>
+</li>
+	<li>用 PERL 方式构建：
+<pre> a = /^#.*/</pre>
+</li>
+	<li>用 %r{} 构建：
+<pre>a= %r{^#.*}</pre>
+</li>
+</ul>
+</li>
+	<li>匹配操作
+Regexp#match方法对字符串匹配正则表达式。如果失败了，返回nil；如果成功，则返回MatchData类的一个事例。MatchData对象让你访问关于这次匹配的所有可用信息。所有这些好东西是通过$变量得到的
+<pre>irb(main):001:0&gt; re = /(\d+): (\d+)/    #match a time hh:mm
+=&gt; /(\d+): (\d+)/
+irb(main):002:0&gt; md = re.match("Time: 17:12pm")
+=&gt; #&lt;MatchData "17:12" 1:"17" 2:"12"&gt;
+irb(main):003:0&gt; md.class
+=&gt; MatchData
+irb(main):004:0&gt; md[0]
+=&gt; "17:12"
+irb(main):005:0&gt; md[1]
+=&gt; "17"
+irb(main):006:0&gt; md[2]
+=&gt; "12"
+irb(main):007:0&gt; md.pre_match
+=&gt; "Time: "
+irb(main):008:0&gt; md.post_match
+=&gt; "pm"
+irb(main):009:0&gt; $&amp;
+=&gt; "17:12"
+irb(main):010:0&gt; $1
+=&gt; "17"
+irb(main):011:0&gt; $2
+=&gt; "12"
+irb(main):012:0&gt; $`
+=&gt; "Time: "
+irb(main):013:0&gt; $'
+=&gt; "pm"
+irb(main):014:0&gt; $~
+=&gt; #&lt;MatchData "17:12" 1:"17" 2:"12"&gt;</pre>
+</li>
+</ul>

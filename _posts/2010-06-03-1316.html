@@ -1,0 +1,68 @@
+---
+layout: post
+title: "改变 Nutch 对 robots.txt 的解析实现"
+---
+
+昨天晚上，改进后的 Nutch 终于在公司内网环境中部署了，爬了一个晚上，今天早晨发现服务器CPU占用 100%，Nutch 爬虫仍在抓取 Redmine 管理平台下各个项目的版本库相关页面。我的天，一定是 robots.txt 缺乏相应配置造成的。
+
+robots.txt 的配置如下：
+<pre>User-agent: *
+Disallow: /issues/gantt
+Disallow: /issues/calendar
+Disallow: /activity
+Disallow: /redmine/repositories/
+Disallow: /redmine/projects/redmine/repository
+Disallow: /redmine/projects/redmine/issues
+Disallow: /redmine/projects/redmine/activity
+Disallow: /redmine/issues/gantt
+Disallow: /redmine/issues/calendar
+Disallow: /redmine/activity</pre>
+我们知道 redmine 下每个项目的版本库浏览的 URL 为： http://bj.ossxp.com/redmine/projects/&lt;PROJECTNAME&gt;/repository, 难道要一一为每个项目进行配置么？
+
+看了一下王胜之前的两个博文（<a href="/2010/03/08/756.html">robots.txt参考1</a>, <a href="/2010/03/09/768.html">robots.txt参考2</a>），以及 wikipedia 上的相关参考，尤其是 WikiPedia 上的这句话，让我眼前一亮。
+<blockquote>The robots.txt patterns are matched by simple substring comparisons, so care should be taken to make sure that patterns matching directories have the final '/' character appended, otherwise all files with names starting with that substring will match, rather than just those in the directory intended.</blockquote>
+如果 Disallow: 后面的字符串配置是使用的 substring，那么不就是说可以是路径中任意的一部分么，那么使用 <em><strong>Disallow: /repository</strong></em> 是不是就可以限制搜索引擎对 redmine 版本库的抓取呢？
+
+<span id="more-1316"></span>公司负责搜索的同事，看了一下 Nutch 的代码，马上定位到 RobotRulesParser.java 文件中的相关代码：
+<pre>53 public class RobotRulesParser implements Configurable {
+
+165     public boolean isAllowed(String path) {
+
+180       int pos= 0;
+181       int end= entries.length;
+182       while (pos &lt; end) {
+183         if (path.<strong>startsWith</strong>(entries[pos].prefix))
+184           return entries[pos].allowed;
+185         pos++;
+186       }</pre>
+居然用的是 startsWith，就是说 robots.txt 中的 Disallow 路径被用做从头匹配 URL，这样就断然实现不了 robots.txt 规则的简化了。改之。
+<pre>$ git co t/nutch_robots_parse
+Switched to branch 't/nutch_robots_parse'
+$ tg patch
+From: Cui Rui &lt;cuirui@bj.ossxp.com&gt;
+Subject: change the nutch robots.txt parse
+
+change the nutch robots.txt parse
+
+Signed-off-by: Cui Rui &lt;cuirui@bj.ossxp.com&gt;
+
+---
+ .../nutch/protocol/http/api/RobotRulesParser.java  |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/src/plugin/lib-http/src/java/org/apache/nutch/protocol/http/api/RobotRulesParser.java b/src/plugin/lib-http/src/java/org/apache/nutch/protocol/
+index 7dd1373..5fd5839 100644
+--- a/src/plugin/lib-http/src/java/org/apache/nutch/protocol/http/api/RobotRulesParser.java
++++ b/src/plugin/lib-http/src/java/org/apache/nutch/protocol/http/api/RobotRulesParser.java
+@@ -180,7 +180,7 @@ public class RobotRulesParser implements Configurable {
+ int pos= 0;
+ int end= entries.length;
+ while (pos &lt; end) {
+-        if (path.startsWith(entries[pos].prefix))
++        if (path.indexOf(entries[pos].prefix)&gt;=0)
+ return entries[pos].allowed;
+ pos++;
+ }</pre>
+改造之后的 Nutch，抓取网站前读取 robots.txt 会对 Disallow 进行新的解析，这样就可以用下面简单的一劳永逸的 robots.txt，不再担心因为创建新项目忘了更新 robots.txt 导致每晚公司的搜索引擎造成类似拒绝服务攻击的效果。
+
+那 Google, Baidu, Bing 怎么办？他们是如何实现的？我会做些测试（<a href="http://blog.ossxp.com/wpfiles/can/bot/reach/bottestone/">测试1</a>, <a href="http://blog.ossxp.com/wpfiles/can/bot/reach/bottesttwo/">测试2</a>, <a href="http://blog.ossxp.com/wpfiles/can/bot/reach/bottestthree/">测试3</a>, <a href="http://blog.ossxp.com/wpfiles/can/bot/reach/bottestfour/">测试4</a>, <a href="http://blog.ossxp.com/wpfiles/can/bot/reach/bottestfive/">测试5</a>），等一个月后，再将测试结果补充到这里。不过 redmine 完全可以将版本库浏览对匿名用户关闭，就不怕搜索引擎抓取降低网站的响应速度了。

@@ -1,0 +1,18 @@
+---
+layout: post
+title: "敏捷的MVC Web框架 Rails"
+---
+
+Rails 可以说是吸收了太多优秀的元素：
+<ul>
+	<li><strong>Ruby语言的强大</strong>
+借助于Ruby脚本语言的高效性，Rails可以帮助开发者瞬间完成整个Web项目框架的搭建</li>
+	<li><strong> J2EE 优秀的MVC实现
+</strong>借鉴于SSH对MVC的实现，Rails创新出 M(ActiveRecord)－V(ActionViewer)－C(ActionController)框架</li>
+	<li><strong> 约定胜于配置的哲学理念</strong>
+听到了J2EE里过多配置文件的怨言，Rails从哲学的角度出发，提出“约定胜于配置”的观点，按照Rails约定，可以省去很多复杂的配置。</li>
+	<li><strong> REST（Representational State Transfer具备表像的状态迁移）</strong>
+在 Rails 1.2 之前，Rails 沿袭目前流行的 SOA 实现，即SOAP和XML-RPC。但在Rails 1.2 之后，Rails直接支持REST这样的借口，增加了一组路由宏定义，借助于HTTP的几个动作来实现Web资源的调用(GET、PUT、POST、 DELETE等)。</li>
+	<li><strong> CI （Continuous Integration 持续集成)</strong>
+借助于软件工程持续迭代开发的理念，Rails也推崇持续集成的理念。最为突出的就是Rails的数据迁移(Migrate)。Rails借助于rake 任务，将数据库的持续集成完美实现。数据库的创建，更新和改动都是一次迁移任务，而且每个迁移任务都由向后回滚的函数，从而可将数据库回滚到迁移之前的状态。</li>
+</ul>

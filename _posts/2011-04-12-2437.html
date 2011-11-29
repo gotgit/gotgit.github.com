@@ -1,0 +1,57 @@
+---
+layout: post
+title: "Linux下的通用打开命令"
+---
+
+在Mac下的终端里可以输入open来打开任意类型的文件，linux下是否也有类似的命令呢？
+
+经查，发现有三个命令可以实现类似效果：
+<ul class="simple">
+	<li>see</li>
+</ul>
+see通过查找在mailcap文件中设定的文件类型和应用程序映射来打开文件。系统配置文件在/etc/mailcap，用户可以自定义配置文件到~/.mailcap。
+
+通过see调用GUI程序以后要等待程序结束才可以继续输入命令。
+<ul class="simple">
+	<li>xdg-open</li>
+</ul>
+xdg-open使用的配置文件不详。调用程序后终端仍可继续输入命令而不必等待程序结束。
+<ul class="simple">
+	<li>gnome-open</li>
+</ul>
+gnome-open使用GNOME文件管理来打开文件。一般和Nautilus中设定的文件关联一致。
+<div id="id1" class="section">
+<h1>测试</h1>
+我的系统为Ubuntu 11.04。
+
+打开pdf文件，see调用了Okular打开，而xdg-open和gnome-open调用了evince。
+
+打开jpeg文件，see调用了feh，而xdg-open和gnome-open调用了eye of gnome。
+
+打开html文件，三者都调用了x-www-browser，这里是google-chrome。
+
+打开utf-8编码的txt(后缀为txt)，see调用了less，xdg-open和gnome-open调用了gedit。
+
+打开utf-8编码的txt(无后缀)，see不识别：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #808080;">Warning: unknown mime-type for "test_utf-8" -- using "application/octet-stream"</span>
+<span style="color: #808080;">Error: no "view" mailcap rules found for type "application/octet-stream"</span></pre>
+</div>
+而xdg-open和gnome-open处乱不惊，gedit依旧。
+
+打开cp936编码的txt，see误以为二进制文件，强制打开后失败，退出码1：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> see test_gbk.txt
+<span style="color: #808080;">"/tmp/file1tdJGh" may be a binary file.  See it anyway?</span>
+<span style="color: #808080;">Warning: program returned non-zero exit code #1</span></pre>
+</div>
+xdg-open和gnome-open表现的很淡定，继续gedit之。
+
+</div>
+<div id="id2" class="section">
+<h1>总结</h1>
+see的配置文件mailcap超级复杂，要自定义恐怕要费不少时间，而xdg-open/gnome-open由于和Nautilus保持一致，这样就很和谐，很方便。并且xdg-open/gnome-open在输入命令后不必等待程序结束就可以继续输入，比see要实用。
+
+参考自：http://zh-cn.w3support.net/index.php?db=so&amp;id=264395
+
+</div>

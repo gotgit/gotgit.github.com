@@ -1,0 +1,144 @@
+---
+layout: post
+title: "Linux下C语言的调试"
+---
+
+调试是每个程序员都会面临的问题. 如何提高程序员的调试效率, 更好更快地定位程序中的问题从而加快程序开发的进度, 是大家共同面对的问题. 可能Windows用户顺口就会说出:用VC呗 :-) , 它提供了设置断点, 单步跟踪等的图形界面, 使调试起来直观易用. 但Linux用户可能要生闷气了 O:-) : 难道我们Linux程序员就只能使用原始的调试方法, 在代码中加入printf信息吗?难道Linux下就没有好的C语言调试工具吗?
+
+当然不是了. GNU早就组织开发了一套C语言编译器(Gcc)和调试工具(Gdb). Gdb虽然没有图形化的友好界面, 但是它强大的功能也足以与微软的VC工具相媲美, 给Linux程序员带来了福音. 下面通过一个简单的例子, 演示一下Gdb的使用流程:
+
+<span id="more-940"></span><strong>示例文件 demo.c 的源代码如下:</strong>
+<pre>#include &lt;stdio.h&gt;
+
+int sum(int, int);
+
+    int
+main()
+{
+    int result;
+    int a = 1, b = 2;
+    result = sum(a, b);
+    printf("%d + %d = %d\n", a, b, result);
+    return 0;
+}
+
+    int
+sum(int a, int b)
+{
+    return a + b;
+}
+</pre>
+<strong>编译源文件, 生成可执行文件</strong>
+<pre>$ gcc -g -Wall -o demo demo.c</pre>
+虽然这段程序没有错误, 但调试完全正确的程序可以更加了解Gdb的使用流程. 接下来就启动Gdb进行调试.
+
+<strong>注意:</strong>
+<ul>
+	<li>Gdb进行调试的是可执行文件, 而不是".c"源文件, 因此, 需要先通过Gcc编译生成可执行文件才能用Gdb进行调试.</li>
+	<li>一定要加上选项"-g", 这样编译出的可执行代码中才包含调试信息, 否则Gdb无法载入该可执行文件.</li>
+	<li>不能使用 -O2选项对可执行文件进行优化, 因为优化之后可执行文件里的符号表信息将被删除, 这样Gdb就无法找到使可执行文件与源文件之间的关联了, 也就不能调试了.</li>
+</ul>
+<strong>(1) 启动Gdb</strong>
+<pre>$ gdb demo
+GNU gdb (GDB) 7.0-debian
+Copyright (C) 2009 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.html&gt;
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+For bug reporting instructions, please see:
+&lt;http://www.gnu.org/software/gdb/bugs/&gt;...
+Reading symbols from /home/wangsheng/tmp/demo/gdb/demo...done.</pre>
+可以看出, 在Gdb的启动画面中指出了Gdb的版本号, 使用的库文件等头信息, 接下来就进入了由"(gdb)"开头的命令行界面了.
+
+<strong>(2) 查看源文件</strong>
+
+在Gdb中键入"l"(list的缩写)可以查看所载入的文件, 如下所示:
+<pre>(gdb) l
+1       #include
+2
+3       int sum(int, int);
+4
+5           int
+6       main()
+7       {
+8           int result;
+9           int a = 1, b = 2;
+10          result = sum(a, b);
+(gdb) l
+11          printf("%d + %d = %d\n", a, b, result);
+12          return 0;
+13      }
+14
+15          int
+16      sum(int a, int b)
+17      {
+18          return a + b;
+19      }
+(gdb) l
+Line number 20 out of range; demo.c has 19 lines.
+</pre>
+可以看出, Gdb列出的源代码中明确地给出了对应的行号, 这样就可以大大地方便代码的定位.
+
+<strong>(3) 设置断点</strong>
+
+设置断点是调试程序中一个非常重要的手段, 它可以使程序到一定位置暂停运行. 因此,可以在该位置方便地查看变量的值, 堆栈情况等, 从而找出代码的症结所在.
+
+在Gdb中设置断点非常简单, 只需在"b"后加入对应的行号即可(这是最常用的方式). 如下所示:
+<pre>(gdb) b 9
+Breakpoint 2 at 0x4004f4: file demo.c, line 9.</pre>
+<strong>注意: </strong>该断点的作用是当程序运行到第 9 行时暂停(第 8 行执行完毕, 第 9 行未执行)
+
+<strong>(4) 查看断点信息</strong>
+<pre>(gdb) info b
+Num     Type           Disp Enb Address            What
+2       breakpoint     keep y   0x00000000004004f4 in main at demo.c:9</pre>
+<strong>(5) 运行代码</strong>
+
+接下来就可运行代码了, Gdb默认从首行开始运行代码, 可键入"r"(run的缩写)即可. 若想从程序中指定的行开始运行, 可在r后面加上行号.
+<pre>(gdb) r
+Starting program: /home/wangsheng/tmp/demo/gdb/demo
+
+Breakpoint 2, main () at demo.c:9
+9           int a = 1, b = 2;
+</pre>
+可以看到程序运行到断点处就停止了.
+
+<strong>(6) 查看变量值</strong>
+键入p(print的缩写)+变量名即可查看该变量在此时的值
+<pre>(gdb) p a
+$1 = 1
+(gdb) p b
+$2 = 2
+(gdb) p result
+$3 = 32767</pre>
+<strong>注意: </strong>这里之所以result是一个莫名其妙的值, 是因为声明result是没有初始化, 其值是不固定的。
+
+<strong>(7) 单步执行</strong>
+
+单步运行可以使用n(next的缩写)或者s(step的缩写), 它们之间的区别在于: 若有函数调用的时候, s会进入该函数而n不会. 因此, s就类似于VC等工具中的"step in", n就类似于VC等工具中的"step over".
+
+如果使用n命令显示如下:
+<pre>(gdb) n
+10          result = sum(a, b);
+</pre>
+下面使用 s 命令，跟踪进入 sum 函数:
+<pre>(gdb) s
+sum (a=1, b=2) at demo.c:18
+18          return a + b;
+</pre>
+<strong>可以看出执行 s 命令时进入了sum函数内部, 如果用 n 命令则跳过函数的调用部分</strong>
+
+<strong>(8) 恢复程序运行</strong>
+
+在查看变量值以及堆栈之后, 就可以使用命令c(continue)恢复程序的正常运行了. 这时, 它会把剩余还未执行的程序执行完, 并显示剩余程序的执行结果.
+<pre>(gdb) c
+Continuing.
+1 + 2 = 3
+
+Program exited normally.</pre>
+可以看出, 程序在运行完后退出, 之后程序处于"停止状态".
+<strong>说明: </strong>在Gdb中, 程序的运行状态有"运行","暂停"和"停止"3种. 其中"暂停"状态是程序遇到了断点或者观察点, 程序暂时停止运行, 而此时函数的地址, 函数参数, 函数内的局部变量都会被压入"栈(Stack)中. 故在这种状态下可以查看函数的变量值等各种属性. 但在函数处于"停止"状态之后, "栈"就会自动撤销, 它也就无法查看各种信息了
+
+关于Gdb的更多命令, 你可以在启用Gdb后, 输入help命令查看.

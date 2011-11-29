@@ -1,0 +1,52 @@
+---
+layout: post
+title: "版本库中一个大家都要改的文件，又不想每次提交而覆盖，怎么办？"
+---
+
+一个朋友打来电话，问：“使用Git做版本控制，版本库中一个大家都要改的文件，又不想每次提交而覆盖，怎么办？”
+
+我的手机信号不好，没有听明白到底是什么文件让他的团队/客户如此纠结。我估计是某个IDE软件的项目文件，没有不行，但是IDE工作的时候，这个文件会经常随着本地项目的改动而变化，而且和每个人项目部署的目录相关，因此不同的人这个文件并不一致。我曾经还是一个Windows开发人员的时候，在 VisualStudio 6.0（maybe）中遇到。
+
+我跟他说两个解决方案，一个比较诡异一点，一个比较普世一点。
+
+<span id="more-2507"></span>
+<h2>先说第一个正常人不会想到的方案——稀疏检出</h2>
+Git实际上是靠暂存区来跟踪工作区文件的改动，如果希望本地修改的工作区中文件（已经在版本库中），不被识别出被改动，也不能被添加和提交，Git是有办法实现的：为暂存区中文件设置“SparseCheckout”标志位即可。
+
+例如对于一个示例版本库，工作区有四个文件，执行下面的命令，可以看出每个文件前面的标记字母 H。
+<pre>$ git ls-files -v
+H hello.c
+H hello.h
+H myproject.dsp
+H myproject.dsw</pre>
+文件前面标记的字母H，表明暂存区中的文件和工作区文件建立跟踪，是默认状态。什么命令可以更改这个状态呢？或者用稀疏检出的配置文件（.git/info/sparse-checkout) 或者用 git-update-index 命令。
+<pre>$ git update-index --skip-worktree myproject.dsw
+
+$ git ls-files -v
+H hello.c
+H hello.h
+H myproject.dsp
+S myproject.dsw</pre>
+看到了么，执行 git update-index 命令之后，文件 myproject.dsw 在命令 git ls-files -v 的输出结果中最前面的标识由 H 变成了 S。字母 S 的含义是暂存区不再和本地文件建立跟踪，进而忽略本地文件改动。
+
+如果对 myproject.dsw 进行改动，执行 git status 命令会发现文件的改动被忽略，也无法提交。
+<pre>$ echo  test &gt; myproject.dsw
+$ git status -s
+$ git add myproject.dsw
+$ git commit -m test
+# On branch master
+nothing to commit (working directory clean)</pre>
+实际上暂存区文件的 skip-worktree 标识位最主要的功能是进行工作区文件的部分检出，这在我即将出版的《Git权威指南》的41章第41.3.1小节会详细介绍。
+<h2>第二个方法更加容易理解——文件忽略</h2>
+即不要将易变文件提交版本库，而是代之以一个模版文件，在版本库克隆（检出）后，通过模版动态生成需要的文件。还要通过Git的忽略文件 .gitignore 避免新生成的易变文件被误操作（添加到版本库中）。
+
+例如上面的示例版本库，按照这个方法改造后有如下文件：
+<pre>.gitignore
+hello.c
+hello.h
+myproject.dsp
+myproject.dsw.in
+update.bat</pre>
+执行 update.bat ，从模版文件 myproject.dsw.in 创建出需要的项目文件 myproject.dsw 。这个动态创建的文件通过 .gitignore 文件忽略掉。
+
+补充：不用 windows 很久了，但我知道新版本的 Visual Studio 建立的项目已经对版本库非常友好了，一个专门记录本地路径改动的文件（.sln 好像，不确定）不必检入，而要把 .vcproject 检入。对于老版本，.dsp 和 .dsw 这两个文件哪个存在上述问题，我已经模糊了，望指正。

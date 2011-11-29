@@ -1,0 +1,110 @@
+---
+layout: post
+title: "topgit 分支的图形化显示"
+---
+
+使用 Git + topgit 做版本控制，当 topgit分支（功能分支）非常多并且相互依赖比较复杂时，非常需要有一个直观的图形化的分支依赖图。
+
+联想到我们使用 git 经常用到的 git glog 命令输出，如果 topgit 分支图能够有类似的显示就太好了：
+<pre>| | * t/unittest
+| |/
+| *---.   t/message_localize
+| |\ \ \
+| * | | | t/auth_log_for_fail2ban
+|/ / / /
+| * | | t/factor_invite
+|/ / /
+| * | t/factor_ldap
+|/ /
+| * t/include_macro_for_templates
+| * t/multi_language
+|/
+* master</pre>
+正在冥思苦想如何实现时，忽然发现 topgit 的 tg-summary 中原来已经有图形输出的实现，是借用 graphviz 工具进行图形化输出...
+<h2><span id="more-1365"></span>tg summary 命令的 graphviz 输出</h2>
+原来 tg summary 命令已经包含了分支关系图的输出，只不过输出的是 graphviz 的 .dot 格式文件。
+
+使用下面的命令可以输出 topgit 分支图：
+<pre>$ <strong>tg summary --graphviz</strong></pre>
+下面是我们改进后的 tg summary --graphviz 命令的输出
+<pre># GraphViz output; pipe to:
+#   | dot -Tpng -o
+# or
+#   | dot -Txlib
+
+digraph G {
+
+  graph [
+    rankdir = RL
+    label="TopGit Layout\n\n\n"
+    fontsize = 14
+    labelloc=top
+    pad = "0.5,0.5"
+  ];
+
+  node [
+    shape=box
+    fontsize = 12
+    fontcolor= blue
+    color= blue
+  ];
+
+  edge [
+    color= green
+  ];
+
+  "t/add_know_user_support_for_autoadmingroup" -&gt; "master";
+  "t/attach_default_action" -&gt; "master";
+  "t/attach_dl_content_type" -&gt; "master";
+  "t/auth_actions" -&gt; "t/wikiutil_d";
+  "t/auth_by_category_hierarchic" -&gt; "master";
+  "t/auth_by_category_hierarchic" -&gt; "t/macro_showcategory";
+   ...
+}</pre>
+GraphViz 格式输出文件解说：
+<ul>
+	<li>头几行已经暗示了如何使用本输出，只要通过管道输入给graphviz的 dot 命令，就可以生成相应的图片</li>
+	<li>graph 小节的 rankdir = RL 指令设置节点的方向。这里是从右至左</li>
+	<li>node 小节的 shape=box 指令，设定输出图片中节点的形状是长方形</li>
+	<li>edge 小节的 color= green 指令，设定输出图片中连接线的颜色为绿色</li>
+	<li>后面的是数据。即分支的依赖关系，将根据此依赖关系画图</li>
+</ul>
+<h2>使用 graphviz 显示分支图</h2>
+首先确认已经安装了 graphviz 软件包。该软件包有30多个命令，其中我们将用到的有：
+<ul>
+	<li>dot：画直连图。将 topgit 的 graphviz 格式输出数据转换为图片。</li>
+	<li>ccomps：对节点进行过滤，如忽略孤立节点，或者只显示当前节点所在的图，而忽略之外的节点。</li>
+	<li>gvpr：图片流编辑器，可以嵌入脚本实现定制的输出。</li>
+</ul>
+示例，针对 cosign 的topgit 分支，显示分支图。
+
+命令：
+<pre>$ tg summary --graphviz | dot -Tpng -o topgit.png</pre>
+输出的分支图：
+<h2><a href="/wpfiles/2010/06/topgit.png"><img class="aligncenter size-medium wp-image-1366" title="topgit 分支图" src="/wpfiles/2010/06/topgit-300x139.png" alt="" width="300" height="139" /></a>分支图的文本输出</h2>
+还记得本文一开始设置的目标么？类似 git glog 命令的文本分支图显示。
+
+非常令人惊奇的是，居然找到同样有此需求的人，并且已经实现。参见：  http://kerneltrap.org/mailarchive/git/2009/5/20/2922
+<ul>
+	<li>惊奇一：相同的需求。都是希望获取类似 git glog 的文本分支图显示，或者称为 ascii art 输出。
+文本格式输出的好处除了简单易用外，还可以拷贝粘贴，而图像就不行了。</li>
+	<li>惊奇二：实现思路相似。都想到了利用 git 现有代码，主要就是 graph.c</li>
+	<li>惊奇三：作者竟然这么简单就实现了。利用 graphviz 的 gvpr 非常简单的就实现了，重用了 topgit 的 graphviz 输出和 git 的相关代码。</li>
+</ul>
+采用拿来主义，最终也实现了文本显示 topgit 分支图的目标。示例：
+<pre>$ <strong>tg graph --header</strong>
+* t/bugfix_cosign_httponly_quirk
+| From: Jiang Xin &lt;worldhello.net@gmail.com&gt;
+| Subject: [PATCH] t/bugfix_cosign_httponly_quirk
+|
+| * t/bugfix_no_retry_report
+|/  From: Jiang &lt;jiangxin@ossxp.com&gt;
+|   Subject: [PATCH] t/bugfix_no_retry_report
+|   
+| * t/factor_admin
+|/  From: Jiang &lt;jiangxin@ossxp.com&gt;
+|   Subject: [PATCH] t/factor_admin
+|   
+| *   t/message_translation
+| |\  From: Jiang &lt;jiangxin@ossxp.com&gt;
+| | | Subject: [PATCH] t/message_translation</pre>

@@ -1,0 +1,73 @@
+---
+layout: post
+title: "群英汇邮件列表更新"
+---
+
+经过近两周的工作，群英汇邮件列表系统（Mailman）更新了，主要修正了以下四个方面的问题。
+<h2>归档附件链接由绝对路径改为相对路径</h2>
+发给邮件列表的邮件若有附件，Mailman 在生成归档网页时会将附件保存到相应文件，并在归档网页中建立链接。通常会用华丽的分割符“---”来界限，然后是相应的链接。链接是相应归档附件的绝对地址，即用 http打头，紧跟着是域名，可以点击链接查看或下载附件。
+
+群英汇邮件列表有一个改进就是将绝对地址转换为相对地址，这样当用户的邮件列表主机的域名修改后或者因为安全上的需要由HTTP转换为HTTPS协议的时候，归档的链接也依然有效。否则，在更换域名时这些网页必须重新生成，这对有大量邮件存档的服务器来说将是一个梦魇。
+
+但是，群英汇之前的实现有一个副作用，就是当使用相对路径则没有生成链接，而只是文本显示出来
+<pre>-------------- next part --------------
+一个HTML附件被移除...
+URL: &lt;/mailman/private/tech/attachments/20101111/79f938b2/attachment.htm&gt;
+</pre>
+在经过反复的研究之后，终于定位在代码 Mailman/Archiver/HyperArch.py：
+<pre> 158 #  Argh!  This pattern is buggy, and will choke on URLs with GET parameters.
+ 159 # MAS: Given that people are not constrained in how they write URIs in plain
+ 160 # text, it is not possible to have a single regexp to reliably match them.
+ 161 # The regexp below is intended to match straightforward cases.  Even humans
+ 162 # can't reliably tell whether various punctuation at the end of a URI is part
+ 163 # of the URI or not.
+ 164 urlpat = re.compile(r'([a-z]+://.*?)(?:_\s|_$|$|[]})&gt;\'"\s])', re.IGNORECASE)
+</pre>
+神马意思呢？就是说：
+<p style="padding-left: 30px;"><strong>当你看到这个正则表达式的时候，它已下了一个艰难的决定，就是以http://开头的文本行将进行一系列操作，添加上&lt;a&gt;标签，制作成链接，否则无视。</strong></p>
+我们为了让相对URL和绝对URL不再打架，不再让用户为难，我们做出一个超级强大的正则表达式，并和QQ 100% 兼容。
+<pre>
+index a532c81..9aa8c6f 100644
+--- a/Mailman/Archiver/HyperArch.py
++++ b/Mailman/Archiver/HyperArch.py
+@@ -161,7 +161,7 @@ emailpat = re.compile(r'([-+,.\w]+@[-+.\w]+)')
+ # The regexp below is intended to match straightforward cases.  Even humans
+ # can't reliably tell whether various punctuation at the end of a URI is part
+ # of the URI or not.
+-urlpat = re.compile(r'([a-z]+://.*?)(?:_\s|_$|$|[]})&gt;\'"\s])', re.IGNORECASE)
++urlpat = re.compile(r'(?P&lt;prefix&gt;url:\s*&lt;)?(?P&lt;url&gt;(?(prefix)[^\s\'"&gt;]+|[a-z]+://.*?))(?:_\s|_$|$|[])&gt;\'"\s])', re.IGNORECASE)
+
+ # Blank lines
+ blankpat = re.compile(r'^\s*$')
+@@ -1224,19 +1225,19 @@ class HyperArchive(pipermail.T):
+                 if kr is None:
+                     k = -1
+                 else:
+-                    k = kr.start(0)
++                    k = kr.start('url')
+                 if j != -1 and (j &lt; k or k == -1):
+                     text = jr.group(1)
+                     length = len(text)
+... ...
+                         URL = 'mailto:' + text
+                     pos = j
+                 elif k != -1 and (j &gt; k or j == -1):
+-                    text = URL = kr.group(1)
++                    text = URL = kr.group('url')
+                     length = len(text)
+                     pos = k
+                 else: # j==k
+</pre>
+上面的正则表达式有哪位网友不解，待我有时间，下回分解。
+<h2>归档html附件取消转义</h2>
+默认Mailman会将HTML格式文本进行转义，在点HTML附件链接时看到的是HTML源码。而实际上用户更希望看到的是实际显示的内容。仔细分析以后发现，原来有一个转义函数，将文本里的HTML标签进行了转义，然后还自己定义了一个&lt;tt&gt;标签把这些内容括起来，为的是让显示更加规整。
+
+整个注释掉此转义函数，这样邮件的 HTML 附件能够在归档中直接以 HTML 显示了。风险也是有的，就是会让列表的 HTML 归档被滥用，如用 HTML 链接进行 SEO 等，不过公司或团队范围使用，大可放心，没有哪个用户胆敢发送垃圾邮件。
+<h2>自动回复邮件首选reply-to地址，其次是From地址</h2>
+有时我们发邮件不希望自动回复到发件人地址，就需要提供一个 reply-to 地址。
+
+我们的一个客户在使用邮件列表时，设置了自动回复器用于人员招聘等工作，发现从 51job 发送的简历的求职者的邮件地址都放到了 Reply-To 邮件头。由于 Mailman 自动转发器没有使用 Reply-To 邮件头，导致自动回复失败。
+
+我们的改进也很简单，就是先对 reply-to 邮件头进行判断。有了这个改进后，自动回复器在复杂的环境中也可以使用了。
+<h2>自动回复邮件内容取消自动折行</h2>
+Mailman在发送自动回复器在回复的时候先对回复内容进行了处理，以70字符为界断行，结果显示效果不是很好看。这可能是历史原因造成的，可能当时的显示屏比较小，一行只能显示70字符，段行比较美观。但现在的显示屏比当时先进多了，而且大多数邮件都有自动换行显示的功能，这个就没必要了。修改也很简单，取消掉这个自动折行的函数即可。

@@ -1,0 +1,60 @@
+---
+layout: post
+title: "Debian 版本升级／降级"
+---
+
+最近笔记本的 Debian 系统不太正常，总是在程序切换的时候键盘丢失。例如从浏览器切换到 konsole 时，无法输入，在 konsole 中通过创建新标签并在不同标签页中切换后，才能够继续输入...
+
+这个问题很是困扰，联想到最近从 sid （Debian 不稳定发行版）做了升级，难道是升级后出现的 bug？
+<h2><span id="more-594"></span>题外话：查看磁盘空间，是否有分区已满</h2>
+实际上，这应该是当系统出现异常后，率先进行检查的。但是由于我的疏忽在Debian降级过程中，才发现 /var 卷已满，当执行 apt-get clean 命令后，释放了 5 GB以上的空间。
+
+所以程序切换键盘丢失，到底是因为 Debian 从不稳定版升级造成的，还是因为 /var 卷已满造成的，已经查无实据。
+<h2>Debian 混杂版本</h2>
+所谓 Debian 混杂版本，就是在一个 debian 系统中，安装的软件包不属于同一个发行版(distribution)，有的可能属于 stable（当前代号是 lenny），有的属于 testing （当前代号 squeeze），或者有的软件包属于不稳定版（代号 sid）。
+
+Debian 的 APT 可以设置升级的默认发行版。可以创建一个文件，如： /etc/apt/apt.conf.d/01defaultrelease ，其内容为：
+<pre>APT::Default-Release "testing";
+APT::Cache-Limit "141943904";</pre>
+这样在用 aptitude 升级时，默认从 testing 版本进行升级；
+<h2>Debian 版本升级</h2>
+Debian 版本升级非常简单：
+<ul>
+	<li>在 /etc/apt/apt.conf.d/01defaultrelease 中设置默认发行版。
+<pre>APT::Default-Release "unstable";
+APT::Cache-Limit "141943904";</pre>
+</li>
+	<li>然后，正确配置 /etc/apt/sources.list 中的升级源。例如：
+<pre>deb http://mirror.cs.umn.edu/debian/ lenny main contrib non-free
+deb http://mirror.cs.umn.edu/debian/ testing main contrib non-free
+deb http://mirror.cs.umn.edu/debian/ unstable main contrib non-free
+deb http://mirror.cs.umn.edu/debian/ experimental main contrib non-free
+deb http://security.debian.org/ stable/updates main
+deb http://security.debian.org/ testing/updates main</pre>
+</li>
+	<li>最后，执行命令：
+<pre>$ sudo aptitude update
+$ sudo aptitude dist-upgrade</pre>
+</li>
+</ul>
+<h2>Debian 版本降级</h2>
+Debian 版本降级相比升级，要难许多。试着通过修改 APT 的 Default-Release，然后用 aptitude dist-upgrade，但是无法满足降级的需要。可以用下面的方法实现降级：
+<ul>
+	<li>在 /etc/apt/apt.conf.d/01defaultrelease 中设置默认发行版。</li>
+	<li>然后，正确配置 /etc/apt/sources.list 中的升级源。</li>
+	<li>执行 apt-get update 更新源的软件包列表。</li>
+	<li>查看当前软件包安装情况：安装了哪些软件包，分别属于哪个发行版，版本号是什么？
+<pre>$ apt-show-version &gt; apt-show-version.list</pre>
+</li>
+	<li>查看文件 apt-show-version.list，筛选出需要降级的软件包，再一一手动进行降级。降级可能需要使用命令：
+<ul>
+	<li>apt-cache policy &lt;PACKAGE&gt;</li>
+	<li>aptitude install &lt;PACKAGE&gt;=&lt;VERSION&gt;</li>
+</ul>
+</li>
+</ul>
+<h2>后记</h2>
+关于输入焦点丢失，键盘输入不响应的问题，其实并没有在此次 Debian 版本降级（sid --&gt; testing）的过程解决。如果从sid 降级到 lenny，应该能够解决，但是我实在是舍不得 KDE4 的 3D 桌面等特效。
+
+最终这个问题的解决，参见博客：<a title="永久链接: Linux 应用程序失去输入焦点问题的解决" rel="bookmark" href="/2010/03/09/778.html">Linux 应用程序失去输入焦点问题的解决</a>。<a title="永久链接: Linux 应用程序失去输入焦点问题的解决" rel="bookmark" href="/2010/03/09/778.html">
+</a>

@@ -1,0 +1,10 @@
+---
+layout: post
+title: "redmine同步变更集属性插件"
+---
+
+上个星期有客户反映他们在提交代码说明时总是忘记使用使用引用关键字(refs, references等)或者关闭问题关键字（fixes, closes等），导致代码提交不能有效跟问题建立关联，关闭问题状态。虽然版本库（如SVN）提供了修改提交日志的功能，但redmine对于已经自动获取的变更集是不能再重新获取的，除非在版本库配置处删除再重新导入。显然，对于仅仅一次提交的失误，这样做代价似乎太大了。
+
+因此为了更好地满足客户的需求，我花了一星期时间写了一个同步变更集属性（如committer、date、commit log）的插件 redmine-sync-revprops。该插件是基于redmine 0.9 开发的，无须任何数据迁移操作，只需将该插件放在vendor/plugins目录下，重启服务器就可以使用。
+
+具体的使用手册可以参考 <a title="http://www.ossxp.com/doc/redmine-plugins/redmine-sync-revprops/user_manual/user_manual.html" href="http://www.ossxp.com/doc/redmine-plugins/redmine-sync-revprops/user_manual/user_manual.html" target="_self">http://www.ossxp.com/doc/redmine-plugins/redmine-sync-revprops/user_manual/user_manual.html</a>

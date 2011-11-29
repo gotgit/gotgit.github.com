@@ -1,0 +1,224 @@
+---
+layout: post
+title: "回到未来 (1)"
+---
+
+<h2><a>9.3   回到未来</a></h2>
+电影《回到未来》（Back to future）第二集，老毕福偷走时光车，到过去（1955年）给了小毕福一本书，导致未来大变。
+<div><a href="/wpfiles/2010/12/back-to-future.png"><img class="aligncenter size-medium wp-image-2259" title="back-to-future" src="/wpfiles/2010/12/back-to-future-300x191.png" alt="" width="300" height="191" /></a>
+<p style="text-align: center;">布朗博士正在解释为何产生两个平行的未来</p>
+
+</div>
+Git  这一台“时光机”也有这样的能力，或者说也会具有这样的行为。当更改历史提交（SHA1哈希值变更），即使后续提交的内容和属性都一致，但是因为后续提交 中有一个属性是父提交的SHA1哈希值，所以一个历史提交的改变会引起连锁变化，导致所有后续提交必然的发生变化，就会形成两条平行的时间线：一个是变更 前的提交时间线，另外一条是更改历史后新的提交时间线。
+
+把此次实践比喻做一次电影（回到未来）拍摄的话，舞台依然是之前的DEMO版本库，而剧本是这样的。
+
+<span id="more-2260"></span>
+<ul>
+	<li>角色：最近的六次提交。分别依据提交顺序，编号为 A, B, C, D, E, F。
+<pre>$ git log --oneline -6
+b6f0b0a modify hello.h                        # F
+48456ab add hello.h                           # E
+3488f2c move .gitignore outside also works.   # D
+b3af728 ignore object files.                  # C
+d71ce92 Hello world initialized.              # B
+c024f34 README is from welcome.txt.           # A
+</pre>
+</li>
+	<li>坏蛋：提交D。即对 .gitignore 文件移动的提交不再需要，或者这个提交将和前一次提交（C）压缩为一个。</li>
+	<li>前奏：故事人物依次出场，坏蛋 D 在图中被特殊标记。
+<div><a href="/wpfiles/2010/12/git-rebase-orig.png"><img class="aligncenter size-full wp-image-2261" title="git-rebase-orig" src="/wpfiles/2010/12/git-rebase-orig.png" alt="" width="423" height="27" /></a></div></li>
+	<li>第一幕：抛弃提交 D，将正确的提交 E 和 F 重新“嫁接”到提交 C 上，最终坏蛋被消灭。
+<div><a href="/wpfiles/2010/12/git-rebase-c.png"><img class="aligncenter size-full wp-image-2262" title="git-rebase-c" src="/wpfiles/2010/12/git-rebase-c.png" alt="" width="423" height="99" /></a></div></li>
+	<li>第二幕：坏蛋 D 被 C 感化，融合为 "CD" 复合体，E 和 F 重新“嫁接”到"CD"复合体上，最终大团圆结局。
+<div><a href="/wpfiles/2010/12/git-rebase-cd.png"><img class="aligncenter size-full wp-image-2263" title="git-rebase-cd" src="/wpfiles/2010/12/git-rebase-cd.png" alt="" width="423" height="99" /></a></div></li>
+	<li>道具：分别使用三辆不同的时光车来完成“回到未来”。分别是：核能跑车，清洁能源飞车，蒸汽为动力的飞行火车。</li>
+</ul>
+<div id="id36">
+<h3><a>9.3.1   时间旅行一</a></h3>
+《回到未来-第一集》布朗博士设计的第一款时间旅行车是一辆跑车，使用核燃料：钚。与之对应，此次实践使用的工具也没有太出乎想像，用一条新的指令 —— 拣选指令（git cherry-pick）实现提交在新的分支上“重放”。
+
+拣选指令 —— <cite>git cherry-pick</cite> ，其含义是从众多的提交中挑选出一个提交应用在当前的工作分支中。该命令需要提供一个提交ID作为参数，操作过程相当于将该提交导出为补丁文件，然后在当前HEAD上重放形成无论内容还是提交说明都一致的提交。
+
+首先对版本库要“参演”的角色进行标记，使用尚未正式介绍的命令 <cite>git tag</cite> （无非就是在特定命名空间建立的引用，用于对提交的标识）。
+<pre>$ git tag F
+$ git tag E HEAD^
+$ git tag D HEAD^^
+$ git tag C HEAD^^^
+$ git tag B HEAD~4
+$ git tag A HEAD~5
+</pre>
+通过日志，可以看到被标记的6个提交。
+<pre>$ git log --oneline --decorate -6
+b6f0b0a (HEAD, tag: F, master) modify hello.h
+48456ab (tag: E) add hello.h
+3488f2c (tag: D) move .gitignore outside also works.
+b3af728 (tag: C) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+</pre>
+<strong>现在演出第一幕：干掉坏蛋D</strong>
+<ul>
+	<li>执行 <cite>git checkout</cite> 命令，暂时将 HEAD 头指针切换到 C。切换过程显示处于非跟踪状态的警告，没有关系，因为剧情需要。
+<pre>$ git checkout C
+Note: checking out 'C'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -b with the checkout command again. Example:
+
+  git checkout -b new_branch_name
+
+HEAD is now at b3af728... ignore object files.
+</pre>
+</li>
+	<li>执行拣选操作将 E 提交在当前 HEAD 上重放。因为 E 和 master^ 显然指向同一角色，因此可以用下面的语法。
+<pre>$ git cherry-pick master^
+[detached HEAD fa0b076] add hello.h
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ create mode 100644 src/hello.h
+</pre>
+</li>
+	<li>执行拣选操作将 F 提交在当前 HEAD 上重放。F 和 master 也具有相同指向。
+<pre>$ git cherry-pick master
+[detached HEAD f677821] modify hello.h
+ 2 files changed, 2 insertions(+), 0 deletions(-)
+</pre>
+</li>
+	<li>通过日志可以看到坏蛋 D 已经不在了。
+<pre>$ git log --oneline --decorate -6
+f677821 (HEAD) modify hello.h
+fa0b076 add hello.h
+b3af728 (tag: C) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+63992f0 restore file: welcome.txt
+</pre>
+</li>
+	<li>通过日志还可以看出来，最新两次提交的原始创作日期（AuthorDate）和提交日期 （CommitDate）不同。AuthorDate 是拣选提交的原始更改时间，而 CommitDate  是拣选操作时的时间，因此拣选后的新提交的SHA1哈希值也不同于所拣选的原提交的SHA1哈希值。
+<pre>$ git log --pretty=fuller --decorate -2
+commit f677821dfc15acc22ca41b48b8ebaab5ac2d2fea (HEAD)
+Author:     Jiang Xin &lt;jiangxin@ossxp.com&gt;
+AuthorDate: Sun Dec 12 12:11:00 2010 +0800
+Commit:     Jiang Xin &lt;jiangxin@ossxp.com&gt;
+CommitDate: Sun Dec 12 16:20:14 2010 +0800
+
+    modify hello.h
+
+commit fa0b076de600a53e8703545c299090153c6328a8
+Author:     Jiang Xin &lt;jiangxin@ossxp.com&gt;
+AuthorDate: Tue Dec 7 19:39:10 2010 +0800
+Commit:     Jiang Xin &lt;jiangxin@ossxp.com&gt;
+CommitDate: Sun Dec 12 16:18:34 2010 +0800
+
+    add hello.h
+</pre>
+</li>
+	<li>最重要的一步操作，就是要将 master 分支指向新的提交 ID（f677821）上。下面的切换操作使用了reflog的语法，即 <cite>HEAD@{1}</cite> 相当于切换回 master 分支前的HEAD指向，即 f677821。
+<pre>$ git checkout master
+Previous HEAD position was f677821... modify hello.h
+Switched to branch 'master'
+$ git reset --hard HEAD@{1}
+HEAD is now at f677821 modify hello.h
+</pre>
+</li>
+	<li>使用 qgit 查看版本库提交历史。
+<div><a href="/wpfiles/2010/12/git-rebase-graph.png"><img class="aligncenter size-full wp-image-2274" title="git-rebase-graph" src="/wpfiles/2010/12/git-rebase-graph.png" alt="" width="809" height="225" /></a></div></li>
+</ul>
+<strong>幕布拉上，后台重新布景</strong>
+
+为了第二幕能够顺利演出，需要将 master 分支重新置回到提交 F 上。执行下面的操作完成“重新布景”。
+<pre>$ git checkout master
+Already on 'master'
+$ git reset --hard F
+HEAD is now at b6f0b0a modify hello.h
+$ git log --oneline --decorate -6
+b6f0b0a (HEAD, tag: F, master) modify hello.h
+48456ab (tag: E) add hello.h
+3488f2c (tag: D) move .gitignore outside also works.
+b3af728 (tag: C) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+</pre>
+布景完毕，大幕即将再次拉开。
+
+<strong>现在演出第二幕：坏蛋D被感化，融入社会</strong>
+<ul>
+	<li>执行 <cite>git checkout</cite> 命令，暂时将 HEAD 头指针切换到坏蛋 D。切换过程显示处于非跟踪状态的警告，没有关系，因为剧情需要。
+<pre>$ git checkout D
+Note: checking out 'D'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -b with the checkout command again. Example:
+
+  git checkout -b new_branch_name
+
+HEAD is now at 3488f2c... move .gitignore outside also works.
+</pre>
+</li>
+	<li>悔棋两次，以便将C和D融合。
+<pre>$ git reset --soft HEAD^^
+</pre>
+</li>
+	<li>执行提交，提交说明重用 C 提交的提交说明。
+<pre>$ git commit -C C
+[detached HEAD 53e621c] ignore object files.
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+ create mode 100644 .gitignore
+</pre>
+</li>
+	<li>执行拣选操作将 E 提交在当前 HEAD 上重放。
+<pre>$ git cherry-pick E
+[detached HEAD 1f99f82] add hello.h
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ create mode 100644 src/hello.h
+</pre>
+</li>
+	<li>执行拣选操作将 F 提交在当前 HEAD 上重放。
+<pre>$ git cherry-pick F
+[detached HEAD 2f13d3a] modify hello.h
+ 2 files changed, 2 insertions(+), 0 deletions(-)
+</pre>
+</li>
+	<li>通过日志可以看到提交C和D被融合，所以在日志中看不到C的标签。
+<pre>$ git log --oneline --decorate -6
+2f13d3a (HEAD) modify hello.h
+1f99f82 add hello.h
+53e621c ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+63992f0 restore file: welcome.txt
+</pre>
+</li>
+	<li>最重要的一步操作，就是要将 master 分支指向新的提交 ID（2f13d3a）上。下面的切换操作使用了reflog的语法，即 <cite>HEAD@{1}</cite> 相当于切换回 master 分支前的HEAD指向，即 2f13d3a。
+<pre>$ git checkout master
+Previous HEAD position was 2f13d3a... modify hello.h
+Switched to branch 'master'
+$ git reset --hard HEAD@{1}
+HEAD is now at 2f13d3a modify hello.h
+</pre>
+</li>
+	<li>使用 gitk 查看版本库提交历史。
+<div><a href="/wpfiles/2010/12/git-rebase-graph-gitk.png"><img class="aligncenter size-full wp-image-2273" title="git-rebase-graph-gitk" src="/wpfiles/2010/12/git-rebase-graph-gitk.png" alt="" width="738" height="184" /></a></div></li>
+</ul>
+<strong>别忘了后台的重新布景</strong>
+
+为了接下来的时间旅行二能够顺利开始，需要重新布景，将 master 分支重新置回到提交 F 上。
+<pre>$ git checkout master
+Already on 'master'
+$ git reset --hard F
+HEAD is now at b6f0b0a modify hello.h
+</pre>
+参见续集：
+<ul>
+	<li><a href="/2010/12/28/2267.html">回到未来 (2)</a></li>
+	<li><a href="/2010/12/28/2269.html">回到未来 (3)</a></li>
+</ul>
+</div>

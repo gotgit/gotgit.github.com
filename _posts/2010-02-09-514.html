@@ -1,0 +1,29 @@
+---
+layout: post
+title: "将博客整合到维基"
+---
+
+通过 AJAX 技术，我们实现了将博客整合到维基当中。在<a href="http://www.ossxp.com/">群英汇的网站首页</a>，你会发现新闻中的头几条来自于博客，你也会发现在首页的右侧的面板中显示6条最新的博客，点击标题即可查看相关博文。
+
+显示三条新闻类别的博客条目的Wiki语法为：
+<pre>&lt;&lt;jQuery(wordpress,query,http://blog.ossxp.com/rpc/,3,id=.blog-news,cat=12,showdate=prefix)&gt;&gt;
+{ { {#!wiki blog-news
+[[http://blog.ossxp.com/|博客加载中]]...
+} } }
+</pre>
+在右侧面板中显示6条非新闻类别的博客条目的Wiki语法为：
+<pre>&lt;&lt;jQuery(wp,query,http://blog.ossxp.com/rpc/,6,id=.blog-latest,cat=-12)&gt;&gt;
+
+{ { {#!wiki blog-latest
+[[http://blog.ossxp.com/|博客加载中]]...
+} } }
+</pre>
+<span id="more-514"></span>关于针对 wordpress 的 jQuery  宏的参数说明：
+<ul>
+	<li>第一个参数是 wp 或者 wordpress，即启用 wordpress 相关的 AJAX 调用</li>
+	<li>第二个参数是 wordpress AJAX 的函数名称，如 query。可选的函数有 query, latest 等</li>
+	<li>第三个参数是 wordpress base URL。例如： http://blog.bj.ossxp.com/rpc/</li>
+	<li>第四个参数是 返回的条目个数</li>
+	<li>参数: cat=12 ，是选择分类12 (即 news)的相关博客。如果数字是负数，则取反</li>
+	<li>参数 showdate，含义是在标题中显示博客日期。showdata=prefix，在标题前添加日期，showdata=suffix，则在标题后添加日期</li>
+</ul>

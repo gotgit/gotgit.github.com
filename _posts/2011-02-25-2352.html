@@ -1,0 +1,37 @@
+---
+layout: post
+title: "使用Buildout构建Python"
+---
+
+<h1 class="title"><span style="letter-spacing: normal; line-height: 24px; font-size: 13.3333px;">系统中存在多个python版本时，如何切换到不同的版本里呢？使用update-alternative不是一个好办法，因为这样虽然修改了python的版本，但是和python相关的工具，比如easy_install, pip等，并没有一起修改，这时使用这些工具时就会出错，必须重新安装才可以。使用起来很麻烦。</span></h1>
+解决这个办法可以使用virtualenv。virtualenv可以创建一个单独的python环境，每个环境可以使用不同的python版本。<span id="more-2352"></span>
+<pre class="literal-block">$ virtualenv -p python2.4 virtualenv_2.4
+$ virtualenv -p python2.7 virtualenv_2.7</pre>
+这将创建2.4环境和2.7环境。当然前提是系统里有这两个版本的python。否则会提示不存在这个可执行脚本。
+
+如果仅仅需要使用不同版本的软件包的话，可以使用easy_install或pip切换，或者干脆使用buildout。但buildout的功能远不止此。其实buildout也可以做到virtualenv的效果。不信？请看~
+
+buildout.cfg配置文件：
+<pre class="literal-block">[buildout]
+python = python
+parts =
+    python
+    pythonbin
+
+[python]
+recipe = zc.recipe.cmmi
+url = http://www.python.org/ftp/python/2.6.6/Python-2.6.6.tar.bz2
+executable = ${buildout:directory}/parts/python/bin/python2.6
+extra_options=
+    --enable-unicode=ucs4
+    --with-threads
+    --with-readline
+
+[pythonbin]
+recipe = plone.recipe.command
+command = ln -s ${python:executable} ${buildout:bin-directory}/python</pre>
+如果是Mac环境的话，还需要在extra_options中添加一行：MACOSX_DEPLOYMENT_TARGET=10.5。
+
+如果是Debian/Ubuntu环境的话，可能需要首先安装编译环境：
+<pre class="literal-block">$ sudo apt-get install libreadline5-dev zlib1g-dev libbz2-dev libssl-dev libjpeg62-dev</pre>
+然后使用bootstrap.py生成buildout，运行buildout就OK了！

@@ -1,0 +1,89 @@
+---
+layout: post
+title: "SVN 树冲突和目录丢失问题（3）"
+---
+
+昨天在《<a href="/2010/04/22/1082.html">SVN 树冲突和目录丢失问题（1）</a>》中重现 yzw遇到的“更新导致树冲突”，实际上可以有更简单的重现方法。
+
+大概的方法是：
+<ul>
+	<li>将主线 trunk 更新到老的版本，该老的版本尚不包含 somedir 的提交</li>
+	<li>然后从 branches/0.x 分支合并到主线</li>
+	<li>提交会引发过时错误</li>
+	<li>执行 svn 更新</li>
+	<li>更新引发树冲突</li>
+</ul>
+具体的操作是：
+
+<span id="more-1095"></span>
+<ol>
+	<li>查看当前主线的 log
+<pre>~/tmp/svntf/trunk$ svn log
+------------------------------------------------------------------------
+r4 | jiangxin | 2010-04-22 19:51:55 +0800 (四, 2010-04-22) | 1 行
+
+to trunk, we add somedir/trunk.txt file.
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-04-22 19:48:57 +0800 (四, 2010-04-22) | 1 行
+
+initial
+------------------------------------------------------------------------</pre>
+</li>
+	<li>将主线 trunk 更新到老的版本，该老的版本尚不包含 somedir 的提交
+<pre>~/tmp/svntf/trunk$ <strong>svn up -r3</strong>
+D    somedir
+更新到版本 3。
+~/tmp/svntf/trunk$ <strong>svn log</strong>
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-04-22 19:48:57 +0800 (四, 2010-04-22) | 1 行
+
+initial
+------------------------------------------------------------------------
+~/tmp/svntf/trunk$ <strong>svn ls</strong>
+~/tmp/svntf/trunk$</pre>
+</li>
+	<li>然后从 branches/0.x 分支合并到主线
+<pre>~/tmp/svntf/trunk$ svn merge file:///tmp/svnserver/branches/0.x
+--- 正在合并 r2，经由 r4，到 “.”:
+A    somedir
+A    somedir/branch.txt</pre>
+</li>
+	<li>查看一下当前状态以及目录的svn属性
+<pre>~/tmp/svntf/trunk$ <strong>svn st</strong>
+ M      .
+A  +    somedir
+A  +    somedir/branch.txt
+~/tmp/svntf/trunk$ <strong>svn pl -v .</strong>
+“.” 上的属性:
+  svn:mergeinfo
+    /branches/0.x:2-4</pre>
+</li>
+	<li>提交会引发过时错误
+<pre>~/tmp/svntf/trunk$ svn ci -m "从分支 0.x 合并"
+正在发送       trunk
+svn: 提交失败(细节如下):
+svn: 目录 “/trunk” 已经过时</pre>
+</li>
+	<li>执行 svn 更新，引发树冲突
+<pre>~/tmp/svntf/trunk$ svn up
+ C somedir
+版本 4。
+冲突概要：
+ 树冲突：1</pre>
+</li>
+	<li>查看树冲突的状态
+<pre>~/tmp/svntf/trunk$ svn st
+ M      .
+A  +  C somedir
+      &gt;   本地 增加，动作 增加，操作 更新
+A  +    somedir/branch.txt</pre>
+</li>
+</ol>
+解决目录重名的树冲突，可以参照“SVN 树冲突导致和目录丢失问题（2）”中介绍的方法。
+<ul>
+	<li>采用分支的修改，抛弃本地（主线）的修改
+本地还原到 trunk 最新提交 ==&gt; 删除 somedir 目录 ==&gt; 提交 ==&gt; 执行更新以免由于目录属性修改导致过时错误 ==&gt; 将分支 0.x 合并到主线 ==&gt; 合并成功，没有冲突 ==&gt; 提交合并结果到主线</li>
+	<li>采用本地（主线的修改），抛弃分支的修改
+还原到 trunk 最新提交 ==&gt; 将分支 0.x 合并到主线 ==&gt; 引发合并导致的树冲突 ==&gt; 用 svn resolve --accept working 标记 somedir 的树冲突已经解决 ==&gt; 提交合并结果到主线</li>
+</ul>
+可是在实际的情况下，上面的两个方法还是不够的，这就需要在对SVN合并机制充分理解的基础上，用一点小巧门。我们<a href="/2010/04/23/1100.html">下篇文章</a>介绍一个更加具有现实意义的合并方法。

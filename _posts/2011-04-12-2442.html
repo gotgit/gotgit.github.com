@@ -1,0 +1,99 @@
+---
+layout: post
+title: "给RPM软件包签名"
+---
+
+我们自己制作的软件包，为了防止被篡改，一般要使用私钥进行签名，然后将公钥广而告之，下载使用软件包的话，可以通过公钥进行验证签名，从而确保文件的原始性。<span id="more-2442"></span>
+<div id="id1" class="section">
+<h1>生成密钥对</h1>
+首先我们要使用gpp来生成公私钥对。目前最先进的加密算法是RSA，所以我们使用RSA来生成密钥对：
+<pre class="literal-block">$ gpg --gen-key
+gpg (GnuPG) 1.4.5; Copyright (C) 2006 Free Software Foundation, Inc.
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it
+under certain conditions. See the file COPYING for details.
+
+gpg: 已创建目录‘/home/admin/.gnupg’
+gpg: 新的配置文件‘/home/admin/.gnupg/gpg.conf’已建立
+gpg: 警告：在‘/home/admin/.gnupg/gpg.conf’里的选项于此次运行期间未被使用
+gpg: 钥匙环‘/home/admin/.gnupg/secring.gpg’已建立
+gpg: 钥匙环‘/home/admin/.gnupg/pubring.gpg’已建立
+请选择您要使用的密钥种类：
+   (1) DSA 和 ElGamal (默认)
+   (2) DSA (仅用于签名)
+   (5) RSA (仅用于签名)
+您的选择？ 5
+...</pre>
+生成密钥对以后，查看公钥：
+<pre class="literal-block">$ gpg --list-keys
+/home/admin/.gnupg/pubring.gpg
+------------------------------
+pub   2048R/C0EB63C7 2011-04-11
+uid                  Repository Signer (OSSXP) &lt;amoblin@ossxp.com&gt;</pre>
+</div>
+<div id="id2" class="section">
+<h1>rpm软件包签名</h1>
+修改rpm宏，使用我们的密钥对：
+<pre class="literal-block">$ echo %_signature gpg &gt;&gt; ~/.rpmmacros
+$ echo "%_gpg_name Repository Signer (OSSXP)" &gt;&gt; ~/.rpmmacros</pre>
+对已有rpm软件包进行签名：
+<pre class="literal-block">$ rpm --addsign package_name.rpm
+Enter pass phrase:
+Pass phrase is good.
+...</pre>
+如果签名时出现下面的错误：
+<pre class="literal-block">$ rpm --addsign package_name.rpm
+Enter pass phrase:
+Pass phrase check failed</pre>
+那么应该仔细检查密钥名称和写入rpm宏里面的是否一致，注意括号前有一个空格。
+
+在rpmbuild打包时签名：
+<pre class="literal-block">$ rpmbuild --sign --ta hello-0.1-1.tar.gz</pre>
+这样生成的RPM包就包含签名啦~
+
+</div>
+<div id="id3" class="section">
+<h1>验证软件包</h1>
+验证签名需要使用公钥，这里我们先将gpg产生的公钥导出到一个文件，然后将这个公钥文件导入到RPM数据库里，然后使用rpm命令进行检验。
+
+导出公钥到一个文本文档：
+<pre class="literal-block">$ gpg --export -a "Repository Signer (OSSXP)" &gt; RPM-GPG-KEY-OSSXP</pre>
+查看rpm数据库中已有的公钥：
+<pre class="literal-block">$ rpm -q gpg-pubkey-*
+gpg-pubkey-e8562897-459f07a4
+gpg-pubkey-cf4c4ff9-4d5efb53
+gpg-pubkey-217521f6-45e8a532</pre>
+将公钥导入到RPM数据库。
+<pre class="literal-block">$ sudo rpm --import RPM-GPG-KEY-OSSXP</pre>
+再次查看：
+<pre class="literal-block">$ rpm -q gpg-pubkey-*
+gpg-pubkey-e8562897-459f07a4
+gpg-pubkey-cf4c4ff9-4d5efb53
+gpg-pubkey-217521f6-45e8a532
+gpg-pubkey-c0eb63c7-4da2c3e0</pre>
+最后一个就是我们导入进来的公钥。
+
+在rpm命令中使用 -K 参数进行签名验证：
+<pre class="literal-block">$ rpm -K noarch/ossxp-release-0.1-2.noarch.rpm
+noarch/ossxp-release-0.1-2.noarch.rpm: rsa sha1 (md5) pgp md5 OK</pre>
+如果结果最后不是OK而是类似下面的：
+<pre class="literal-block">$ rpm -K noarch/ossxp-release-0.1-2.noarch.rpm
+ossxp-release-0.1-2.noarch.rpm: RSA sha1 (MD5) (PGP) (MD5) (PGP) md5 NOT OK (MISSING KEYS: PGP#c0eb63c7 PGP#c0eb63c7)</pre>
+那么可能是导入了不匹配的公钥或导入未遂，请重新导入正确的公钥。
+
+有人说，这么麻烦，我不导入公钥，不验证，直接安装不行吗？当然可以，只不过在安装时会出现一个小小的警告罢了：
+<pre class="literal-block">$ rpm -Uvh ossxp-release-0.1-2.noarch.rpm
+warning: ossxp-release-0.1-2.noarch.rpm: Header V3 RSA/SHA1 signature: NOKEY, key ID c0eb63c7
+Preparing...                ########################################### [100%]
+        package ossxp-release-0.1-2.noarch is already installed</pre>
+</div>
+<div id="yum" class="section">
+<h1>在YUM中验证签名</h1>
+将公钥复制到系统RPM公钥目录：
+<pre class="literal-block">$ sudo cp RPM-GPG-KEY-OSSXP /etc/pki/rpm-gpg/</pre>
+在源配置文件中通过如下两行来指定gpg key检验：
+<pre class="literal-block">gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-OSSXP</pre>
+这样在通过YUM安装软件包时，当下载完毕以后会首先使用公钥进行签名验证。
+
+</div>

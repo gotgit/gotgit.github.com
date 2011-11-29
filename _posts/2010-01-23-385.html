@@ -1,0 +1,67 @@
+---
+layout: post
+title: "Dashboard不能运行在Debian包安装的Tomcat6上？"
+---
+
+前面的一篇日志中我已经介绍了如何把CruiseControl的dashboard Web控制台剥离到tomcat6上。但那时介绍剥离时用的是下载tomcat6压缩包然后解压的tomcat6，并没有Debian 自己提供的tomcat6安装包。或许你会问怎么不直接用Debian提供软件包安装呢？其实不是我不想，只是我实验过用
+<pre>sudo aptitude install tomcat6</pre>
+直接安装tomcat6，但是无论如何就是不能成功部署dashboard。 :-?
+
+最终只能委曲求全，“另辟蹊径”了。
+
+但今天同事也遇到这样的问题了，看来是时候解决这个问题了。
+
+<span id="more-385"></span>
+
+刚开始我以为是缺少了什么jar包之类的类库，于是分别比较了这两种tomcat所有到的所有类库，发现没有缺少。这时才意识到自己的判断是错误的，然后就转向跟踪tomcat6的日志文件，发现了下面信息：
+<pre>严重: Exception sending context initialized event to listener instance of class org.springframework.web.context.ContextLoaderListener
+java.lang.ExceptionInInitializerError
+at org.springframework.web.context.ContextLoader.&lt;init&gt;(ContextLoader.java:142)
+at org.springframework.web.context.ContextLoaderListener.createContextLoader(ContextLoaderListener.java:57)
+at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:48)
+at org.apache.catalina.core.StandardContext.listenerStart(StandardContext.java:3934)
+at org.apache.catalina.core.StandardContext.start(StandardContext.java:4429)
+at org.apache.catalina.manager.ManagerServlet.start(ManagerServlet.java:1249)
+at org.apache.catalina.manager.HTMLManagerServlet.start(HTMLManagerServlet.java:612)
+at org.apache.catalina.manager.HTMLManagerServlet.doGet(HTMLManagerServlet.java:136)
+at javax.servlet.http.HttpServlet.service(HttpServlet.java:617)
+at javax.servlet.http.HttpServlet.service(HttpServlet.java:717)
+at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+at java.lang.reflect.Method.invoke(Method.java:616)
+at org.apache.catalina.security.SecurityUtil$1.run(SecurityUtil.java:269)
+at java.security.AccessController.doPrivileged(Native Method)
+at javax.security.auth.Subject.doAsPrivileged(Subject.java:537)
+at org.apache.catalina.security.SecurityUtil.execute(SecurityUtil.java:301)
+at org.apache.catalina.security.SecurityUtil.doAsPrivilege(SecurityUtil.java:162)
+at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:283)
+at org.apache.catalina.core.ApplicationFilterChain.access$000(ApplicationFilterChain.java:56)
+at org.apache.catalina.core.ApplicationFilterChain$1.run(ApplicationFilterChain.java:189)
+at java.security.AccessController.doPrivileged(Native Method)
+at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:185)
+at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:233)
+at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:191)
+at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:525)
+at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:128)
+at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:102)
+at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:109)
+at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:293)
+at org.apache.coyote.http11.Http11Processor.process(Http11Processor.java:849)
+at org.apache.coyote.http11.Http11Protocol$Http11ConnectionHandler.process(Http11Protocol.java:583)
+at org.apache.tomcat.util.net.JIoEndpoint$Worker.run(JIoEndpoint.java:454)
+at java.lang.Thread.run(Thread.java:636)
+
+Caused by: java.security.AccessControlException: access denied (java.util.PropertyPermission
+</pre>
+初看知道是java安全控制那方面出问题了，但具体的也不知道是那里的问题。后来上网搜了一些这方面的问题才知道原来tomcat6已经提供了一套安全机制的配置，位于conf/catalina.policy ，于是一条思路便出现：比较它们不同的安全策略配置不就OK了嘛。殊不知，Debian已经将catalina.policy配置文件分成了独立的5个文件， O:-)  这就不能使用diff命令很快看不同了，只好认真自己看了呗。直到看到 50local.policy 这个文件才有了眉目。最终我在该文件中加入以下几行就解决了这个问题
+<pre>// The permissions granted to the context WEB-INF/classes directory
+grant codeBase "file:${catalina.base}/webapps/dashboard/WEB-INF/classes/-" {
+   permission java.security.AllPermission;
+};
+
+// The permissions granted to the context WEB-INF/lib directory
+grant codeBase "file:${catalina.base}/webapps/dashboard/WEB-INF/lib/-" {
+   permission java.security.AllPermission;
+};
+</pre>

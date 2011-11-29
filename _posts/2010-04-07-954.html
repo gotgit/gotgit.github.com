@@ -1,0 +1,184 @@
+---
+layout: post
+title: "autotools系列工具&#8212;-自动生成Makefile"
+---
+
+在较大项目中, 如果手动维护Makefile, 那将是一件复杂并痛苦的事情. 那么, 有没有一种轻松的手段生成Makefile呢? autotools系列工具正是在这样的呼声中诞生的. 它只需用户输入简单的目标文件, 依赖文件, 文件目录等就可以轻松地生成Makefile了. 另外, 这些工具还可以完成系统配置信息的收集, 从而可以方便地处理各种移植性问题.
+
+<span id="more-954"></span>
+autotools是系列工具, 它含有:
+<ul>
+	<li> aclocal</li>
+	<li> autoscan</li>
+	<li> autoconf</li>
+	<li> autoheader</li>
+	<li> automake</li>
+</ul>
+<h2>autotools 使用流程</h2>
+下面用一个简单的hello.c程序, 演示autotools的使用流程. hello.c如下:
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>ls</strong>
+hello.c
+wangsheng@pc01:~/work/train/make/automake$ <strong>cat hello.c</strong>
+#include 
+int main()
+{
+  printf("Hello, autotools!\n");
+  return 0;
+}</pre>
+<strong>(1) 使用autoscan命令自动生成configure.scan文件</strong>
+
+它会在给定目录及其子目录树中检查源文件, 若没有给出目录, 就在当前目录及其子目录树中进行检查.它会搜索源文件以寻找一般的移植性问题并创建一个文件"configure.scan", 该文件就是接下来autoconf要用到的"configure.in"原型.
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>autoscan</strong>
+wangsheng@pc01:~/work/train/make/automake$ <strong>ls</strong>
+autoscan.log  <strong>configure.scan</strong>  hello.c</pre>
+<strong>(2)将configure.scan重命名为configure.in, 并做适当修改</strong>
+configure.scan的内容:
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>cat configure.scan</strong>
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ([2.65])
+AC_INIT([FULL-PACKAGE-NAME], [VERSION], [BUG-REPORT-ADDRESS])
+AC_CONFIG_SRCDIR([hello.c])
+AC_CONFIG_HEADERS([config.h])
+
+# Checks for programs.
+AC_PROG_CC
+
+# Checks for libraries.
+
+# Checks for header files.
+
+# Checks for typedefs, structures, and compiler characteristics.
+
+# Checks for library functions.
+
+AC_OUTPUT</pre>
+将configure.scan重命名为configure.in
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>mv configure.scan configure.in</strong></pre>
+根据具体情况, 适当修改, 以下加粗部分是修改的内容:
+<pre>wangsheng@pc01:~/work/train/make/automake$<strong> cat configure.in</strong>
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ([2.65])
+<strong>#AC_INIT([FULL-PACKAGE-NAME], [VERSION], [BUG-REPORT-ADDRESS])
+AC_INIT(hello,1.0)
+AM_INIT_AUTOMAKE(hello,1.0)</strong>
+AC_CONFIG_SRCDIR([hello.c])
+AC_CONFIG_HEADERS([config.h])
+
+# Checks for programs.
+AC_PROG_CC
+
+# Checks for libraries.
+
+# Checks for header files.
+
+# Checks for typedefs, structures, and compiler characteristics.
+
+# Checks for library functions.
+<strong>AC_CONFIG_FILES([Makefile])</strong>
+AC_OUTPUT</pre>
+<strong>说明:</strong>
+<ul>
+	<li>以"#"号开始的行为注释</li>
+	<li>AC_PREREQ宏声明本文要求的autoconf版本, 如本例中的版本 2.65</li>
+	<li>AC_INIT宏用来定义软件的名称和版本等信息, 在本例中省略了BUG-REPROT-ADDRESS, 一般为作者的E-mail</li>
+	<li>AM_INIT_AUTOMAKE是手动添加的, 它是automake所必备的宏, 也同前面一样, PACKAGE是所要产生软件套件的名称,VERSION是版本编号.</li>
+	<li>AC_CONFIG_SCRDIR宏用来侦测所指定的源码文件是否存在, 来确定源码目录的有效性. 在此处指当前目录下hello.c</li>
+	<li>AC_CONFIG_FILES宏用于生成相应的Makefile文件.</li>
+</ul>
+<strong>(3) 运行aclocal命令,生成"aclocal.m4"文件, 该文件主要处理本地的宏定义</strong>
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>aclocal</strong>
+wangsheng@pc01:~/work/train/make/automake$ <strong>ls</strong>
+<strong>aclocal.m4</strong> autom4te.cache  autoscan.log  configure.in  hello.c</pre>
+<strong>(4) 运行autoconf命令生成configure可执行文件</strong>
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>autoconf</strong>
+wangsheng@pc01:~/work/train/make/automake$ <strong>ls</strong>
+aclocal.m4 autom4te.cache  autoscan.log  <strong>configure</strong>  configure.in  hello.c</pre>
+<strong>(5) 运行autoheader命令, 生成config.h.in文件.</strong>
+该工具通常会从"acconfig.h"文件中复制用户附加的符号定义. 本例中没有附加的符号定义, 所以不需要创建"acconfig.h"文件.
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>autoheader</strong>
+wangsheng@pc01:~/work/train/make/automake$ <strong>ls</strong>
+aclocal.m4 autom4te.cache  autoscan.log  <strong>config.h.in</strong>  configure  configure.in  hello.c</pre>
+<strong>(6) 运行automake命令, 生成Makefile.in文件</strong>
+这一步是创建Makefile很重要的一步, automake要用的脚本配置文件是Makefile.am, 用户需要自己创建相应的文件. 之后, automake工具将自动转换成Makefile.in 本例中, 创建的文件为Makefile.am, 内容如下:
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>cat Makefile.am</strong>
+AUTOMAKE_OPTIONS=foreign
+bin_PROGRAMS=hello
+hello_SOURCES=hello.c</pre>
+<strong>说明:</strong>
+<ul>
+	<li> 其中的AUTOMAKE_OPTIONS为设置automake的选项. 由于GNU对自己发布的软件有严格的规范, 比如必须附带许可证声明文件COPYING等, 否则automake执行时会报错. automake提供了3中软件等级:foreign, gnu和gnits, 供用户选择. 默认级别是gnu. 在本例中, 使用了foreign等级, 它只检测必须的文件.</li>
+	<li>bin_PROGRAMS定义要产生的执行文件名. 如果要产生多个执行文件, 每个文件名用空格隔开</li>
+	<li>hello_SOURCES 定义"hello"这个可执行程序所需的原始文件. 如果"hello"这个程序是由多个源文件所产生的, 则必须把它所用到的所有源文件都列出来, 并用空格隔开. 如果要定义多个可执行程序, 那么需要对每个可执行程序建立对应的file_SOURCES.</li>
+</ul>
+在这里使用"--add-missiing"选项可以让automake自动添加一些必须的脚本文件.
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>automake --add-missing</strong>
+configure.in:7: installing `./install-sh'
+configure.in:7: installing `./missing'
+Makefile.am: installing `./depcomp'
+wangsheng@pc01:~/work/train/make/automake$ <strong>ls</strong>
+aclocal.m4      autoscan.log  configure     depcomp  install-sh   <strong>Makefile.in</strong>
+autom4te.cache  config.h.in   configure.in  hello.c  Makefile.am  missing</pre>
+<strong>(7)运行configure, 生成Makfefile文件</strong>
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>./configure</strong>
+checking for a BSD-compatible install... /usr/bin/install -c
+checking whether build environment is sane... yes
+checking for a thread-safe mkdir -p... /bin/mkdir -p
+checking for gawk... gawk
+checking whether make sets $(MAKE)... yes
+checking for gcc... gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables...
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether we are using the GNU C compiler... yes
+checking whether gcc accepts -g... yes
+checking for gcc option to accept ISO C89... none needed
+checking for style of include used by make... GNU
+checking dependency style of gcc... gcc3
+configure: creating ./config.status
+config.status: <strong>creating Makefile</strong>
+config.status: creating config.h
+config.status: executing depfiles commands
+wangsheng@pc01:~/work/train/make/automake$ ls
+aclocal.m4      config.h     config.status  depcomp     <strong>Makefile</strong>     missing
+autom4te.cache  config.h.in  configure      hello.c     Makefile.am  stamp-h1
+autoscan.log    config.log   configure.in   install-sh  Makefile.in</pre>
+autotools生成Makefile流程图如下:
+
+<a href="/wpfiles/2010/04/autotools_process.png"><img class="aligncenter size-medium wp-image-955" title="autotools_process" src="/wpfiles/2010/04/autotools_process-300x163.png" alt="autotools生成Makefile的流程" width="300" height="163" /></a>
+<h2>使用由autotools生成的Makefile</h2>
+autotools生成的Makefile具有以下主要功能:
+<strong>(1) make</strong>
+
+编译源程序, 键入make, 默认执行"make all"命令
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>make</strong>
+make  all-am
+make[1]: Entering directory `/home/wangsheng/work/train/make/automake'
+gcc -DHAVE_CONFIG_H -I.     -g -O2 -MT hello.o -MD -MP -MF .deps/hello.Tpo -c -o hello.o hello.c
+mv -f .deps/hello.Tpo .deps/hello.Po
+gcc  -g -O2   -o hello hello.o
+make[1]: Leaving directory `/home/wangsheng/work/train/make/automake'</pre>
+此时在本目录下就生成了可执行文件"hello", 运行"./hello"就能看到程序的执行结果:
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>./hello</strong>
+Hello, autotools!</pre>
+<strong>(2) make install</strong>
+执行该命令, 可以把程序安装到系统目录中
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>sudo make install</strong></pre>
+此时, 直接在console输入hello, 就可以看到程序的运行结果
+
+<strong>(3) make clean</strong>
+清除之前所编译的可执行文件及目标文件
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>make clean</strong>
+test -z "hello" || rm -f hello
+rm -f *.o</pre>
+<strong>(4) make dist</strong>
+将程序和相关的文档打包为一个压缩文档以供发布
+<pre>wangsheng@pc01:~/work/train/make/automake$ <strong>make dist</strong>
+wangsheng@pc01:~/work/train/make/automake$ <strong>ls -l hello-1.0.tar.gz</strong>
+hello-1.0.tar.gz</pre>
+可见该命令生成了一个hello-1.0.tar.gz的压缩文档.

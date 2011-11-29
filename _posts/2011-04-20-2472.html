@@ -1,0 +1,36 @@
+---
+layout: post
+title: "apt-cacher-ng: 万能软件包代理"
+---
+
+在 《Git权威指南》一书中，我在介绍 Cygwin 安装时，提到了如果整个团队在使用 Cygwin，最好架设一个代理服务器，这个代理服务器就好像一个本地软件包镜像，区别在于这个软件包镜像不是上游镜像的完整克隆，而是按需镜像。即第一次安装某个软件包时，代理服务器到上游获取然后缓存并发送给请求者，当再有用户请求同样的软件包时，直接从缓存中提取。架设这样的代理服务器，只需安装和配置 apt-cacher-ng 软件即可。
+
+Apt-cacher-ng 本身就是一个 HTTP 协议代理，但是和其他 HTTP 代理服务器的区别在于：
+<ul>
+	<li>能够“识别”出从不同站点（源）请求下载的软件包是否是同一个软件包，即源的合并功能。</li>
+	<li>支持请求重定向。即可以不直接从客户请求的地址下载，而是重定向到预先设定的可能更快的镜像进行下载。</li>
+</ul>
+Apt-cacher-ng 本来是服务于 Debian 和 Ubuntu，但是其通用性的设计，同样可以作为 Fedora, CentOS, Cygwin 等软件包代理。核心配置就是 Repomap 指令。
+<pre>Remap-<em>RepositoryName</em>: <em>MergingURLs</em> ; <em>TargetURLs</em></pre>
+其中：
+<ul>
+	<li>RepositoryName 是本地的软件包镜像库（目录）的名称，该名称一旦确定不要变更。例如针对不同的系统软件包镜像，写为：debian, ubuntu, centos, 或 cygwin。</li>
+	<li>MergingURLs 是用空格分割的 URL 地址或者匹配 URL 的字符串。当请求的软件包地址和这些地址匹配后，就认为是针对 RepositoryName 软件包镜像库的请求。</li>
+	<li>分号后面的 TargetURLs 也是用空格分割的 URL 地址。TargetURLs 是可选项，如果设置，则对该软件包镜像库的访问重定向由 TargetURLs 指定的地址。</li>
+</ul>
+Cygwin 的 Remap- 的设置：
+<pre>Remap-cygwin: file:cygwin_mirrors.list /cygwin ; file:backends_cygwin</pre>
+其中 file:cygwin_mirrors.list 所指向的文件包含所有 Cygwin 镜像（HTTP协议）地址，每个一行，这样就不至于让 Remap-cygwin 指令太长。该文件包含的地址有：
+<pre>http://cygwinmirror.3gforphones.com/
+http://cygwin.matway.net/
+http://ftp.inf.tu-dresden.de/software/windows/cygwin32/
+http://ftp.iitm.ac.in/cygwin/
+...</pre>
+其中有的镜像是放在网站的 /cygwin/ 地址下，但也有地址是直接放在根下或者其他目录下。
+
+文件 backends_cygwin 则设置为国内的 Cygwin 镜像。内容如下：
+<pre>http://mirrors.163.com/cygwin/</pre>
+配置 Apt-cacher-ng 作为 CentOS 软件包镜像和 Cygwin 类似，但需要多做一些工作。缺省的 apt-cacher-ng 只对特定的文件进行代理，包括 .deb, .rpm 文件，以及 Index, Packages.bz2, Release 等软件包索引文件等，而 CentOS 特有的软件包索引文件没有列在其中。
+
+修改 /etc/apt-cacher-ng/acng.conf 配置文件，将 CentOS 的索引文件添加其中，下面示例中加粗内容即是为支持 CentOS 而新增内容：
+<pre>VfilePattern = (^|.*?/)(Index|Packages\.bz2|Packages\.gz|Packages|Release|Release\.gpg|Sources\.bz2|Sources\.gz|Sources|release|index\.db-.*\.gz|Contents-[^/]*\.gz|pkglist[^/]*\.bz2|rclist[^/]*\.bz2|/meta-release[^/]*|Translation[^/]*\.bz2<strong>|repodata/.*|mirrorlist\?.*</strong>)$</pre>

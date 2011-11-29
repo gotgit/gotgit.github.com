@@ -1,0 +1,227 @@
+---
+layout: post
+title: "Python的易混地带"
+---
+
+<strong>每门编程语言都有易混淆的部分，下面列举出一些Python的易混淆知识点。</strong>
+<span id="more-665"></span>
+<ol>
+	<li><strong>＝＝ 和 is 的区别</strong>
+在Python中,"==" 操作符测试值的相等性； "is"表达式测试对象的一致性，即是否指向同一个对象。
+<pre>list1 = [1,('a',3)]
+list2 = [1,('a',3)]
+list1 == list2, list1 is list2   #(True,False)</pre>
+说明：list1和list2通过了"=="测试 (他们的值相等，因为它们的所有内容都是相等的)，但是is测试却失败了(它们是两个不同的对象，因此有不同的内存区域
+<pre>s1="spam"
+s2="spam"
+s1 == s2,s1 is s2    #(True,True)</pre>
+说明：或许你会惊讶，觉得这组得到的结果应该和上组得到的结果一致。事实上，内存中只有一个字符串'spam'供s1和s2共享。这个主要是因为在Python内部会暂时存储并重复使用短字符串。也就是说当创建短字符串的时候会首先到字符串的内存区域查找是否已经有该字符串相等的值存在，如果有则会指向该内存区域，否则重新开辟内存。
+<pre>s1='a b'
+s2='a b'
+s1 == s2,s1 is s2    #(True,False)</pre>
+说明：惊讶再次产生，你或许会质疑这不和上组的一样嘛，为啥结果不一样了？ :-? 其实上组的说明部分已经说了，Python只是暂时存储短字符串，像这样中间有空格的字符串和较长的字符串，Python是不会存储的。也就是说，像这样的字符串创建时，Python会直接开辟内存</li>
+	<li><strong>Python中的作用域</strong>
+Python 中，一个变量的作用域总是由在代码中被赋值的地方所决定的。
+<ul>
+	<li>函数定义了本地作用域，而模块定义的是全局作用域。
+如果想要在函数内定义全局作用域，需要加上global修饰符。</li>
+	<li>变量名解析：LEGB原则
+当在函数中使用未认证的变量名时，Python搜索４个作用域[本地作用域(L)，之后是上一层结构中def或者lambda的本地作用域(E),
+之后是全局作用域(G)，最后是内置作用域(B)］并且在第一处能够找到这个变量名的地方停下来。如果变量名在整个的搜索过程中
+都没有找到，Python就会报错。
+<strong>补：上面的变量规则只适用于简单对象，当出现引用对象的属性时，则有另一套搜索规则:属性引用搜索一个或多个对象，而不是作用域，并且有可能涉及到所谓的"继承"</strong></li>
+	<li>访问全局变量演示
+<pre># thismod.py
+var = 99
+
+def local():
+var = 0
+
+def glob1():
+global var
+var += 1
+
+def glob2():
+var = 0
+import thismod
+thismod.var += 1
+
+def glob3():
+var = 0
+import sys
+glob = sys.modules['thismod']
+glob.var += 1
+
+def test():
+print var
+local();glob1();glob2();glob3();
+print var</pre>
+使用交互式测试该程序
+<pre>&gt;&gt;&gt;import thismod
+&gt;&gt;&gt;thismod.test()
+99
+102</pre>
+</li>
+	<li>嵌套作用域演示
+<pre>def f1():
+x = 88
+def f2():
+print x
+f2()
+f1()    # 88</pre>
+</li>
+	<li>作用域与带有循环变量的默认参数相比较
+不指定默认值的情况
+<pre>&gt;&gt;&gt;def makeActions():
+...  acts = []
+...  for i in range(5):
+...    acts.append(lambda x: i ** x)
+...  return acts
+...
+&gt;&gt;&gt;acts = makeActions()
+&gt;&gt;&gt;acts[0]
+&lt;function &lt;lambda&gt; at 0x7f86aaf4c758&gt;
+&gt;&gt;&gt; acts[0](2)
+16
+&gt;&gt;&gt; acts[2](2)
+16
+&gt;&gt;&gt; acts[4](2)
+16</pre>
+指定默认值的情况：
+<pre>&gt;&gt;&gt; def makeActions():
+...   acts = []
+...   for i in range(5):
+...     acts.append(lambda x, i=i: i ** x)
+...   return acts
+...
+&gt;&gt;&gt; acts = makeActions()
+&gt;&gt;&gt; acts[0](2)
+0
+&gt;&gt;&gt; acts[2](2)
+4
+&gt;&gt;&gt; acts[4](2)
+16</pre>
+<strong>疑答：嵌套作用域中的变量在嵌套的函数被调用时才进行查找，所以它们实际上记住的是同样的值(在最后一次循环迭代中循环变量的值)。指定默认值可记住每一个循环变量的值。</strong></li>
+</ul>
+</li>
+	<li><strong>import与reload的区别</strong>
+<ul>
+	<li>import 只导入一次，而reload可以在不中止Python程序的情况下，多次载入
+<pre>---- 编写一个模块文件changer.py ----
+message = "first version"
+
+def printer():
+print message
+------- the end --------
+
+&gt;&gt;&gt; import changer
+&gt;&gt;&gt; changer.printer()
+first version
+
+不要关掉解释器，现在在另一个窗口编辑该模块文件
+message = "After version"
+
+def printer():
+print 'reloaded:',message
+
+然后回到交互模式
+&gt;&gt;&gt; import changer
+&gt;&gt;&gt; changer.printer()
+first version
+&gt;&gt;&gt; reload(changer)
+&lt;module 'changer' from 'changer.py'&gt;
+&gt;&gt;&gt; changer.printer()
+reloaded: After version</pre>
+</li>
+	<li>reload没有传递性：reload加载模块时只重新加载该模块，而不会加载该模块import的其他模块</li>
+</ul>
+</li>
+	<li><strong>经典类与新式类的区别</strong>
+在Python 2.2中，引入一种新的类，称为"新式"类，之前提到的类则称为"经典"类。新式类在语法和行为上，几乎完全和经典类兼容。他们主要的差异在于新式类从内置类型创建子类。如果没有恰当的内置类型可用，新的内置名称object就可以作为新式类的超类。
+<ul>
+	<li>经典类继承搜索程序是绝对深度优先
+<pre>经典类: 搜索顺序是(D,B,A,C)
+&gt;&gt;&gt; class A: attr = 1
+...
+&gt;&gt;&gt; class B(A): pass
+...
+&gt;&gt;&gt; class C(A): attr = 2
+...
+&gt;&gt;&gt; class D(B,C): pass
+...
+&gt;&gt;&gt; x = D()
+&gt;&gt;&gt; x.attr
+1</pre>
+</li>
+	<li>新式类继承搜索程序是宽度优先
+<pre>新式类：搜索顺序是(D,B,C,A)
+&gt;&gt;&gt; class A(object): attr = 1
+...
+&gt;&gt;&gt; class B(A): pass
+...
+&gt;&gt;&gt; class C(A): attr = 2
+...
+&gt;&gt;&gt; class D(B,C): pass
+...
+&gt;&gt;&gt; x = D()
+&gt;&gt;&gt; x.attr
+2</pre>
+</li>
+</ul>
+</li>
+	<li><strong>类变量与实例变量的区别
+</strong>当类为self属性赋值时，会填入实例对象。即，属性最后会位于实例的属性命名空间字典内，而不是类的。实例对象的命名空间保存了数据，会随实例的不同而不同，而self正是进入其命名空间的钩子。
+<pre>&gt;&gt;&gt; class person:
+...     def name(self, name):
+...         self.name = name
+...
+&gt;&gt;&gt; person.__dict__
+{'__module__': '__main__', 'name': &lt;function name at 0x7f28e96a1cf8&gt;, '__doc__': None}
+&gt;&gt;&gt; p1 = person()
+&gt;&gt;&gt; p1.__dict__
+{}
+&gt;&gt;&gt; p1.name('zhangsan')
+&gt;&gt;&gt; p1.__dict__
+{'name': 'zhangsan'}
+&gt;&gt;&gt; p2 = person()
+&gt;&gt;&gt; p2.__dict__
+{}
+&gt;&gt;&gt; p2.name('lisi')
+&gt;&gt;&gt; p2.__dict__
+{'name': 'lisi'}
+&gt;&gt;&gt; person.__dict__
+{'__module__': '__main__', 'name': &lt;function name at 0x7f28e96a1cf8&gt;, '__doc__': None}</pre>
+</li>
+	<li><strong>静态方法、类方法以及实例方法的区别
+</strong>在Python 2.2中，在类中定义方法是可能的，不需要实例就能够调用它：静态方法的运作差不多就像类中的简单无实例函数，而类方法传递的是类而不是实例。名为staticmethod和classmethod的特定的内置函数，必须在类中调用，才能使这些方法模式有效。虽然这个功能是伴随新式类增加的，但静态和类方法也能用于经典类。
+<strong>定义方式，传入的参数，调用方式都不相同。</strong>
+<ul>
+	<li>staticmethod 不需要传入self和cls对象，只有一般的参数。可以通过实例或类对象进行调用。</li>
+	<li>classmethod需要传入cls对象，可以通过实例和类对象进行调用。</li>
+	<li>实例method需要传入self实例对象，可以通过实例对象调用，用类调用时需要额外传入 实例对象。</li>
+</ul>
+<pre>&gt;&gt;&gt; class Multi:
+...   def imeth(self, x):
+...     print self, x
+...   def smeth(x):
+...     print x
+...   def cmeth(cls, x):
+...     print cls, x
+...   smeth = staticmethod(smeth)   #make smeth a static method
+...   cmeth = classmethod(cmeth)    #make cmeth a class method
+...
+&gt;&gt;&gt; obj = Multi()
+&gt;&gt;&gt; obj.imeth(1)       #Normal call, through instance
+&lt;__main__.Multi instance at 0x7fc537cc6170&gt; 1
+&gt;&gt;&gt; Multi.imeth(obj,2)   #Normal call, through class
+&lt;__main__.Multi instance at 0x7fc537cc6170&gt; 2
+&gt;&gt;&gt; Multi.smeth(3)    #Static call, through class
+3
+&gt;&gt;&gt; obj.smeth(4)      #Static call, through instance
+4
+&gt;&gt;&gt; Multi.cmeth(5)    #Class call, through class
+__main__.Multi 5
+&gt;&gt;&gt; obj.cmeth(6)      #Class call, through instance
+__main__.Multi 6</pre>
+<strong>注: Python自动把类（而不是实例）传入类方法第一个（最左侧）参数中。</strong></li>
+</ol>

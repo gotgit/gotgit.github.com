@@ -1,0 +1,34 @@
+---
+layout: post
+title: "群英汇 Mailman 人性化设计(1): 列表一览页增加登录和已订阅列表加亮"
+---
+
+群英汇为 Mailman 增加了独创的认证插件，从根本上改变了 Mailman 原有的基于简单 COOKIE 加口令的认证方式。为普通用户和管理员使用邮件列表提供了更为人性化的设计。
+
+首先，我们介绍一下在 listinfo 页面，就是 列表一览 页面的改进。
+<h2><span id="more-1129"></span>列表一览页中的登录链接</h2>
+Mailman 本身缺乏用户身份认证机制，在 listinfo 页面上根本不存在用户登录的概念。参照：<a href="http://mail.python.org/mailman/listinfo/">Mailnan 项目本身的 listinfo 页面</a>。
+
+在 <a href="http://list.ossxp.com/mailman/listinfo">群英汇 邮件列表的listinfo 页面</a>中，提供了一个登录的链接。对于使用过并且熟悉 Mailman 的人来说，会觉得不可思议。因为在 Mailman 传统概念中，根本就没有用户的概念，有的只是一个一个订阅的邮件地址。
+
+<a href="/wpfiles/2010/05/listinfo.png"><img class="aligncenter size-medium wp-image-1181" title="listinfo" src="/wpfiles/2010/05/listinfo-300x232.png" alt="" width="300" height="232" /></a>
+
+那么如果点击登录后，会有什么反应呢？
+<ul>
+	<li>首先跳转到单点登录页面。例如： https://weblogin.ossxp.com/</li>
+	<li>登录成功后，会跳转回到 listinfo 页面</li>
+</ul>
+<h2>登录后的列表一览页面</h2>
+这就是登录后的截图：
+
+<a href="/wpfiles/2010/05/listinfo-login.png"><img class="aligncenter size-medium wp-image-1182" title="listinfo-login" src="/wpfiles/2010/05/listinfo-login-300x232.png" alt="" width="300" height="232" /></a>
+
+可以看出：
+<ul>
+	<li>你的大名在第一行的欢迎信息中出现了</li>
+	<li>列表一览的表格中，列表名称有的加亮显示（并在结尾用星号标识），有的斜体显示</li>
+	<li>加亮显示（并用星号标识）的列表是登录用户已经订阅的列表</li>
+	<li>斜体显示的列表是登录用户尚未订阅的列表</li>
+	<li>登录后显示的列表数目比登录前增加了，这是因为用户订阅了非公开列表。订阅的非公开列表在登录后，显示在了 listinfo 页面。</li>
+</ul>
+下一个博文，我们看看“管理员认证的变化和管理员面板的变化”。

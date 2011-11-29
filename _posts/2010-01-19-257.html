@@ -1,0 +1,24 @@
+---
+layout: post
+title: "群英汇 TopGit 改进 (3): 更灵活的 tg patch"
+---
+
+命令 <em><span style="text-decoration: underline;">tg patch</span></em> 命令，就类似 Hg/MQ 的 <em><span style="text-decoration: underline;">hg qdiff </span></em>命令，用于查看当前特性分支所有改动。
+
+这个命令很常用，但是很快就发现这个命令的一个问题：即只能在代码库的根下执行，在任何子目录中执行 tg patch，显示的结果为空！有好几次都因为这个问题被骗了。这是什么原因呢？
+
+<span id="more-257"></span>
+<h2>用 tg patch 查看补丁，可以运行在任意目录下</h2>
+命令 tg patch，是在 Topgit 的代码 tg-patch.sh 中完成的。经过分析代码（shell脚本）很快就定位到问题所在，只要在执行特定的命令前，切换到版本库的根目录就可以了。可是如何判断当前路径和版本库根路径的关系呢？答案就在：
+<pre>git rev-parse --show-cdup</pre>
+这条命令返回的是要从版本库工作区的某个目录，返回到版本库根路径要经过的路径。
+<ul>
+	<li><span style="background-color: #ffffff;">可能是空 —— 当前就是根</span></li>
+	<li><span style="background-color: #ffffff;">可能是 ../  —— 在版本库的一级子目录中</span></li>
+	<li><span style="background-color: #ffffff;">可能是 ../../ —— 在版本库的二级子目录中</span></li>
+	<li><span style="background-color: #ffffff;">依次类推</span></li>
+</ul>
+于是很简单的，我们的改进就诞生了。诞生在 群英汇 Topgit 改进的 tg_patch_cdup 分支中，参见：
+<ul>
+	<li><a href="http://github.com/ossxp-com/topgit/blob/t/tg_patch_cdup/tg-patch.sh">http://github.com/ossxp-com/topgit/blob/t/tg_patch_cdup/tg-patch.sh</a></li>
+</ul>

@@ -1,0 +1,58 @@
+---
+layout: post
+title: "TSE 表情插件的改进：错误表情替换的解决方案"
+---
+
+TSE 插件全称：<a href="http://wordpress.org/extend/plugins/tango-smileys-extended/">Tango Smileys Extended</a>，是为 WordPress 提供表情扩展的一个插件。可以提供在博客编辑／评论编辑时通过点击插入表情（CTI）功能，并且将可用表情由内置的18个增加到202个。
+<h2>错误的TSE表情扩展</h2>
+这个插件在表情扩展时，会引起副作用，例如在王胜刚刚创建的<a href="/2010/01/09/93.html">Rails多语言支持</a>的博文中，就遇到问题。
+
+将
+<pre>:onchange =&gt; 'this.form.submit()' %&gt;</pre>
+扩展为
+<pre>:o nchange =&gt; 'this.form.submit()' %&gt;</pre>
+难道要因此禁用这个好用的插件？如果是商业软件可能只能如此，但是WP是<a href="http://www.ossxp.com/HelpCenter/00000_OSSXP/AboutUs_Slide/1010%20%E5%BC%80%E6%BA%90%E5%B0%8F%E7%A4%BC%E7%89%A9">开源软件</a>，TSE插件也是<a href="http://www.ossxp.com/HelpCenter/00000_OSSXP/AboutUs_Slide/1010%20%E5%BC%80%E6%BA%90%E5%B0%8F%E7%A4%BC%E7%89%A9">开源</a>的，为什么不自己解决呢？
+
+<span id="more-125"></span>
+<h2>开源软件，让我们有机会完善它</h2>
+最终定位在TSE代码 “tse-magic.php" 中，相关代码
+<pre>10 // Function to swap smiley shorthand with the actual smiley images
+11 function tse_switcher( $tse_content ) {
+13   $tse_smileys = get_tse_smileys();
+17     $tse_smiley_match[] = "#{$tse_smileys[$i][0]}#i";
+25       $tse_content_split = preg_replace( $tse_smiley_match, $tse_img_full, $tse_content_split );</pre>
+问题就处在上面代码的第17行。$tse_smiley_match[] 数组中保存的就是各个表情符号的匹配正则表达式，如果能够正确修改这个表达式，就能够避免错误的表情替换。
+
+一开始直接在正则表达式的两边加上 \b 以匹配单词边界，但是居然没有起到作用！！！
+修改如下：
+<pre>17     $tse_smiley_match[] = "#\b{$tse_smileys[$i][0]}\b#i";</pre>
+难道是 PHP 的正则表达式不支持 \b 作为单词边界判断？要是PHP有像是Python或者Ruby的调试SHELL就好了，还是用老土的办法，在脚本中用 var_dump来看看情况。
+<h2>最终的解决方案</h2>
+最终发现，要在不同的情况选择\b（单词边界）或者\B（非单词边界）。如果匹配的字串本身是字母或者数字，则使用\b来匹配单词边界，但是如果匹配字串本身就是符号则用\b就错了，而应该使用\B。
+
+下面是群英汇对 TSE 插件的代码补丁：
+<pre>$ <strong>git show 895ba1706e40be6fc11d9dc2b79f4620e8a7644d</strong>
+
+commit 895ba1706e40be6fc11d9dc2b79f4620e8a7644d
+Author: Jiang Xin &lt;jiangxin@ossxp.com&gt;
+Date:   Sat Jan 9 18:18:12 2010 +0800
+
+ bugfix: smileys match bondary.
+
+diff --git a/tango-smileys-extended/tse-magic.php b/tango-smileys-extended/tse-magic.php
+index e011c57..d190aee 100644
+--- a/tango-smileys-extended/tse-magic.php
++++ b/tango-smileys-extended/tse-magic.php
+@@ -14,7 +14,11 @@ function tse_switcher( $tse_content ) {
+ $tse_settings = get_option( 'tango_smileys_extended' );
+ $tse_smileypx = ( $tse_settings['smileysize'] == '24' ) ? '24' : '';
+ for ( $i = 0; $i &lt; sizeof( $tse_smileys ); $i++ ) {
+-               $tse_smiley_match[] = "#{$tse_smileys[$i][0]}#i";
++               $tse_smiley_match[] = "#".
++                                     ( ctype_alnum($tse_smileys[$i][0]{0})? "\b" : "\B" ).
++                                     $tse_smileys[$i][0].
++                                     ( ctype_alnum($tse_smileys[$i][0]{strlen($tse_smileys[$i][0])-1})? "\b" : "\B" ).
++                                     "#i";
+ $currentsmiley = plugins_url( "/tango{$tse_smileypx}/{$tse_smileys[$i][1]}", __FILE__ );
+ $tse_img_full[] = "&lt;img src='{$currentsmiley}' alt='{$tse_smileys[$i][2]}' title='{$tse_smileys[$i][2]}' class='tse-smiley' /&gt;";
+ }</pre>

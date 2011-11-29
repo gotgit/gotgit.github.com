@@ -1,0 +1,170 @@
+---
+layout: post
+title: "版本库转换：hg->git->svn->git"
+---
+
+有一些在客户现场定制的软件，要把这些零散的工具软件合并到一个 Git库中—— utils 库。如：
+<ul>
+	<li>一个名为 ldap_import 的工具，是在客户现场完成的，使用 hg 做版本控制，包含16次提交。</li>
+	<li>目录结构为：
+<pre style="overflow: auto; white-space: pre;">~/test/ldap_import-hg$ <strong>ls -aF</strong>
+./  ../  .hg/  .hgignore  Makefile   sendmail.py*  test/  test.py*  to_ldif.py*</pre>
+</li>
+	<li>需要导入到一个git库下，但是代码要放在一个目录 ldap_import 下，而不是版本库的根目录。</li>
+</ul>
+整个转换过程涉及到使用 fast-export 完成 hg 到 git 的转换；使用git-svn 实现git库向svn的转换；使用 svnadmin dump/load, svndumpfilter 对版本库目录结构进行整理，最后使用git-svn将版本库转换为 git，在合并到统一的 utils Git库中。
+
+<hr /><strong>补充说明</strong>：实际上Git本身可实现路径重构，而无需本文介绍的繁复的版本库转换。
+例如：Git的子树合并可以将一个项目的根目录转换为子目录，使用 git filter-branch 可以将子目录提升为根目录等等。
+
+<hr />
+<span id="more-74"></span>
+<h2>Hg版本库迁移到Git版本库</h2>
+<span style="text-decoration: underline;">使用 fast-export 可以很容易的实现 Hg 版本库迁移为Git版本库。</span>
+
+<span style="text-decoration: underline;">fast-export 工具可以从 <a href="http://repo.or.cz/w/fast-export.git">http://repo.or.cz/w/fast-export.git</a> 获取到。</span>
+
+<span style="text-decoration: underline;">转换过程：</span>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test/ldap_import-hg$ <strong>hg tip</strong>
+修改集:      15:81f8055fafc0
+标签:        tip
+用户:        Jiang Xin &lt;worldhello.net AT gmail DOT com&gt;
+日期:        Thu Oct 22 16:31:03 2009 +0800
+摘要:        to address is a list; and strip header works if not blank line.
+
+~/test/ldap_import-hg$ <strong>mkdir ../ldap_import-git</strong>
+~/test/ldap_import-hg$ <strong>cd ../ldap_import-git</strong>
+
+~/test/ldap_import-git$ <strong>git init</strong>
+Initialized empty Git repository in /home/jiangxin/test/ldap_import-git/.git/
+
+~/test/ldap_import-git$ <strong>/path-to/hg-fast-export.sh  -r ../ldap_import-hg</strong>
+master: Exporting full revision 1/16 with 1/0/0 added/changed/removed files
+...
+
+~/test/ldap_import-git$ <strong>git reset HEAD</strong>
+Unstaged changes after reset:
+...
+
+~/test/ldap_import-git$ <strong>git co .</strong></pre>
+<h2>Git版本库转换为Subversion版本库</h2>
+<span style="text-decoration: underline;">先创建一个空的Subversion版本库，并初始化一个空目录 trunk</span>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test/ldap_import-git$ <strong>svnadmin create ../ldap_import-svn</strong>
+
+~/test/ldap_import-git$ <strong>svn mkdir -m "create blank /trunk directory." file:///home/jiangxin/test/ldap_import-svn/trunk</strong>
+
+提交后的版本为 1。</pre>
+<span style="text-decoration: underline;">使用 git-svn 将 svn 版本库同步到git版本库中，建立svn库和git库的关联：</span>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test/ldap_import-git$ <strong>git svn init -s file:///home/jiangxin/test/ldap_import-svn</strong>
+
+~/test/ldap_import-git$ <strong>git svn fetch</strong>
+r1 = 3370bbdb09c6d745feb3841eebae9870693fa942 (refs/remotes/trunk)
+
+~/test/ldap_import-git$ <strong>git br -r</strong>
+trunk
+
+~/test/ldap_import-git$ <strong>git co -b trunk remotes/trunk</strong>
+Switched to a new branch 'trunk'
+
+~/test/ldap_import-git$ <strong>git br</strong>
+master
+* trunk
+
+~/test/ldap_import-git$ <strong>git log master</strong>
+commit 858b83413734b9f68b3e62ce3bcbc51e36cb7c60
+Author: Jiang Xin &lt;worldhello.net AT gmail DOT com&gt;
+Date:   Thu Oct 22 16:31:03 2009 +0800
+to address is a list; and strip header works if not blank line.
+...
+...
+...
+commit <strong>1c22bd4</strong>308906b84cc9cd6e5acec1efb76390c85
+Author: Jiang Xin &lt;worldhello.net AT gmail DOT com&gt;
+Date:   Wed Oct 21 23:22:47 2009 +0800
+initial</pre>
+<span style="text-decoration: underline;">使用 git rebase 和 git svn dcommit 将 ldap_import 的历史代码提交到 svn 版本库中</span>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test/ldap_import-git$ <strong>git cherry-pick 1c22bd4</strong>
+Finished one cherry-pick.
+[trunk fb18935] initial
+1 files changed, 3 insertions(+), 0 deletions(-)
+create mode 100755 src.txt
+
+~/test/ldap_import-git$ <strong>git rebase --onto trunk 1c22bd4 master</strong>
+warning: refname 'trunk' is ambiguous.
+First, rewinding head to replay your work on top of it...
+Applying: test class User.
+...
+Applying: to address is a list; and strip header works if not blank line.
+
+~/test/ldap_import-git$ <strong>git br</strong>
+* master
+trunk
+
+~/test/ldap_import-git$ <strong>git co trunk</strong>
+warning: refname 'trunk' is ambiguous.
+Switched to branch 'trunk'
+
+~/test/ldap_import-git$ <strong>git reset --hard master</strong>
+HEAD is now at b597b25 to address is a list; and strip header works if not blank line.
+
+~/test/ldap_import-git$ <strong>git svn dcommit</strong>
+Committing to file:///home/jiangxin/test/ldap_import-svn/trunk ...
+...
+r17 = f641e4f6fe6c01d4a92197034e7622181cf043cb (refs/remotes/trunk)
+No changes between current HEAD and refs/remotes/trunk
+Resetting to the latest refs/remotes/trunk</pre>
+<h2>Subversion版本库的重构</h2>
+<span style="text-decoration: underline;">导出Subversion代码库到文件 dump.txt</span>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test$ <strong>svnadmin dump ldap_import-svn &gt; dump.txt</strong>
+* 已转存版本 0。
+...
+* 已转存版本 17。</pre>
+<span style="text-decoration: underline;">在导出文件中，修改文件的路径</span>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test$ <strong>sed -e "s@^\(Node-path: trunk\)@\1/ldap_import@" \</strong>
+&gt;     <strong>-e  "s@^\(Node-copyfrom-path: trunk\)@\1/ldap_import@"  \</strong>
+&gt;     <strong>dump.txt &gt; dump.txt.new</strong></pre>
+<span style="text-decoration: underline;">创建新的版本库，从修改后的导出文件创建</span>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test$ <strong>svnadmin create ldap_import-svn2</strong>
+
+~/test$ <strong>svn mkdir -m "create blank /trunk directory." file:///home/jiangxin/test/ldap_import-svn2/trunk</strong>
+提交后的版本为 1。
+
+~/test$ <strong>svnadmin load ldap_import-svn2 &lt; dump.txt.new</strong>
+...
+&lt;&lt;&lt; 开始新的事务，基于原始版本 17
+ * 正在修改路径: trunk/ldap_import/to_ldif.py ...完成。
+------- 提交新版本 18 (从原始版本 17 装载) &gt;&gt;&gt;
+
+~/test$ <strong>svn ls file:///home/jiangxin/test/ldap_import-svn2/trunk/ldap_import</strong>
+.hgignore
+Makefile
+sendmail.py
+test/
+test.py
+to_ldif.py</pre>
+<h2>Subversion版本库转换为Git版本库</h2>
+同样通过 git-svn 实现将整理后的 Subversion 代码库转换为一个 git 代码库
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test$ <strong>git init ldap_import-git2</strong>
+Initialized empty Git repository in /home/jiangxin/test/ldap_import-git2/.git/
+
+~/test$ <strong>cd ldap_import-git2</strong>
+
+~/test/ldap_import-git2$ <strong>git svn init -s file:///home/jiangxin/test/ldap_import-svn2</strong>
+
+~/test/ldap_import-git2$ <strong>git svn fetch</strong>
+r1 = 99d6dbf1d9f591e9be8fc1db27579305a53f4420 (refs/remotes/trunk)
+...
+r18 = 78b2723e697981316857f5f2727c9306b1dda255 (refs/remotes/trunk)
+Checked out HEAD:
+ file:///home/jiangxin/test/ldap_import-svn2/trunk r18
+
+~/test/ldap_import-git2$ <strong>git br -r</strong>
+ trunk
+
+~/test/ldap_import-git2$ <strong>git co -b trunk remotes/trunk</strong>
+Switched to a new branch 'trunk'
+
+~/test/ldap_import-git2$ <strong>ls</strong>
+ldap_import</pre>
+<h2>ldap_import项目合并到utils Git版本库</h2>
+<pre style="padding-left: 30px; overflow: auto; white-space: pre;">~/test/utils$ <strong>git pull ../ldap_import-git2</strong></pre>

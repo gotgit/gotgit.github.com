@@ -1,0 +1,57 @@
+---
+layout: post
+title: "Debian/Linux下Redmine的安装步骤"
+---
+
+前提条件是：你的机器上已经安装了 ruby , rake, rails 和 mysql数据库。
+至于ruby和rails的版本对应情况可以参考：<a href="http://www.redmine.org/wiki/redmine/RedmineInstall" target="_blank">http://www.redmine.org/wiki/redmine/RedmineInstall</a>
+
+<span id="more-766"></span>
+<ol>
+	<li><strong>下载安装包 redmine-x.x.x.tar.gz
+</strong>下载地址：<a href="http://rubyforge.org/frs/?group_id=1850" target="_blank">http://rubyforge.org/frs/?group_id=1850</a></li>
+	<li><strong>解压并进入解压后目录
+</strong>
+<pre>tar -zxvf redmine.x.x.x.tar.gz
+cd redmine-x.x.x</pre>
+</li>
+	<li><strong>创建数据库
+</strong>
+<pre>mysql&gt; create database redmine;
+mysql&gt; create user 'redmine'@'localhost' identified by 'redmine';
+mysql&gt; grant all privileges on redmine.* to 'redmine'@'localhost';</pre>
+</li>
+	<li><strong>配置redmine连接数据库所需的参数
+</strong>
+<pre>redmine-x.x.x$ cp config/database.yml.example config/database.yml
+redmine-x.x.x$ vi config/database.yml
+production:
+  adapter: mysql
+  database: <strong>redmine</strong>
+  host: localhost
+  username: <strong>redmine</strong>
+  password: <strong>redmine</strong>
+  encoding: utf8</pre>
+说明：粗体部分是修改的内容</li>
+	<li><strong>创建一个session安装密钥
+</strong>运行下面的命令：
+<pre>redmine-x.x.x$ rake config/initializers/session_store.rb</pre>
+</li>
+	<li><strong>执行数据迁移
+</strong>
+<pre>redmine-x.x.x$ rake db:migrate RAILS_ENV='production'</pre>
+说明：如果出现异常：
+The bundled mysql.rb dirver has been removed from Rails 2.2 install the mysql gem and try again: gem install mysql
+而且执行 gem install mysql 后仍然出现以下异常：
+ERROR: Error installing mysql:
+ERROR: Failed to build gem native extension.
+则执行如下命令：
+sudo apt-get install ruby1.8-dev
+sudo apt-get install libmysqlclient15-dev
+然后再执行 gem install mysql 就OK了<span id="__end"><strong>
+</strong></span></li>
+	<li><strong>启动服务，查看 redmine 应用</strong>
+<pre>redmine-x.x.x$ ruby script/server -e production</pre>
+打开浏览器输入 http://localhost:3000    就可以看到redmine的首页了</li>
+</ol>
+如果你用的操作系统是Windows， 可参见 <a href="/2010/04/20/1066.html">Windows下Redmine-0.9.x的安装</a>

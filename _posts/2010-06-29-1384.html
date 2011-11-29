@@ -1,0 +1,162 @@
+---
+layout: post
+title: "LDAP 作为 FTP 认证源"
+---
+
+有很多用户都提出把 LDAP 和内部的 FTP 服务器整合的需求。好吧，就说一说三个主要的 FTP 服务器：vsftpd, Pure-FTPd 和 ProFTPD 和 LDAP 的整合。
+<h2><span id="more-1384"></span>FTP服务器选型</h2>
+vsftpd 本身并不支持 LDAP 认证，而是通过 PAM 认证提供和 LDAP 的整合。PAM？如果搞砸了，Linux 登录都会出现困难，还是不要这么干吧。所以首先将 vsftpd 排除。
+
+Pure-FTPd 本身支持 LDAP 认证，在 Debian 中，甚至有 pure-ftpd-ldap 包是专门支持 LDAP 认证的 Pure-FTPd 编译。但是说实话，1.0.24 版本之后，PureFTPd 的 LDAP 支持就没见什么实质的改进，其现有的 LDAP 支持非常之弱。
+<ul>
+	<li>要求 LDAP 的用户帐号必须包含 posixAccount 作为 objectClass</li>
+	<li>也就是说必须在 LDAP 中指定用户的用户ID和组ID（数字形式）</li>
+	<li>必须在 LDAP 中设定用户主目录</li>
+</ul>
+现实中，这并不可行
+<ul>
+	<li>系统帐号和LDAP的用户帐号，在实际应用中，绝对不是一一对应的
+把Linux登录帐号和LDAP对应，没有太大意义，而且容易造成单点故障</li>
+	<li>为了安全计，往往需要将所有登录帐号映射为一个低权限的系统帐号。Pure-FTPd 的LDAP认证不能实现。</li>
+	<li>而且，对 LDAP 中用户帐号强制设定 posixAccount，造成管理负担。</li>
+</ul>
+所以 Pure-FTPd 也被排除。
+<h2>ProFTPD 的 LDAP 配置要点</h2>
+ProFTPD 对 LDAP 的支持相当的完善，几乎堪称完美。而且也不对 LDAP 中的用户帐号有过多的限制。
+
+和 LDAP 整合的关键设置：
+<ul>
+	<li>编辑 /etc/proftpd/proftpd.conf，启用 LDAP 配置文件 /etc/proftpd/ldap.conf 的加载
+<pre>Include /etc/proftpd/ldap.conf
+</pre>
+</li>
+	<li>编辑 /etc/proftpd/modules.conf，启用 LDAP 模组
+<pre>LoadModule mod_ldap.c</pre>
+</li>
+	<li>配置 LDAPServer，注意不要使用 URI 或者域名，直接使用 IP，否则可能连接失败
+<pre>LDAPServer 127.0.0.1</pre>
+</li>
+	<li>如果 LDAP 支持匿名绑定，下面配置中的绑定用户DN和口令设置为空
+<pre>LDAPDNInfo "" ""</pre>
+</li>
+	<li>BaseDN 以及 LDAP 查询的 filter 通过语句 LDAPDoAuth 提供
+<pre>LDAPDoAuth on "dc=moon,dc=ossxp,dc=com" "(&amp;(uid=%u)(authorizedService=ftp)(ossxpConfirmed=TRUE))"</pre>
+</li>
+	<li>使用用户提供的口令和搜索到的用户 DN 绑定 LDAP 服务器，来验证口令
+<pre>LDAPAuthBinds on</pre>
+</li>
+</ul>
+ProFTPD 中和 LDAP 相关的其它重要设置：
+<ul>
+	<li>如果 LDAP 中没有用户ID和组ID，即没有 posixAccount 相关字段，使用缺省值。
+注：下面的用户ID和组ID仅供参考，在我的机器上对应于 ftp:nogroup
+<pre>LDAPDefaultGID 65534
+LDAPDefaultUID 500
+LDAPForceDefaultGID on
+LDAPForceDefaultUID on
+LDAPDoUIDLookups off
+LDAPDoGIDLookups off</pre>
+</li>
+	<li>设置用户的主目录。为了避免和系统用户主目录混淆，设置为 /data/ftp/home 作为 LDAP 用户登录的主目录
+注意：要事先创建 /data/ftp/home 目录，并正确授权，以便 proftpd 服务进程能够在其下创建子目录
+<pre>LDAPGenerateHomedir on
+LDAPGenerateHomedirPrefix /data/ftp/home
+LDAPForceGeneratedHomedir on
+# 在用户主目录下，创建用户个人目录。如果设置为 on，则所有用户共享同一主目录
+LDAPGenerateHomedirPrefixNoUsername off
+# 如果用户主目录不存在，创建它
+CreateHome on</pre>
+</li>
+	<li>允许用户没有合法 shell，也可以登录。因为 LDAP 用户如果没有 posixAccount 扩展，是没有 shell 设置的。而 ProFTPD 的 LDAP 指令集中没有缺省 shell 的设置。还好，可以设置为忽略：
+<pre>RequireValidShell       off</pre>
+</li>
+</ul>
+<h2>LDAP 帐号和系统帐号和平共处</h2>
+合并共处五项原则：
+<ul>
+	<li>LDAP 用户主目录位于 /data/ftp/home/&lt;login&gt; 下，每个用户能读写自己目录，不能写他人目录（可以读？）</li>
+	<li>系统用户主目录位于 /home/&lt;login&gt; 下，只能访问自己目录，不能访问他人目录</li>
+	<li>LDAP 用户的根相当于 /data/ftp，即 chroot 到 /data/ftp</li>
+	<li>系统用户 FTP 登录后，能够访问整个文件系统</li>
+	<li>LDAP 用户登录后，只读访问 /data/ftp/pub，但是系统用户可以向 pub 中写</li>
+</ul>
+要想实现上述五原则，真的要费很多周折。
+<ul>
+	<li>只对 nogroup 用户组用户设置 CHROOT
+<pre>DefaultRoot   /data/ftp   nogroup</pre>
+</li>
+	<li>启用 PAM 认证（缺省启用）
+<pre>PersistentPasswd   on
+</pre>
+</li>
+	<li>设置 /data/ftp 只读权限
+<pre>&lt;Directory /data/ftp&gt;
+ Umask             022  022
+ HideNoAccess on
+ &lt;Limit READ DIRS&gt;
+   AllowAll
+ &lt;/Limit&gt;
+ &lt;Limit WRITE&gt;
+   DenyAll
+ &lt;/Limit&gt;
+&lt;/Directory&gt;</pre>
+</li>
+	<li>设置用户主目录 /data/ftp/home 只读权限
+<pre>&lt;Directory /data/ftp/home&gt;
+ Umask             022  022
+ &lt;Limit READ DIRS&gt;
+   AllowAll
+ &lt;/Limit&gt;
+ &lt;Limit WRITE &gt;
+   DenyAll
+ &lt;/Limit&gt;
+&lt;/Directory&gt;
+</pre>
+</li>
+	<li>设置用户对自己主目录的完全权限
+<pre>&lt;Directory ~&gt;
+ Umask             022  022
+ &lt;Limit WRITE READ DIRS&gt;
+ AllowAll
+ &lt;/Limit&gt;
+&lt;/Directory&gt;
+</pre>
+</li>
+	<li>设置 /data/ftp/pub 目录权限：LDAP 用户只读，系统用户可写
+<pre>&lt;Directory /data/ftp/pub&gt;
+ Umask             002  002
+ &lt;Limit WRITE&gt;
+   DenyGroup nogroup
+   AllowGroup !nogroup
+ &lt;/Limit&gt;
+ &lt;Limit READ DIRS&gt;
+   AllowAll
+ &lt;/Limit&gt;
+&lt;/Directory&gt;
+</pre>
+</li>
+</ul>
+至此，FTP 服务器和 LDAP 整合完毕。
+
+FTP 协议因为明文传输口令，并不安全，架设 FTPS 可以提供更安全的 FTP 服务。关于 ProFTPD 架设 FTPS 的方法和陷阱，参见： <a href="/2010/06/30/1393.html">安全 FTP 协议 FTPS 和防火墙</a>。
+<div id="_mcePaste" style="overflow: hidden; position: absolute; left: -10000px; top: 3020px; width: 1px; height: 1px;">jiangxin@dawning:/etc/proftpd$ pftp localhost
+ftp: connect to address ::1: Connection refused
+Trying 127.0.0.1...
+Connected to localhost.
+220 ProFTPD 1.3.2e Server (RDCPS) [127.0.0.1]
+Name (localhost:jiangxin):
+234 AUTH SSL 成功执行
+[SSL Cipher DHE-RSA-AES256-SHA]
+331 需要为jiangxin提供密码
+Password:
+230 用户jiangxin登录
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp&gt; ls /
+227 Entering Passive Mode (127,0,0,1,244,223).
+150 打开ASCII模式的数据连接为file list
+drwxr-x---   5 proftpd  nogroup      4096 Jun 29 10:52 home
+drwxrwxr-x   2 jiangxin nogroup      4096 Jun 30 01:38 pub
+226 传送完毕
+
+</div>

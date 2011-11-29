@@ -1,0 +1,231 @@
+---
+layout: post
+title: "SVN 树冲突和目录丢失问题（4）"
+---
+
+前面《<a href="/2010/04/22/1091.html">SVN 树冲突和目录丢失问题（2）</a>》中介绍的冲突解决机制，是“你死我活”（vice versa）式的冲突合并，在实际环境中，可能会有“你中有我，我中有你”式的合并。
+<ul>
+	<li>主线和分支的同名目录中的内容都需要保留</li>
+	<li>分支中同名的目录包含多次提交，需要合并后保留分支的提交历史</li>
+</ul>
+如果你确实有这种需要，那么看过来。
+
+<span id="more-1100"></span>
+<h2>关于 svn:mergeinfo 属性</h2>
+首先，我们需要知道 svn 1.5 版本增加的 svn:mergeinfo 属性。
+<ul>
+	<li>在 SVN1.5 版本之前，SVN 的合并操作不会比 CVS 强多少，这也是很多有识之士痛贬 SVN 的原因</li>
+	<li>SVN 痛定思痛，终于在 1.5 版本设计出来 svn:mergeinfo 属性。这多亏了 SVN 的目录和文件属性的强大功能</li>
+	<li>svn:mergeinfo 属性取代了程序员自己手工维护的合并记录单。</li>
+	<li>就是说，之前为了避免重复合并，程序员往往需要将每一次合并的操作记录在一个本本中。CVSer都是这么做的，对么 yzw？</li>
+	<li>svn 1.5 会把合并结果记录在目录的 svn:mergeinfo 属性中，这样在合并的时候，可以不必再提供合并的版本范围，SVN会帮助你跳过已经完成合并的版本</li>
+</ul>
+<em><strong>警告：</strong>对于一个公司来说，为了避免由于低于 1.5 版本的 SVN 客户端合并时破坏 svn:mergeinfo 机制，应该配置 SVN 的钩子，禁止低于1.5 版本的 SVN 客户端访问。</em>
+<h2>一个更加现实的例子</h2>
+<ul>
+	<li>分支中创建了 somedir 目录，并包含多次提交。让我们看看分支 somedir 的提交历史：
+<pre>~/tmp/svntf/trunk$ <strong>svn log file:///tmp/svnserver/branches/0.x -v</strong>
+------------------------------------------------------------------------
+r6 | jiangxin | 2010-04-23 09:19:17 +0800 (五, 2010-04-23) | 1 行
+改变的路径:
+   A /branches/0.x/somedir/README.txt
+
+add README.TXT
+------------------------------------------------------------------------
+r5 | jiangxin | 2010-04-23 09:18:57 +0800 (五, 2010-04-23) | 1 行
+改变的路径:
+   M /branches/0.x/somedir/branch.txt
+
+in branch 0.x, add one line to branch.txt.
+------------------------------------------------------------------------
+r3 | jiangxin | 2010-04-22 19:51:21 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+   A /branches/0.x/somedir
+   A /branches/0.x/somedir/branch.txt
+
+to branch 0.x, we add somedir/branch.txt file.
+------------------------------------------------------------------------
+r2 | jiangxin | 2010-04-22 19:50:27 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+   A /branches/0.x (从 /trunk:1)
+
+trunk =&gt; branch/0.x
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-04-22 19:48:57 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+   A /branches
+   A /tags
+   A /trunk
+
+initial
+------------------------------------------------------------------------</pre>
+</li>
+	<li>主线也创建了 somedir 目录并包含文件
+<pre>~/tmp/svntf/trunk$ <strong>svn log -v file:///tmp/svnserver/trunk</strong>
+------------------------------------------------------------------------
+r4 | jiangxin | 2010-04-22 19:51:55 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+ A /trunk/somedir
+ A /trunk/somedir/trunk.txt
+
+to trunk, we add somedir/trunk.txt file.
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-04-22 19:48:57 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+ A /branches
+ A /tags
+ A /trunk
+
+initial
+------------------------------------------------------------------------
+</pre>
+</li>
+</ul>
+<h2>分析和设计合并路线</h2>
+现在的合并需求是：
+<ul>
+	<li>将分支中增加的 somedir 目录合并到主线的 somedir 目录中</li>
+	<li>在合并后的主线中，保留分支 0.x 的 r5 和 r6 的提交历史</li>
+</ul>
+可能会发生树冲突的是：
+<ul>
+	<li>分支 0.x 的 r3 版本增加了目录 somedir</li>
+	<li>主线的 r4 版本也增加了目录 somedir</li>
+	<li>所以 r3  和 r4 会造成树冲突</li>
+</ul>
+<h2>不合并仅标记合并，即手工标记合并成功</h2>
+所谓标记合并，就是说我们不真正合并，而只是在 svn:mergeinfo 中进行标记：“我已经合并了分支0.x 的版本3”。你当然可以直接用 svn propset 命令设置 svn:mergeinfo 属性，但是我还是建议你使用 svn merge 命令，不过要带一个 <em>--record-only</em> 参数。
+
+该参数（--record-only），在乌龟SVN中的图形界面中叫做“仅标识”，就是说不执行 merge 操作，而是在 svn:mergeinfo 中标记上已经合并了相应的提交。
+<h3>那么我们为主线标记上：已合并了分支的提交3</h3>
+操作如下：
+<pre>~/tmp/svntf/trunk$ <strong>svn merge --record-only -r 2:3 file:///tmp/svnserver/branches/0.x .</strong>
+~/tmp/svntf/trunk$ <strong>svn st</strong>
+ M      .
+~/tmp/svntf/trunk$ <strong>svn pl -v .</strong>
+“.” 上的属性:
+ svn:mergeinfo
+ /branches/0.x:3
+
+~/tmp/svntf/trunk$ <strong>svn ci -m "标记已合并分支 0.x 的提交3"</strong>
+正在发送       trunk
+
+提交后的版本为 7。</pre>
+<h3>手工完成 r3 到主线 r4 的内容合并</h3>
+<span style="text-decoration: underline;">分支 0.x 的r3增加了一个新文件，复制到主线的 somedir 目录中，我们就完成了 r3 和 r4 的内容合并</span>
+<pre>~/tmp/svntf/trunk$ <strong>svn cp -r 3 file:///tmp/svnserver/branches/0.x/somedir/branch.txt somedir/</strong>
+A         somedir/branch.txt
+~/tmp/svntf/trunk$ svn st
+A  +    somedir/branch.txt
+~/tmp/svntf/trunk$ <strong>svn ci -m "合并分支0.x的r3 提交的内容到 somedir。"</strong>
+增加           trunk/somedir/branch.txt
+
+提交后的版本为 8。
+</pre>
+<span style="text-decoration: underline;">合并后的主线的 somedir 目录包含了主线和分支 somedir 中全部的内容</span>
+<pre>~/tmp/svntf/trunk$ <strong>ls somedir/</strong>
+branch.txt  trunk.txt
+</pre>
+<h2>执行分支到主线合并操作，将分支历史带入主线</h2>
+<span style="text-decoration: underline;">别忘了在合并操作前，先对主线目录执行更新操作，以免发生过时错误。</span>
+<pre>~/tmp/svntf/trunk$ <strong>svn up</strong>
+版本 8。
+~/tmp/svntf/trunk$ <strong>svn st -v</strong>
+ 8        8 jiangxin     .
+ 8        8 jiangxin     somedir
+ 8        4 jiangxin     somedir/trunk.txt
+ 8        8 jiangxin     somedir/branch.txt
+</pre>
+<span style="text-decoration: underline;">执行分支到主线的合并操作，因为 r3已经标识为已合并，所以会跳过 r3 进行合并</span>
+<pre>~/tmp/svntf/trunk$ <strong>svn merge file:///tmp/svnserver/branches/0.x</strong>
+--- 正在合并 r4，经由 r8，到 “.”:
+A    somedir/README.txt
+U    somedir/branch.txt
+~/tmp/svntf/trunk$ <strong>svn st</strong>
+ M      .
+M       somedir/branch.txt
+A  +    somedir/README.txt
+~/tmp/svntf/trunk$ <strong>svn ci -m "继续合并分支 0.x 到主线。"</strong>
+正在发送       trunk
+增加           trunk/somedir/README.txt
+正在发送       trunk/somedir/branch.txt
+传输文件数据.
+提交后的版本为 9。
+~/tmp/svntf/trunk$ <strong>svn pl -v .</strong>
+“.” 上的属性:
+  svn:mergeinfo
+    /branches/0.x:2-8
+</pre>
+<h2>看看合并后的历史</h2>
+参数“-v ” 可以查看提交的文件统计信息；参数 "-g" 可以查看合并源的日志信息
+<pre>~/tmp/svntf/trunk$ svn log -v -g
+------------------------------------------------------------------------
+r9 | jiangxin | 2010-04-23 10:06:42 +0800 (五, 2010-04-23) | 1 行
+改变的路径:
+ M /trunk
+ A /trunk/somedir/README.txt (从 /branches/0.x/somedir/README.txt:8)
+ M /trunk/somedir/branch.txt
+
+继续合并分支 0.x 到主线。
+------------------------------------------------------------------------
+r6 | jiangxin | 2010-04-23 09:19:17 +0800 (五, 2010-04-23) | 1 行
+改变的路径:
+ A /branches/0.x/somedir/README.txt
+合并通过:  r9
+
+add README.TXT
+------------------------------------------------------------------------
+r5 | jiangxin | 2010-04-23 09:18:57 +0800 (五, 2010-04-23) | 1 行
+改变的路径:
+ M /branches/0.x/somedir/branch.txt
+合并通过:  r9
+
+in branch 0.x, add one line to branch.txt.
+------------------------------------------------------------------------
+r2 | jiangxin | 2010-04-22 19:50:27 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+ A /branches/0.x (从 /trunk:1)
+合并通过:  r9
+
+trunk =&gt; branch/0.x
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+r8 | jiangxin | 2010-04-23 10:00:21 +0800 (五, 2010-04-23) | 1 行
+改变的路径:
+ A /trunk/somedir/branch.txt (从 /branches/0.x/somedir/branch.txt:3)
+
+合并分支0.x的r3 提交的内容到 somedir。
+------------------------------------------------------------------------
+r7 | jiangxin | 2010-04-23 09:55:44 +0800 (五, 2010-04-23) | 1 行
+改变的路径:
+ M /trunk
+
+标记已合并分支 0.x 的提交3
+------------------------------------------------------------------------
+r3 | jiangxin | 2010-04-22 19:51:21 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+ A /branches/0.x/somedir
+ A /branches/0.x/somedir/branch.txt
+合并通过:  r7
+
+to branch 0.x, we add somedir/branch.txt file.
+------------------------------------------------------------------------
+r4 | jiangxin | 2010-04-22 19:51:55 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+ A /trunk/somedir
+ A /trunk/somedir/trunk.txt
+
+to trunk, we add somedir/trunk.txt file.
+------------------------------------------------------------------------
+
+r1 | jiangxin | 2010-04-22 19:48:57 +0800 (四, 2010-04-22) | 1 行
+改变的路径:
+ A /branches
+ A /tags
+ A /trunk
+
+initial
+------------------------------------------------------------------------
+</pre>
+好了，这个关于 SVN 树冲突的系列博客就告一段落了。我正在考虑是不是写一个 Git 相关的冲突解决机制，或者让 yzw 代劳？

@@ -1,0 +1,38 @@
+---
+layout: post
+title: "预告: Gistore 项目开发中——使用Git做数据备份"
+---
+
+在 <a href="http://joey.kitenet.net/code/etckeeper/">etckeeper 项目</a>的启发下，着手开发一个基于 Git 的数据备份解决方案，可以备份任何目录下的数据，而非仅仅 /etc 路径下数据。
+
+这个新的备份工具定名为 Gistore，是 git 和 store 两个单词的混合体。
+
+<span id="more-287"></span>
+<h2>群英汇 原有的备份解决方案</h2>
+<a href="http://www.ossxp.com/HelpCenter/50000_Admin/00020_Backup">群英汇 之前提供的数据备份解决方案</a>为：rdiff-backup + flexbackup, 以及 ossxp-backup （群英汇备份管理工具）。
+
+这个解决方案的优点有：
+<ul>
+	<li>rdiff-backup 提供的增量备份，最大限度的减少冗余</li>
+	<li>保存所有的变更历史，可以方便的提取任何一次备份的数据，提取某个文件任意历史版本</li>
+	<li>flexbackup 提供的加密归档。包含增量／差异／完全备份归档。</li>
+	<li>群英汇备份数据源的自动判别</li>
+</ul>
+缺点也是有的：
+<ul>
+	<li>数据恢复的命令，增加管理员学习负担</li>
+	<li>备份数据在多个主机之间的同步不是很完美，存在异地备份失效的可能性</li>
+	<li>磁盘空间浪费。备份需要将分散的备份数据复制到一个统一的目录下，再加上历史备份数据
+即备份数据的工作区拷贝，浪费磁盘空间</li>
+</ul>
+<h2>群英汇 Gistore 备份解决方案</h2>
+Gistore 的设计参考了 etckeeper。即使用 Git 来作为数据备份历史管理的工具以及备份数据同步的工具。
+
+Git 就是这个备份解决方案优点的最好证明：
+<ul>
+	<li>备份数据的历史查询和恢复，可以使用 git 命令</li>
+	<li>多机异地备份使用 git 克隆即可解决</li>
+	<li>Git 的存储效率非常高效</li>
+	<li>不存在工作区，备份目录，Git 版本库以“类似” bare 形式存在</li>
+</ul>
+Gistore 正在开发中，原型已经可以工作，将于近期发布。

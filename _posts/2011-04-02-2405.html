@@ -1,0 +1,241 @@
+---
+layout: post
+title: "RPM打包step by step(1)"
+---
+
+最近学习rpm打包，参考ibm文档库里rpm打包的文章，结合自己的实践，总结如下，一来备忘，二来和大家交流。
+
+和deb打包不同，rpm打包需要特定的目录及结构。查看rpm打包目录，以下为在CentOS5.5下的输出结果：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> rpm --showrc|grep _topdir
+<span style="color: #808080;">-14: _builddir  %{_topdir}/BUILD</span>
+<span style="color: #808080;">-14: _rpmdir    %{_topdir}/RPMS</span>
+<span style="color: #808080;">-14: _sourcedir %{_topdir}/SOURCES</span>
+<span style="color: #808080;">-14: _specdir   %{_topdir}/SPECS</span>
+<span style="color: #808080;">-14: _srcrpmdir %{_topdir}/SRPMS</span>
+<span style="color: #808080;">-14: _topdir    %{_usrsrc}/redhat</span>
+<span style="color: #000080; font-weight: bold;">$</span> rpm --showrc|grep _usrsrc
+<span style="color: #808080;">-14: _topdir    %{_usrsrc}/redhat</span>
+<span style="color: #808080;">-14: _usrsrc    %{_usr}/src</span>
+<span style="color: #000080; font-weight: bold;">$</span> rpm --showrc|grep _usr
+<span style="color: #808080;">-14: _defaultdocdir     %{_usr}/share/doc</span>
+<span style="color: #808080;">-14: _topdir    %{_usrsrc}/redhat</span>
+<span style="color: #808080;">-14: _usr       /usr</span>
+<span style="color: #808080;">-14: _usrsrc    %{_usr}/src</span></pre>
+</div>
+经过层层寻找，最终发现打包目录在/usr/src/redhat目录下，看看目录结构：
+<pre class="literal-block">$ tree /usr/src/redhat
+/usr/src/redhat
+|-- BUILD
+|-- RPMS
+|   |-- athlon
+|   |-- geode
+|   |-- i386
+|   |-- i486
+|   |-- i586
+|   |-- i686
+|   `-- noarch
+|-- SOURCES
+|-- SPECS
+`-- SRPMS</pre>
+其中BUILD存放编译生成的临时文件，RPMS存放根据各种构架生成的rpm包，SOURCES存放源码包，SPECS存放spec文件，SRPMS存放生成的SRPM包。
+<div id="id1" class="section">
+<h1>最简单例子</h1>
+下面以hello world为例，构建一个最小化打包过程。
+
+首先需要写一个SPEC文件hello.spce：
+<pre class="literal-block">Summary:    hello world rpm package
+Name:       hello
+Version:    0.1
+Release:    1
+Source:     hello-0.1.tar.gz
+License:    GPL
+Packager:   amoblin
+Group:      Application
+URL:        http://www.ossxp.com
+
+%description
+This is a software for making your life more beautiful!
+
+%prep
+%setup -q
+
+%build
+gcc -o hello hello.c
+
+%install
+install -m 755 hello /usr/local/bin/hello
+
+%files
+/usr/local/bin/hello</pre>
+放到上述SPECS目录下。
+
+然后一个源程序hello.c：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #bc7a00;">#include &lt;stdio.h&gt;</span>
+<span style="color: #b00040;">int</span> <span style="color: #0000ff;">main</span>()
+{
+    printf(<span style="color: #ba2121;">"Hello, World!</span><span style="color: #bb6622; font-weight: bold;">\n</span><span style="color: #ba2121;">"</span>);
+    <span style="color: #008000; font-weight: bold;">return</span> <span style="color: #666666;">0</span>;
+}</pre>
+</div>
+存放在hello-0.1目录，然后打包放到SOURCES目录:
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> tar zcvf hello-0.1.tar.gz hello-0.1
+<span style="color: #808080;">hello-0.1/</span>
+<span style="color: #808080;">hello-0.1/hello.c</span>
+<span style="color: #000080; font-weight: bold;">$</span> sudo mv hello-0.1.tar.gz /usr/src/redhat/SOURCES</pre>
+</div>
+在SPECS目录下使用rpmbuild进行打包：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> <span style="color: #008000;">cd</span> /usr/src/redhat
+<span style="color: #000080; font-weight: bold;">$</span> sudo rpmbuild -ba hello.spec
+<span style="color: #808080;">...</span>
+<span style="color: #808080;">Wrote: /usr/src/redhat/SRPMS/hello-0.1-1.src.rpm</span>
+<span style="color: #808080;">Wrote: /usr/src/redhat/RPMS/i386/hello-0.1-1.i386.rpm</span></pre>
+</div>
+这时会逐个运行hello.spec文件的内容，最终生成两个文件，一个包含源码的rpm包和一个二进制rpm包。
+
+使用 -bs 选项只生成源码rpm包；使用 -bb 选项只生成rpm包。
+
+查看rpm包信息和包内容：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> rpm -qpi ../RPMS/i386/hello-0.1-1.i386.rpm
+<span style="color: #000080; font-weight: bold;">$</span> rpm -qpl ../RPMS/i386/hello-0.1-1.i386.rpm</pre>
+</div>
+第一个命令的输出是spec文件的序言部分的内容，第二个命令的输出是%files部分的文件列表。
+
+现在有个问题，打包目录在/usr/src/redhat下，需要root权限才能操作，太不方便了，能不能在用户自定义目录下打包呢？
+
+</div>
+<div id="id2" class="section">
+<h1>自定义打包目录</h1>
+我们可以通过修改topdir宏的值来自定义打包路径：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> <span style="color: #008000;">echo</span> %_topdir <span style="color: #19177c;">$HOME</span>/rpmbuild &gt; ~/.rpmmacros</pre>
+</div>
+这样再查看topdir的值会发现已变为用户主目录下rpm子目录了。这时修改文件就方便多了。
+
+但在执行rpmbuild时仍会出问题：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> rpmbuild -ba hello.spec
+<span style="color: #808080;">...</span>
+<span style="color: #808080;">install: 无法删除 “/usr/local/bin/hello”: 权限不够</span>
+<span style="color: #808080;">error: Bad exit status from /var/tmp/rpm-tmp.65773 (%install)</span>
+<span style="color: #808080;">...</span></pre>
+</div>
+这是因为rpmbuild在构建rpm包时会将程序安装一遍，然后再提取安装文件。由于需要复制二进制文件hello到系统目录/usr/local/bin/下，所以普通用户执行就报错了。
+
+那么怎么办呢？这里需要使用虚拟根了。
+
+修改spec文件，在Description段落前，URL字段之后增加一行：
+<pre class="literal-block">BuildRoot:  %{_builddir}/%{name}-root</pre>
+修改install段落，将绝对安装路径改为使用构建根的方式：:
+<pre class="literal-block">%install
+mkdir -p $RPM_BUILD_ROOT/usr/local/bin
+install -m 755 hello $RPM_BUILD_ROOT/usr/local/bin/hello</pre>
+通过BuildRoot的值告诉rpmbuild，我们的构建根是builddir下的hello-root目录。其中以%{}括起来的是RPM宏，_builddir代表~/rpmbuild/BUILD目录；name代表spec文件开头的Name字段值。
+
+以下划线开头的builddir是系统RPM宏，我们可以通过rpm --showrc看到，可以在.rpmmacros中自定义。
+
+RPM_BUILD_ROOT和前面的宏不同，这里没有{}括起来，是为了在以后安装生成的rpm时不至于也去寻找传说中的构建根。
+
+如果喜欢的话，可以修改Source字段如下：:
+<pre class="literal-block">Source: %{name}-%{version}.tar.gz</pre>
+好，继续回到构建根。现在执行rpmbuild，会在BUILD下创建hello-root目录作为虚拟根，hello安装在其中的usr/local/bin目录下。
+
+</div>
+<div id="makefile" class="section">
+<h1>使用Makefile</h1>
+一般源程序都使用Makefile的，因此我们再进一步，添加一个Makefile文件，在spec里使用make来编译。
+
+简单的Makefile文件如下：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #19177c;">SRC</span> <span style="color: #666666;">=</span> hello.c
+
+hello: <span style="color: #008000; font-weight: bold;">$(</span>SRC<span style="color: #008000; font-weight: bold;">)</span>
+    gcc <span style="color: #19177c;">$^</span> -o <span style="color: #19177c;">$@</span>
+
+clean:
+    rm -f hello
+
+install:
+    -mkdir -p <span style="color: #008000; font-weight: bold;">$(</span>RPM_INSTALL_ROOT<span style="color: #008000; font-weight: bold;">)</span>/usr/local/bin/
+    install -m 755 hello <span style="color: #008000; font-weight: bold;">$(</span>RPM_INSTALL_ROOT<span style="color: #008000; font-weight: bold;">)</span>/usr/local/bin/hello</pre>
+</div>
+由于使用了Makefile，我们最好升级一下版本号，将原先的hello-0.1目录复制为hello-0.2目录，放入Makefile文件。
+
+修改spec文件，更新版本号，同时将build和install部分用make替换：:
+<pre class="literal-block">Version:    0.2
+
+...
+
+%build
+make
+
+%install
+RPM_INSTALL_ROOT=$RPM_BUILD_ROOT make install
+
+...</pre>
+这里将构建根参数传递给Makefile，从而将程序安装在指定的根目录下。
+
+如果喜欢做事不留痕的话，可以在install段落后面增加clean段，清理生成的虚拟根：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">%</span>clean
+<span style="color: #808080;">rm -rf $RPM_BUILD_ROOT</span></pre>
+</div>
+</div>
+<div id="id3" class="section">
+<h1>使用补丁文件</h1>
+有很多源码包里都有补丁文件，在打包时要先打补丁，这也要在spec文件里告诉rpmbuild一声才行。
+
+复制hello-0.2一份，随便修改一个hello.c，和原目录做比较，生成补丁文件：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> cp -r hello-0.2 hello-0.2.my
+<span style="color: #000080; font-weight: bold;">$</span> vi hello-0.2.my/hello.c
+<span style="color: #000080; font-weight: bold;">$</span> diff -uNr hello-0.1 hello-0.2 &gt; hello-0.1.patch</pre>
+</div>
+然后修改spec文件，增加Patch字段，以及在prep段落增加打补丁动作：:
+<pre class="literal-block">...
+Patch0:  %{name}-%{version}.patch
+...
+%prep
+%setup -q
+%patch -p1
+...</pre>
+Patch0告诉rpmbuild这是一个补丁，如果补丁不止一个的话，可以通过Patch1,Patch2增加。
+
+再次执行rpmbuild，生成rpm包。
+
+查看SRPM包内容：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> rpm -qpl ../SRPMS/hello-0.2-1.src.rpm
+<span style="color: #808080;">hello-0.2.patch</span>
+<span style="color: #808080;">hello-0.2.tar.gz</span>
+<span style="color: #808080;">hello.spec</span></pre>
+</div>
+补丁果然被打包进来了！
+
+</div>
+<div id="id4" class="section">
+<h1>在安装过程中使用脚本</h1>
+可以使用%pre,%post,%preun,%postun段落来定义安装前后，卸载前后的脚本动作：:
+<pre class="literal-block">%pre
+echo This is pre for %{version}-%{release}: arg=$1
+%post
+echo This is post for %{version}-%{release}: arg=$1
+%preun
+echo This is preun for %{version}-%{release}: arg=$1
+%postun
+echo This is postun for %{version}-%{release}: arg=$1</pre>
+具体的脚本内容可自行替换。
+
+打包rpm的过程就这么简单！
+
+但上面这些方法一般都是针对打包者的，打包者不管以什么手段从任何地方得到了源代码包，然后保持一颗虔诚的心，恭恭敬敬地将之安放在rpmbuild/SOURCES目录下，然后天马行空，随意发挥或挥发，写下一篇洋洋洒洒的spec文件，对号入座到SPECS目录下，然后rpmbuild隆重出场，进行一系列生产加工，最终产生出来了传说中的rpm包和src.rpm包。
+
+但，有时我们不总是打包者，更多时候我们是开发者，使用某种版本控制系统，比如Git，进行开发，最后的产品希望打包发布，还用上面的方式吗？不行，太麻烦了~
+
+那怎么办呢？欲知结果，敬请期待，清明之后见分晓~
+
+</div>

@@ -1,0 +1,25 @@
+---
+layout: post
+title: "CruiseControl&#8212;下载及安装"
+---
+
+<ul>
+	<li>最新稳定版本cruisecontrol-bin-2.8.2.zip ,   ﻿﻿<a title="cruisecontrol-bin-2.8.2.zip " href="http://cruisecontrol.sourceforge.net/download.html" target="_blank">http://cruisecontrol.sourceforge.net/download.html</a></li>
+	<li>解压刚下载的压缩包：        $ unzip cruisecontrol-bin-2.8.2.zip</li>
+	<li>输入 $  echo  $JAVA_HOME  查看是否设置好环境变量</li>
+	<li>启动CruiseControl,进入解压目录下，运行： $   . /cruisecontrol.sh</li>
+	<li>在浏览器输入： localhost:8080/dashboard</li>
+</ul>
+<h3>CruiseControl 目录结构</h3>
+<ul>
+	<li>cruisecontrol.sh      启动文件;</li>
+	<li>config.xml                 配置文件  (默认的配置文件名称);</li>
+	<li>apache-ant-1.7.0     是CruiseControl自带的ant环境，CruiseControl要借助ant完成一些指定的任务;</li>
+	<li>docs                          包括CruiseControl的使用文档和一个helloworld的使用范例;</li>
+	<li>lib                              是运行需要的jar包;</li>
+	<li>logs                          日志目录,构建时产生的log存储于此;</li>
+	<li>projects                    需要构建的项目所在目录，所有的构建项目在project均以项目名为目录（示例项目 connectfour）。</li>
+	<li>webapps                 web应用目录。CruiseControl内置了jetty作为web容器，可以通过http://localhost:8080/dashboard</li>
+	<li>artifacts                    输出目录，集成后生成的jar就保存在这里</li>
+</ul>
+<!--This file has been created with freemind2html.xsl-->

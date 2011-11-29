@@ -1,0 +1,115 @@
+---
+layout: post
+title: "Nutch 深度的测试"
+---
+
+<div id="nutch" class="document">
+
+今天下午我做了一个Nutch深度的测试。先在apache2下建立一个小网站,这个网站用Git作版本控制工具，它只有5个网页，分别是a.html,b.html,c.html,d.html,index.html。它们的链接关系index.html中有a.html,a.html有b.html,依次类推。
+
+<span id="more-869"></span>
+
+这五个网页分别有各自的特殊字符
+<table class="docutils" border="1"><colgroup> <col width="52%"></col> <col width="48%"></col> </colgroup>
+<thead>
+<tr>
+<th class="head">页面</th>
+<th class="head">特殊字符</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>index.html</td>
+<td>首页</td>
+</tr>
+<tr>
+<td>a.html</td>
+<td>三国演义</td>
+</tr>
+<tr>
+<td>b.html</td>
+<td>西游记</td>
+</tr>
+<tr>
+<td>c.html</td>
+<td><a title="http://www.ossxp.com" href="http://">群英汇</a></td>
+</tr>
+<tr>
+<td>d.html</td>
+<td>红楼梦</td>
+</tr>
+</tbody>
+</table>
+这期间发生一个小插曲，我开始用nutch爬起这个小网站，结果什么都搜不到。我反复折腾，最后总算对比其他网页才知道错在哪。原因就是开始我图简单就少写了meta标签，所以总是搜不到。看来下一次要好好研究研究nutch的字符编码问题:
+<pre class="literal-block">&lt;meta http-equiv="Content-Type" content="text/html; charset=utf-8"&gt;
+</pre>
+下面正式开始测试，先写个Rakefile,这样就可以简化操作:
+<pre class="literal-block">depth=1
+task:default =&gt; [:search]
+task:crawl do
+  sh "bin/nutch crawl myurl -dir crawl/ -depth #{depth} -threads 10"
+end
+task:search =&gt; [:crawl] do
+  sh 'rm -rf ../crawl'
+  sh 'mv crawl ../'
+  sh 'sudo /etc/init.d/tomcat6 restart'
+end
+</pre>
+修改depth的值，依次从1－5，分别执行rake，搜诉网页上的特殊字符结果如下:
+<table class="docutils" border="1"><colgroup> <col width="17%"></col> <col width="17%"></col> <col width="17%"></col> <col width="17%"></col> <col width="17%"></col> <col width="17%"></col> </colgroup>
+<thead>
+<tr>
+<th class="head">depth</th>
+<th class="head">首页</th>
+<th class="head">三国演义</th>
+<th class="head">西游记</th>
+<th class="head">群英汇</th>
+<th class="head">红楼梦</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>可以</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td>可以</td>
+<td>可以</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>可以</td>
+<td>可以</td>
+<td>可以</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td>可以</td>
+<td>可以</td>
+<td>可以</td>
+<td>可以</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>可以</td>
+<td>可以</td>
+<td>可以</td>
+<td>可以</td>
+<td>可以</td>
+</tr>
+</tbody>
+</table>
+nutch的深度是<span>依据链接的，这样设计的爬虫容易控制。</span>
+
+</div>

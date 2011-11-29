@@ -1,0 +1,140 @@
+---
+layout: post
+title: "Linux下Apache与Tomcat的整合"
+---
+
+<h2>背景介绍：</h2>
+Apache的HTTPD是目前比较受欢迎的网站服务器软件，它不但功能强大，而且完全免费，并且支持市场上流行的各种操作系统(Windows,Linux,Mac os)。同时对于Java Servlet/JSP的支持，通常也会使用同样Apache出品的Tomcat。Tomcat除了支持Java Servlet/JSP之外，也可以当做网站服务器使用，但是在对于静态的html文件、图片文件等的解析效率上不如Apache HTTPD的执行效率高。应用tomcat的服务器如果网站的访问量较大，系统资源占用会明显升高。所以就引出Tomcat与apache的整合服务。Apache负责静态资源处理，tomcat负责jsp和java servlet等动态资源的处理。
+<h2>需要的组件：</h2>
+1、apache
+下载地址：<a href="http://httpd.apache.org/download.cgi" target="_blank">http://httpd.apache.org/download.cgi</a>
+2、Tomcat
+下载地址：<a href="http://tomcat.apache.org/download-60.cgi" target="_blank">http://tomcat.apache.org/download-60.cgi</a>
+3、Apache Tomcat Connector (mod_jk)
+下载地址：<a href="http://www.apache.org/dist/tomcat/tomcat-connectors/jk/binaries/" target="_blank">http://www.apache.org/dist/tomcat/tomcat-connectors/jk/binaries/</a>
+根据你的操作系统选择适当的 jk 连接器，同时要注意你用的Apache版本，根据你的Apache版本下载合适的jk版本。
+下面是apache与jk的兼容性映射
+<ul>
+	<li> <strong>mod_jk-1.2.28-httpd-2.2.X.so</strong> is for Apache 2.2.x. It has been build against version 2.2.6, but should work with Apache 2.2.0 and later. Rename to <strong>mod_jk.so</strong> before putting it in your modules directory or adjust your <strong>LoadModule</strong> statement.</li>
+	<li> <strong>mod_jk-1.2.28-httpd-2.0.X.so</strong> is for Apache 2.0.x. It has been build against version 2.0.61, but should work at least with Apache 2.0.55 and later. Rename to <strong>mod_jk.so</strong> before putting it in your modules directory or adjust your <strong>LoadModule</strong> statement.</li>
+	<li> <strong>mod_jk-1.2.28-httpd-1.3.X-eapi.so</strong> is for Apache 1.3.x with EAPI extensions. It has been build against version 1.3.39, but should work at least with Apache 1.3.34 and later. Rename to <strong>mod_jk.so</strong> before putting it in your modules directory or adjust your <strong>LoadModule</strong> statement.
+Any SSL enabled Apache 1.3 will include the EAPI extensions.</li>
+</ul>
+4、如果你的机器上还没有装JRE，那么还需装一个JRE或者JDK包
+<h2>下面是我在Debian Linux上的整合过程(我的机器上已经安装了JDK)</h2>
+如果你想用Debian/Ubuntu自己提供的软件包整合tomcat和apache2，可参考 <a href="/2010/01/20/312.html">用Debian/Ubuntu提供的软件包整合apache2和tomcat6</a>
+<span id="more-296"></span>
+
+1、下载需要的组件。
+到Apache官方网站下载所需要的文件：
+httpd-2.2.14.tar.gz
+apache-tomcat-6.0.20.tar.gz
+mod_jk-1.2.28-httpd-2.2.X.so
+其中httpd为源码包，apache-tomcat为二进制包。
+
+2、安装Apache。
+<div>代码:</div>
+<div>
+<pre># tar xzvfhttpd-2.2.14.tar.gz
+# cd httpd-2.2.14
+# ./configure --prefix=/usr/local/apache2 --enable-so
+# make
+# make install</pre>
+3、安装Tomcat。
+<div>代码:</div>
+<div>
+<pre># cp apache-tomcat-6.0.20.tar.gz /usr/local/
+# cd /usr/local
+# tar -zxvf apache-tomcat-6.0.20.tar.gz
+# ln -s apache-tomcat-6.0.20 tomcat</pre>
+4、给apache添加mod_jk模组。
+将mod_jk-1.2.28-httpd-2.2.X.so文件复制到/usr/local/apache2/modules/目录下
+5、配置。
+在/usr/local/apache2/conf/下面建立两个配置文件mod_jk.conf和workers.properties。
+
+# vi mod_jk.conf
+添加以下内容：
+<div>代码:</div>
+<div>
+<pre># 指出mod_jk模块工作所需要的工作文件workers.properties的位置
+JkWorkersFile /usr/local/apache2/conf/workers.properties
+
+# Where to put jk logs
+JkLogFile /usr/local/apache2/logs/mod_jk.log
+
+# Set the jk log level [debug/error/info]
+JkLogLevel info
+
+# Select the log format
+JkLogStampFormat "[%a %b %d %H:%M:%S %Y]"
+
+# JkOptions indicate to send SSL KEY SIZE,
+JkOptions  +ForwardKeySize +ForwardURICompat -ForwardDirectories
+
+# JkRequestLogFormat set the request format
+JkRequestLogFormat "%w %V %T"
+
+# 将所有servlet 和jsp请求通过ajp13的协议送给Tomcat，让Tomcat来处理
+JkMount /servlet/*  worker1
+JkMount /*.jsp worker1</pre>
+# vi workers.properties
+添加以下内容：
+<div>代码:</div>
+<div>
+<pre># Defining a worker named worker1 and of type ajp13
+worker.list=worker1
+# Set properties for worker1
+worker.worker1.type=ajp13
+worker.worker1.host=localhost
+worker.worker1.port=8009
+worker.worker1.lbfactor=50
+worker.worker1.cachesize=10
+worker.worker1.cache_timeout=600
+worker.worker1.socket_keepalive=1
+worker.worker1.socket_timeout=300</pre>
+注：worker.worker1.cachesize 和worker.worker1.cache_timeout指令在mod_jk 1.2.16版本以后已经遗弃。详细情况可以查看 <a href="http://tomcat.apache.org/connectors-doc/reference/workers.html" target="_blank">mod_jk官方文档</a>
+
+再配置httpd.conf，作以下修改：
+将Listen 80 修改为 Listen 127.0.0.1:80
+将ServerName 修改为 ServerName LocalHost:80
+在DirectoryIndex中添加 index.jsp
+我的网页放在/var/www下，所以要修改DocumentRoot
+<div>代码:</div>
+<div>
+<pre>DocumentRoot "/var/www"
+&lt;Directory "/var/www"&gt;
+    Options Includes FollowSymLinks
+    AllowOverride None
+    Order deny,allow
+    Allow from all
+    XBitHack on
+&lt;/Directory&gt;
+&lt;Directory "/var/www/WEB-INF"&gt;
+    Order deny,allow
+    Deny from all
+&lt;/Directory&gt;</pre>
+增加关于加载mod_jk的语句：
+<div>代码:</div>
+<div>
+<pre>LoadModule jk_module modules/mod_jk.so
+Include /usr/local/apache2/conf/mod_jk.conf</pre>
+最后编辑Tomcat的配置文件context.xml（如果你的Tomcat版本比较老，没有context.xml文件，那么你可在server.xml文件的HOST标签中加入)
+<div>代码:</div>
+<div>
+<pre>&lt;Context path="" docBase="/var/www" debug="0" reloadable="true" crossContext="true"/&gt;</pre>
+在/var/www下建立JSP的web项目，启动Apache和Tomcat
+<pre>#启动Apache
+/usr/local/apache/bin$ sudo ./httpd -k start
+#启动Tomcat
+/usr/local/apache-tomcat-6.0.20/bin$ sudo ./startup.sh</pre>
+用浏览器访问http://localhost/projectName，应该可以看到正确的页面了。
+
+参考文档:<a href="http://tomcat.apache.org/connectors-doc/generic_howto/quick.html" target="_blank">http://tomcat.apache.org/connectors-doc/generic_howto/quick.html</a>
+
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>

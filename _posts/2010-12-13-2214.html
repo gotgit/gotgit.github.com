@@ -1,0 +1,134 @@
+---
+layout: post
+title: "Plone安装笔记"
+---
+
+今年9月1号Plone正式发布了4.0版本，整个界面为之一新，用圆润的色彩框取代了之前的线条框。11月23日，Plone 4.0.2发布，修复了一些Bug。其实，自从3.2版本以后，Plone就使用buildout来构建。所以安装Plone除了经典的源码安装以外，也可以通过buildout来安装。<span id="more-2214"></span>
+<div id="unified-installer">
+<h1>通过Unified Installer安装</h1>
+下载 <a href="http://launchpad.net/plone/4.0/4.0.2/+download/Plone-4.0.2-UnifiedInstaller.tgz">Plone-4.0.2安装包</a> 。 解压缩，进入安装目录。可以看到安装脚本文件install.sh。
+<pre>$ tar zxf Plone-4.0.2-UnifiedInstaller.tgz
+$ cd Plone-4.0.2-UnifiedInstaller
+$ ls
+base_skeleton   buildout_templates  helper_scripts  install.log  packages    README.txt     version.txt
+buildenv.sh     config.log          HISTORY.txt     install.sh   Plone-docs  tests
+buildenv.sh.in  config.status       init_scripts    Licenses     preflight   UPGRADING.txt</pre>
+安装时首先要选择安装模式。
+
+安装模式有两种：standalone和zeo cluster。前者适合独立的服务器，后者用于服务器集群。咱自己用standalone就可以啦。
+
+另外，可以使用普通用户安装，也可以使用特权用户安装。如果作为普通用户安装的话，Plone会安装到用户用户主目录下，而如果作为特权用户安装的话，Plone则被安装到/usr/local/下。这里使用特权用户安装。
+<pre>$ sudo ./install.sh standalone</pre>
+安装完毕以后，进入安装目录看一看。
+<pre>$ cd /usr/local/Plone
+$ ls -F
+buildout-cache/  Plone-docs/  Python-2.6/  zinstance/</pre>
+可见Plone并不使用系统的python，而是自己安装一套python来用，这样或许能够提高系统的可靠性吧。
+
+注意看zinstance目录。
+<pre>$ ls -F zinstance
+adminPassword.txt  bootstrap.py  develop-eggs/         products/     var/
+base.cfg           buildout.cfg  parts/                README.html  versions.cfg
+bin/                develop.cfg   PloneController.app/  src/          zope_versions.cfg</pre>
+熟悉不？这不是buildout构建的嘛~
+
+再看看bin目录。
+<pre>$ ls -F zinstance/bin
+backup*  buildout*  instance*  paster*  plonectl*  restore*  snapshotbackup*  snapshotrestore*  zopepy*  zopeskel*</pre>
+嗯，启动plone的脚本就在这里。
+<pre>$ cd zinstance
+$ bin/plonectl start</pre>
+现在打开 <a href="http://localhost:8080">http://localhost:8080</a> 应该就会看到Plone的界面。
+
+</div>
+<div id="buildout">
+<h1>通过buildout安装</h1>
+模仿UnifiedInstaller里面的buildout配置文件，咱DIY，自己写一份配置文件，通过buildout自动下载，最小化安装一个Plone，可不可以呢？ 下面就是一个最小化安装plone的buildout配置文件：
+<pre>$ cat buildout.cfg
+[buildout]
+parts = instance
+extends = http://dist.plone.org/release/4.0-latest/versions.cfg
+find-links = http://dist.repoze.org/
+
+[instance]
+recipe = plone.recipe.zope2instance
+eggs =
+    Plone
+    PIL
+http-address = 8080</pre>
+参照 <a href="/2010/12/10/2207.html">buildout使用小例</a> 中的方法，构建一个buildout环境如下：
+<pre>$ mkdir mini-Plone
+$ cp buildout.cfg mini-Plone
+$ cd mini-Plone
+$ wget http://svn.zope.org/*checkout*/zc.buildout/trunk/bootstrap/bootstrap.py
+$ python bootstrap.py
+$ bin/buildout</pre>
+这样buildout就会下载Plone和Zope相关组件并生成相关脚本文件。
+<pre>$ ls -F
+bin/  bootstrap.py  buildout.cfg  develop-eggs/  eggs/  parts/  var/</pre>
+可以看到和Unified Installer安装后的结构不一样。没有Python目录，没有buildout-cache目录。实际上，这里使用的系统的Python环境，而buildout-cache目录下的内容也都直接放在这里了。
+<pre>$ ls -F bin
+buildout*  instance*</pre>
+可执行脚本也只多了instance一个。而这个instance文件正是Plone的启动脚本。启动Plone：
+<pre>$ bin/instance start</pre>
+若要在终端下输出所有的调试信息，则这样启动：
+<pre>$ bin/instance fg</pre>
+这样，一个最小化的Plone便诞生啦~
+
+另一种方便的做法是使用zopeskel。zopeskel能够自动创建各种zope或plone的模板，然后我们只需要执行buildout就可以了。 首先安装zopeskel。
+<pre>$ easy_install zopeskel</pre>
+zopeske自带一个工具叫做paster，来创建各个模板。可以先看看都有哪些模板：
+<pre>$ paster create --list-templates
+Available templates:
+  archetype:          A Plone project that uses Archetypes content types
+  basic_namespace:    A basic Python project with a namespace package
+  basic_package:      A basic setuptools-enabled package
+  basic_zope:         A Zope project
+  kss_plugin:         A project for a KSS plugin
+  nested_namespace:   A basic Python project with a nested namespace (2 dots in name)
+  paste_deploy:       A web application deployed through paste.deploy
+  plone:              A project for Plone products
+  plone2.5_buildout:  A buildout for Plone 2.5 projects
+  plone2.5_theme:     A theme for Plone 2.5
+  plone2_theme:       A theme for Plone 2.1
+  plone3_buildout:    A buildout for Plone 3 installation
+  plone3_portlet:     A Plone 3 portlet
+  plone3_theme:       A theme for Plone 3
+  plone_app:          A project for Plone products with a nested namespace (2 dots in name)
+  plone_hosting:      Plone hosting: buildout with ZEO and Plone versions below 3.2
+  plone_pas:          A project for a Plone PAS plugin
+  pylons:             Pylons application template
+  pylons_minimal:     Pylons minimal application template
+  recipe:             A recipe project for zc.buildout
+  restish:            Template for creating a basic Restish package
+  silva_buildout:     A buildout for Silva projects</pre>
+也可以直接使用zopeskel命令查看，这个显得更为详细一些：
+<pre>$ zopeskel --list</pre>
+内容比较多，这里就不一一列出了。其中plone3_buildout是目前为止最新的Plone版本了，可以通过下面的命令创建plone3的buildout环境：
+<pre>$ paster create -t plone3_buildout</pre>
+或者简单地输入：
+<pre>$ zopeskel plone3_buildout</pre>
+接下来会回答一系列问题，像工程名称(也就是要创建的文件夹名称)，专家模式，Plone版本，Zope路径等，使用默认选择的话会下载安装Zope和Plone3.3.5。
+
+接下来进入工程目录，假设是plone3。引导buildout，执行更新。
+<pre>$ cd plone3
+$ ls -F
+bin/  bootstrap.py  buildout.cfg  develop-eggs/  eggs/  parts/  products/  README.txt  src/  var/
+$ python bootstrap
+$ bin/buildout</pre>
+下载安装完毕，在bin目录下会多几个脚本。
+<pre>$ ls -F bin
+buildout*  instance*  repozo*  zopepy*</pre>
+这次比之前的多了两个：repozo和zopepy。repozo是用来备份Zope/Plone的数据文件Data.fs的，可以增量备份也可以完全备份。zopepy则提供了一个python交互界面，用来测试zope。
+
+最后对各个文件夹再做一个简要的说明：
+<ul>
+	<li>bin 存放可执行脚本。从bootstrap产生bin目录及其可执行文件buildout开始，由buildout编译出各个Zope/Plone 脚本。</li>
+	<li>develop-eggs 存放buildout配置文件中定义的开发egg链接文件</li>
+	<li>eggs 存放新式的以egg包形式发布的Plone产品。这样可以在不同的Plone或其他项目间重用。</li>
+	<li>parts 构建recipe的目录</li>
+	<li>products 传统的产品存放目录</li>
+	<li>src 存放待开发的egg包形式的Plone产品。</li>
+	<li>var 存放ZODB数据库文件和日志文件。</li>
+</ul>
+</div>

@@ -1,0 +1,81 @@
+---
+layout: post
+title: "pySvnManager 0.5 升级指引"
+---
+
+对于不能提供 SSH 远程登录服务器的用户，可以参照本文进行 pySvnManager 的升级。关于 pySvnManager 的新功能，参照：<a href="/2010/08/08/1817.html">《pySvnManager新功能：LDAP用户同步》</a>
+
+升级的步骤简单的说就是：备份 -&gt; 软件升级 -&gt; 重启服务
+<h2><span id="more-1832"></span>数据备份</h2>
+你可以备份 /opt/pysvnmanager 整个目录（主要是下面的 sites 目录）。
+<pre>$ sudo cp -a /opt/pysvnmanager /opt/pysvnmanager.old
+</pre>
+如果使用 gistore 备份，也可以执行命令：
+<pre>$ sudo gistore commit-all -v
+</pre>
+<h2>软件升级</h2>
+<ul>
+	<li>首先更新 APT 源，以便 Debian/Ubuntu 能够感知上游软件的更新。
+<pre>$ sudo aptitude update</pre>
+</li>
+	<li>升级 pysvnmanager
+<pre>$ sudo aptitude install pysvnmanager</pre>
+</li>
+</ul>
+升级过程中 aptitude 命令可能会显示或者询问一些升级策略。例如：提示安装 pysvnmanager-deploy-virt 包，并卸载原来安装的 pysvnmanager-deploy-sys 包。这是因为：
+<ul>
+	<li>pysvnmanger 软件包实际上包含了下列组件包：
+<ul>
+	<li>pysvnmanager ：不包含实际数据，仅用于确立包的依赖关系。必须安装 pysvnmanager-common 包，以及pysvnmanager-deploy-sys 或者 pysvnmanager-deploy-virt 包中的任何一个。</li>
+	<li>pysvnmanager-common ： 主要的源代码和执行脚本都在这个包中。</li>
+	<li>pysvnmanager-deploy-sys ： 使用系统提供的第三方软件包，使得 pySvnManager 依赖的框架可以正常运行</li>
+	<li>pysvnmanager-deploy-virt ： 使用 easy_install 和 virtualenv 建立的虚拟python环境，设置 pySvnManager 的依赖关系</li>
+	<li>pysvnmanager-doc ： 文档伪包，依赖下面两个文档包</li>
+	<li>pysvnmanager-doc-devel ： 开发者手册</li>
+	<li>pysvnmanager-doc-user ： 用户手册</li>
+</ul>
+</li>
+	<li>在有的平台，pysvnmanager-deploy-sys 会无法安装，会自动选择 pysvnmanager-deploy-virt 包。因为 pysvnmanager-deploy-sys 依赖很多系统自带的包，有的操作系统或者没有相关的包，或者相关的软件包的版本太低：
+<ul>
+	<li>依赖 0.10 以上版本的 python-pylons</li>
+	<li>依赖 2.6 以上版本的 python 或者在 2.5 版本的 python 下需要安装 python-simplejson 包</li>
+	<li>依赖 0.5.7 以上版本的 python-sqlalchemy 包</li>
+</ul>
+</li>
+	<li>或者原来采用了 pysvnmanager-deploy-sys 安装，但新版本必须换做 pysvnmanager-deploy-virt 包。这是因为新版本的 pySvnManager 引入了新的依赖，如果不能满足，也会自动选择 pysvnmanager-deploy-virt 包。</li>
+	<li>实际上能够满足上述所有标准的，只有 Debian Sarge 或者以上版本（SID？）
+<ul>
+	<li>Debian Lenny 或者 Ubuntu （9.10, 10.04）都存在依赖关系无法满足的情况。对于这些平台，就必须选择安装 pysvnmanager-deploy-virt 包。</li>
+	<li>系统会自动选择安装合适的 pysvnmanager-deploy 包，在 Ubuntu 平台，会选择安装 pysvnmanager-deploy-virt  包。</li>
+</ul>
+</li>
+	<li>安装 pysvnmanager-deploy-virt 包，会自动调用 easy_install，安装需要的 egg 包。安装过程可能根据网络的情况花费几分钟甚至几十分钟的时间。
+（在特殊时期，如果遇到 sourceforge.net 或者其它国外服务器被“墙”，会造成无法用正常渠道和谐的安装某些软件包）</li>
+</ul>
+<h2>实例运行时自动升级</h2>
+新版本 pySvnManager 增加了数据库支持，但无须进行特殊设置。
+
+重新运行实例，会自动创建数据库。
+<h2>不再以服务方式运行 pysvnmanager，而是以 WSGI 方式和 Apache 整合</h2>
+最新的 pysvnmanager 通过 WSGI 方式运行在 Apache2 服务器下，而不是像之前要启动服务（缺省5000端口），还要配置 Apache 代理（类似和Tomcat整合的方式）。
+
+新版本的 pysvnmanager (&gt;= 1:0.5.2r167-59)，会自动完成缺省实例配置文件等的升级：
+<ul>
+	<li>删除 pysvnmanager 服务脚本（/etc/init.d/pysvnmanager*）</li>
+	<li>升级 /opt/pysvnmanager/sites/ 下各个实例
+<ul>
+	<li>新的 INI 文件</li>
+	<li>新的 localconfig.py 文件</li>
+	<li>新的 cgi-bin/pysvnmanager.wsgi 脚本</li>
+</ul>
+</li>
+	<li>安装新的缺省实例的 Apache2 配置文件，缺省实例为 /opt/pysvnmanager/default 目录，缺省访问 URL 为 /svnadmin</li>
+</ul>
+新的部署方式的优点：
+<ul>
+	<li>无须启动服务（缺省端口5000），也不会出现因为服务故障造成日志文件失控</li>
+	<li>支持单点登录，因为在此部署方式下， pySvnManager 能够获取 Apache2 传递的环境变量</li>
+	<li>配置多实例更为简便</li>
+</ul>
+<h2>故障诊断</h2>
+如果以服务方式运行，可以查看 /opt/pysvnmanager/log/ 目录下的日志文件。如果以 WSGI 方式和 Apache 整合，可以在 Apache日志中看到诊断信息。

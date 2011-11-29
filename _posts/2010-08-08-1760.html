@@ -1,0 +1,81 @@
+---
+layout: post
+title: "Xapian的检索"
+---
+
+<div id="xapian" class="document">
+
+Xapian中有关查询的代码比索引复杂的多,因为它支持多种查询机制，而索引就只是循环叠加。如下面的多种查询机制:
+<ul class="simple">
+	<li>概率性搜索排名</li>
+	<li>相关度反馈</li>
+	<li>词组和邻近搜索</li>
+	<li>全方位的布尔型搜索器</li>
+	<li>支持提取搜索关键字的词干</li>
+	<li>支持通配符查询</li>
+	<li>支持别名查询</li>
+	<li>Xapian支持拼写纠正</li>
+</ul>
+</div>
+<div class="document"><span id="more-1760"></span></div>
+<div class="document">Xapian的查询语法有两种，在Xapian中Query类便起着“查询”的作用，Query类的生成方法有两种，第一种是由QueryParser类解析查询字符串生成，别一种则是创建多个表示不同描述表达式的Query类，然后再将这些Query按需组合起来,具体的有关Xapian的查询机制和查询语法的情况请参考博客 <a href="http://www.oschina.net/bbs/thread/7499" target="_blank">利用Xapian构建自己的搜索引擎：检索</a> 。这篇博客详细的介绍了有关搜索引擎的性能，评价标准，xapian的检索机制和查询机制等。相信对使用Xapian的开发具有非常大的帮助。</div>
+<div class="document">
+
+Xapian中两种查询语法本质上都是一样的。第一种方法首先进行字符串解析，确定是哪一种查询机制，接着就会生成对应的Query类(代码中加粗的部分)，然后按需组合起来。下面是Query QueryParser::Internal::parse_query(const string &amp;qs, unsigned flags, const string &amp;default_prefix)方法中的一段代码:
+<pre class="literal-block">if (op.size() == 3) {
+        if (op == "<strong>AND</strong>") {
+            <strong>Parse(pParser, AND, NULL, &amp;state);</strong>
+            goto just_had_operator;
+        }
+        if (op == "<strong>NOT</strong>") {
+            <strong>Parse(pParser, NOT, NULL, &amp;state);</strong>
+            goto just_had_operator;
+        }
+        if (op == "<strong>XOR</strong>") {
+           <strong> Parse(pParser, XOR, NULL, &amp;state);</strong>
+            goto just_had_operator;
+        }
+        if (op == "<strong>ADJ</strong>") {
+            if (it != end &amp;&amp; *it == '/') {
+                size_t width = 0;
+                Utf8Iterator p = it;
+                while (++p != end &amp;&amp; U_isdigit(*p)) {
+                    width = (width * 10) + (*p - '0');
+                }
+                if (width &amp;&amp; (p == end || is_whitespace(*p))) {
+                    it = p;
+                    <strong>Parse(pParser, ADJ, new Term(width), &amp;state);</strong>
+                    goto just_had_operator;
+                }
+            }
+
+           <strong> Parse(pParser, ADJ, NULL, &amp;state);</strong>
+            goto just_had_operator;
+        }
+    } else if (op.size() == 2) {
+        if (op == "<strong>OR</strong>") {
+            <strong>Parse(pParser, OR, NULL, &amp;state);</strong>
+            goto just_had_operator;
+        }
+    } else if (op.size() == 4) {
+        if (op == "<strong>NEAR</strong>") {
+            if (it != end &amp;&amp; *it == '/') {
+                size_t width = 0;
+                Utf8Iterator p = it;
+                while (++p != end &amp;&amp; U_isdigit(*p)) {
+                    width = (width * 10) + (*p - '0');
+                }
+                if (width &amp;&amp; (p == end || is_whitespace(*p))) {
+                    it = p;
+                    <strong>Parse(pParser, NEAR, new Term(width), &amp;state);</strong>
+                    goto just_had_operator;
+                }
+            }
+            <strong>Parse(pParser, NEAR, NULL, &amp;state);</strong>
+            goto just_had_operator;
+        }
+    }
+</pre>
+Xapian中有关查询的代码并没有完全看懂，希望知道的高手多多指教。
+
+</div>

@@ -1,0 +1,52 @@
+---
+layout: post
+title: "维基升级——搜索功能改进"
+---
+
+通过对虾片（Xapian）一段时间的研究，终于能够实现中文网页的全文检索。MoinMoin 维基中的搜索终于可以使用虾片了！
+<h3>使用Xapian改进全文检索的效率</h3>
+MoinMoin维基缺省的全文检索机制是简单的内容查询，用到正则表达式匹配。MoinMoin维基还可以使用可选的Xapian（虾片）进行全文检索。
+<ul>
+	<li>虾片是由C++语言实现的全文搜索引擎，类似于Java世界中的Lucene</li>
+	<li>虾片通过 SWIG 提供各种语言绑定的 API 接口。对于Python来说，安装 python-xapian 即可</li>
+	<li>虾片不支持中文切词，因此中文检索无法实现</li>
+	<li>MoinMoin维基还使用自己的切词方法，以便能够正确处理 Wiki Word 的切词，但是也没有考虑到中文切词</li>
+</ul>
+我们增加的切词机制，最终让虾片能够支持维基中中文内容的检索。将搜索效率提高十倍以上。
+<h3>支持附件（Word文档，PDF文档）的全文检索</h3>
+使用MoinMoin维基内置的搜索引擎不能对附件进行全文检索，是因为缺省的检索是简单的内容查找，而不能动态的（高效的）从附件中提取内容。
+
+改用Xapian搜索引擎后，很容易的就可以实现对Word文档和PDF文档的全文检索：
+<ul>
+	<li>检索是基于事先生成的索引文件</li>
+	<li>每当有附件上传，自动提取附件中的中文内容，并根据内容建立索引</li>
+	<li>搜索时，同时能够显示命中的网页以及附件</li>
+</ul>
+那么，如何能够获取Word文档中的内容呢？难道需要安装 Microsoft Office 并通过相应API实现内容提取么？实际上，有一个开源软件 antiword 已经实现了Word文档的中文提取。Antiword支持 Word 2, 6, 7, 97, 2000, 2002 和 2003 等格式。
+<h3>如何升级到最新维基版本？</h3>
+升级到最新版本的维基很简单，因为我们已经将升级需要的大部分手工操作都自动化了：
+<ul>
+	<li>更新APT源
+<pre>sudo apt-get update</pre>
+</li>
+	<li>安装新版本的 MoinMoin
+<pre>sudo aptitude install ossxp-moinmoin ossxp-moinmoin-xapian</pre>
+<ul>
+	<li>自动进行 Xapian 索引数据库的初始化。建立索引的时间根据网站的规模，可能从几十秒种到数十分钟。</li>
+	<li>自动更新 MoinMoin 配置文件，使用 Xapian 作为缺省的全文检索引擎</li>
+</ul>
+</li>
+	<li>需要手动重启Apache
+<ul>
+	<li>对于老版本库的群英汇Apache，执行
+<pre>sudo /etc/init.d/ossxp-apache2 restart</pre>
+</li>
+	<li>对于新版本库的群英汇Apache，执行
+<pre>sudo /etc/init.d/apache2 restart 
+</pre>
+</li>
+</ul>
+</li>
+<li>自此，您的知识管理平台，将使用新的搜索引擎，进行享用新引擎带来的便利吧。</li>
+</ul>
+

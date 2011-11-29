@@ -1,0 +1,54 @@
+---
+layout: post
+title: "Subversion 用户眼中的 Git (10): Git 命令行的人性化设计"
+---
+
+Git 命令行的人性化设计？刚刚接触 Git 的 SVN 用户一定不予认同。
+
+因为在 SVN 用户看来，co 必须严格写成 checkout, ci 必须严格写成 checkin，st 必须严格写成 status 的版本控制系统，怎么能说成人性化？
+
+容我慢慢道来。
+<h2><span id="more-1118"></span>Git 命令别名简化命令输入</h2>
+实际上 Git 可以通过配置别名，简化命令输入。例如 输入 st 相当于执行子命令 status，输入 ci 相当于 commit，输入 co 相当于 checkout，输入 br 相当于输入 branch，...
+
+建立别名的命令：
+<pre>$ git config --global alias.st status
+$ git config --global alias.ci commit
+$ git config --global alias.co checkout
+$ git config --global alias.br branch
+$ git config --global alias.glog "log --graph"</pre>
+如果您是管理员，还可以用 --system 替代 --global 命令，直接修改系统的配置文件 <em>/etc/gitconfig</em>，为系统所有登录用户配置 git 命令别名。
+<h2>Git 命令提供自动分页功能</h2>
+Git 几乎所有命令都提供分页器，即当命令输出超过一页时，自动在每页输出后暂停，可以按空格继续显示，按q退出，也支持其他 VIM 控制快捷键。
+
+而在 SVN 中，你必须在命令后加上管道符以及 more 或者 less 来分页。
+<h2>Git 输出的着色/语法加亮</h2>
+Git 的命令输出很多都包含语法加亮，用不同的颜色标注不同含义的输出。例如 log 命令，diff 命令等。
+
+而 SVN 缺省没有颜色显示，虽然也可以修改配置，以支持语法加亮。如在 /etc/subversion/config 文件中配置：
+<pre>diff-cmd = /usr/bin/colordiff</pre>
+但是这么做，副作用也很大，会在 diff 导出成 patch 文件时，在 patch 中出现颜色控制字符。而且SVN语法加亮在 less 分页器启用后可能会失效。
+<h2>Git 命令补全很强大</h2>
+Git 命令行输入过程中，随时可以按 TAB 键补全命令或者其他参数，实现自动补全功能。例如在检出分支时，按下 TAB 能够自动补全分支名称或者显示分支名称列表。
+
+当然 SVN 也有命令补全，也很不错。SVN 的分支补全不能用，则是因为 SVN 的分支实现太烂造成的。
+<h2>Git commit --amend 功能很好用</h2>
+提问：
+<ul>
+	<li>如果提交后，觉得提交说明写的太烂，想重写怎么办？</li>
+	<li>如果提交后，发现有一个文件忘了提交，怎么办？</li>
+	<li>如果提交后，发现刚刚提交的代码有个拼写错误，怎么办？</li>
+</ul>
+回答：
+<ul>
+	<li>git ci --amend ， 或者</li>
+	<li>git ci --am&lt;TAB&gt;  :-D</li>
+</ul>
+对于问题中的后两种情况，在执行 git ci --amend 之前，要执行 git add 将忘了提交的文件，或者修改后的文件添加的 Git 的 Index 中。
+<h2>Git stash 命令很好用</h2>
+Git stash 命令类似于我在写博客的草稿功能：可以把当前的修改进度保存为草稿，而并不影响文章发布的状态。
+<ul>
+	<li>调用 git stash 将记录当前改动状态后，将工作区恢复到原始状态</li>
+	<li>我经常在切换分支时，通过该命令保留当前分支修改进度。因为 Git 不允许在当前分支处于修改状态时，切换到其他分支。</li>
+	<li>调用 git stash pop 命令，从草稿队列中调出最近一次压栈的修改。即上一次的修改又回来了。</li>
+</ul>

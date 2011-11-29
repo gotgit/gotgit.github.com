@@ -1,0 +1,47 @@
+---
+layout: post
+title: "群英汇部分应用的 /etc/init.d/ 下脚本名称改变"
+---
+
+<big><strong><span style="color: #ff0000;">更新：2010/7/10日，改进了部分系统定制包的打包机制，/etc/init.d/ 下的脚本恢复原来的名字。可以参考博客<a href="/2010/07/09/1431.html">《Debian 文件偷换》</a>。</span></strong></big>
+
+群英汇最近对 ossxp-ntp, ossxp-apache2, ossxp-secure-fw-shorewall 作了升级，升级后，可能会感到不适应。
+<ul>
+	<li>原来在 /etc/init.d 下的脚本是： /etc/init.d/ntp, /etc/init.d/apache2, /etc/init.d/shorewall</li>
+	<li>此次修改之后，脚本改为：/etc/init.d/ossxp-ntp, /etc/init.d/ossxp-apache2, /etc/init.d/ossxp-secure-fw-shorewall</li>
+</ul>
+这是为什么呢？
+
+Debian 最新版本的 sysv-rc 包，提供了对 /etc/init.d/ 下脚本启动优化的功能，会根据启动脚本的对服务的依赖关系，自动建立启动顺序，而不是像以前那样完全凭借软件包维护者手工设定序号确定服务加载顺序。
+
+让服务的加载更加合理，让启动的速度更快。
+
+可 sysv-rc 包和群英汇调整 /etc/init.d/ 下脚本名称有什么关系呢？
+
+<span id="more-793"></span>拿 ossxp-secure-fw-shorewall 为例，做一说明。
+
+ossxp-secure-fw-shorewall 该软件包依赖 Debian 的 shorewall 软件包。shorewall 是 Linux 中的企业级防火墙软件。
+
+群英汇从本公司软件配置的易用性出发，修改了 /etc/init.d/shorewall 脚本：
+<ul>
+	<li>确认在启动防火墙，加载 SSH_OPEN 链，以便群英汇 SSH 动态打开端口的应用可以完成初始化</li>
+	<li>动态加载防火墙规则，为 LDAP 镜像服务器，备份服务器，单点登录客户端等提供动态规则</li>
+</ul>
+这就需要修改 /etc/init.d/shorewall 配置文件。该配置文件来自于软件包 shorewall，不能有软件包使用同一个名称的脚本，即不能直接用 ossxp-secure-fw-shorewall提供一个同名脚本进行覆盖。
+
+群英汇之前使用了 dpkg-divert 工具和 <a href="http://debathena.mit.edu/config-packages/">Debian Config Package</a>，实现了对 Debian 软件包配置文件的覆盖：
+<ul>
+	<li>ossxp-secure-fw-shorewall 包提供一个脚本 /etc/init.d/shorewall.ossxp</li>
+	<li>将系统中原来的 /etc/init.d/shorewall 改名为 /etc/init.d/shorewall.ossxp-orig</li>
+	<li>将 /etc/init.d/shorewall.ossxp 链接到 /etc/init.d/shorewall</li>
+</ul>
+所以，之前群英汇的软件包替换了 Debian 的系统文件，但是并没有让用户感到有什么不同。但是现在问题来了：sysv-rc 要对 /etc/init.d/ 下的脚本进行严格的检查，发现同样的脚本出现了多次。
+
+这该如何是好呢？最终我们使用 <a href="http://debathena.mit.edu/config-packages/">Debian Config Package</a> 中的 DEB_REMOVE_FILES_package 指令而非 DEB_DIVERT_FILES_package 指令，来实现对系统文件的覆盖。
+<ul>
+	<li>将系统中原来的 /etc/init.d/shorewall 移动到 /usr/share/ossxp-secure-fw-shorewall/etc++init.d++shorewall</li>
+	<li>ossxp-secure-fw-shorewall 包提供一个新的脚本 /etc/init.d/ossxp-secure-fw-shorewall。如果提供一个同名的脚本可能会出现意外</li>
+</ul>
+这就是为什么上述软件包升级后，修改了服务启动脚本名称的缘故。是否有更好的方法，我们探索中。
+
+关于此技术的最新进展：可以参考博客<a href="/2010/07/09/1431.html">《Debian 文件偷换》</a>。

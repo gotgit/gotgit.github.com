@@ -1,0 +1,93 @@
+---
+layout: post
+title: "在 reST 格式文档中，嵌入 Creative Commons 授权信息"
+---
+
+群英汇的用户手册文档以 Creative Commons 许可协议发布，但是仅仅在文档中用两个单词“Creative Commons”进行标识是不够的，因为：
+<ul>
+	<li>Creative Commons 不是一个，而是一组（六个）License 组成的许可协议家族</li>
+	<li>要在网站上的许可协议上，建立链接。链接到 creativecommons.org 网站上对应许可协议
+<ul>
+	<li>只有在页面中建立到 creativecommons.org 的链接，才能被搜索引擎识别出网页/资源对应的许可协议</li>
+	<li>只有建立链接后，也才可能让您的共享资源，在 <a href="http://search.creativecommons.org/">Search@CC</a> 上搜索到</li>
+</ul>
+</li>
+</ul>
+如何使用 reStructuredText 格式（简称 reST）编写的文档中嵌入 CC 许可证链接呢？我们公司的很多文档都是用 reST 格式维护的。
+
+<span id="more-1422"></span>为了在 reST 格式的文档中嵌入 CC 许可证，我们尝试了不同的方法：
+<h2>选择适合的许可协议</h2>
+Creative Commons 提供一个<a href="http://creativecommons.org/choose/">许可协议选择网页</a>，通过页面表单很容易的选定最终许可协议，并能够给出页面嵌入的代码。
+
+例如获取到的代码：
+<pre style="padding-left: 30px;">&lt;a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/"&gt;
+&lt;img alt="知识共享许可协议" style="border-width:0" src="http://i.creativecommons.org/l/by-sa/3.0/88x31.png" /&gt;&lt;/a&gt;&lt;br /&gt;
+本作品由&lt;a xmlns:cc="http://creativecommons.org/ns#" href="http://www.ossxp.com/" property="cc:attributionName" rel="cc:attributionURL"&gt;
+北京群英汇信息技术有限公司&lt;/a&gt;创作，采用&lt;a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/"&gt;
+知识共享署名-相同方式共享 3.0 Unported许可协议&lt;/a&gt;进行许可。</pre>
+显示在页面中为：
+<p style="padding-left: 30px;"><a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/"><img style="border-width: 0;" src="http://i.creativecommons.org/l/by-sa/3.0/88x31.png" alt="知识共享许可协议" /></a>
+本作品由<a rel="cc:attributionURL" href="http://www.ossxp.com/">北京群英汇信息技术有限公司</a>创作，采用<a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/">知识共享署名-相同方式共享 3.0 Unported许可协议</a>进行许可。</p>
+上述代码中，我们最感兴趣和有用的，最主要的是那个漂亮的图片以及图片指向 Creative Commons 许可协议的链接。
+<h2>方法一：使用 raw html，直接使用 Creative Commons给出的链接</h2>
+最直接的想法，就是把上面获取到的 HMTL 源代码直接加入 reST 格式文档中。
+
+文档头部包含和授权信息相关内容，示例如下：
+<pre>================
+单点登录用户手册
+================
+
+.. role:: raw-html(raw)
+    :format: html
+
+:作者: 北京群英汇信息技术有限公司
+:网址: http://www.ossxp.com/
+:版权信息: |Creative Commons|
+
+.. contents:: 目录
+.. sectnum::
+.. header:: 单点登录用户手册
+.. footer:: 北京群英汇信息技术有限公司
+.. |Creative Commons| replace:: :raw-html:`&lt;a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/"&gt;&lt;img style="border-width: 0;" src="http://i.creativecommons.org/l/by-sa/3.0/88x31.png" alt="知识共享许可协议" /&gt;&lt;/a&gt;`</pre>
+需要着重说明的：
+<ul>
+	<li>通过 role 指令，创建了一个新的规则 raw-html</li>
+	<li>在版权信息的内容部分，使用双竖线括起来的一个宏</li>
+	<li>宏使用 raw-html 进行替换</li>
+</ul>
+最终生成的 HTML 正如我们所愿，能够显示一个指向许可协议的漂亮 ICON，但是输出的 PDF 格式文件格式错误！本来应该出现图片的地方，出现的是一大堆 HTML 标签！
+
+即 reST 中如果使用 raw-html，不能支持 PDF 格式输出。所以这个方案被放弃。
+<h2>方法二：使用内嵌图片加链接</h2>
+既然 raw html 存在问题，那么直接用 reST 自身的语法，嵌入图片并设置链接。
+
+首先，图片必须保存在本地，而不能像方法一的那样，图片直接来自 CreativeCommons 网站。
+
+然后在文档中嵌入图片链接，需要综合内置图片和链接的两种语法。示例如下：
+<pre>======================
+用户管理系统 用户手册
+======================
+
+:作者: 北京群英汇信息技术有限公司
+:网址: http://www.ossxp.com/
+:版本: |doc_rev|
+:日期: |doc_date|
+:版权信息: |Creative Commons|_
+
+.. contents:: 目录
+.. sectnum::
+.. header:: 用户管理系统用户手册
+.. footer:: 北京群英汇信息技术有限公司
+.. |doc_rev| replace:: ENV(DOC_REV)
+.. |doc_date| replace:: ENV(DOC_DATE)
+.. |Creative Commons| image:: images/cc-icon.png
+                        :scale: 90
+.. _Creative Commons: http://creativecommons.org/licenses/by-sa/3.0/</pre>
+需要重点说明的是：
+<ul>
+	<li>版权信息的内容，在宏的后面加了一个下划线，下划线是链接的语法。</li>
+	<li>宏被替换为内置图片。scale 指令设置了图片缩放。图片缩放是可选项，这里主要是为了保证 PDF 输出的图片不要太大。</li>
+	<li>最后一行，是链接的定义。</li>
+	<li>其中文档版本和日期的宏，是由外部工具处理，根据环境变量自动生成的。</li>
+</ul>
+最终使用这个方法，可以保证 HTML 和 PDF 都能够正确显示 Creative Commons 许可证图片和链接。点击<a href="http://www.ossxp.com/doc/gosa/user-guide/user-guide.html">这里（用户管理系统手册）</a> 可以看到加入了 CreativeCommons 许可证后文档的最终效果。

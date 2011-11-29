@@ -1,0 +1,103 @@
+---
+layout: post
+title: "如何让 jQuery 和 prototype 共存"
+---
+
+jQuery 和 prototype 是两个最著名的 JavaScript 框架（JavaScript: TDG 第五版的中文版，将框架翻译为帧  :-P  ）。
+
+群英汇研究的开源软件，绝大多数的Web端都使用了 Prototype，这是因为 Prototype 和核心思想是增强 JavaScript 本身的编程能力，而这无疑会让程序员将其作为框架的首选。 jQuery 的问世稍微比 Prototype 晚一些，但是因为 jQuery 拥有更为简单的windows.onload 调用 “<em>$(function() {...})”</em> 或者稍复杂但更明显的 “$(document).ready(function() {...}) ”，让 jQuery 拥有非常多的拥趸和插件。关于这两个 JavaScript 的对比，在得空的时候，再说一说。
+
+那么能否在一个页面中同时使用这两个框架呢？
+
+<span id="more-896"></span>同时使用 jQuery 和 Prototype 框架，大部分原因是页面中已经使用了一种框架（如 Prototype），而希望通过添加另外的一个框架的某个插件，迅速的得到某个效果（如默个 jQuery 插件）。
+
+实际上 jQuery 和 Prototype 在解决了命名空间的冲突之后，共存是完全可能的。
+<h2>jQuery 和 Prototype 的命名空间冲突</h2>
+Prototype JS框架为 JavaScript 增加了相当多的命名空间：$, $$, $A, $H, $w, Class, Prototype, Hash, Event, ...
+
+而 jQuery 和 Protype 相比则简单许多，因为整个 jQuery 代码就是一个闭包，且仅仅为JavaScript 命名空间引入两个新名字： $ 和 jQuery。
+
+很显然 $ 就是两者冲突的焦点，只要解决 $ 的冲突问题，两者即可共存。
+<h2>jQuery 中的$ 和冲突解决机制</h2>
+<h3>jQuery 中，$ 就是 jQuery</h3>
+前面说过：整个 jQuery 代码就是一个闭包，且仅仅为JavaScript 命名空间引入两个新名字： $ 和 jQuery。让我们看看 jQuery 代码：
+<pre>行号    1: /* 注释开始
+...
+行号   15:  * 注释结束 */
+行号   16: (function( window, undefined ) {
+...
+行号 6321: // Expose jQuery to the global object
+行号 6322: window.jQuery = window.$ = jQuery;
+行号 6323:
+行号 6323: })(window);</pre>
+从上面的代码可以看出，jQuery 引入的两个全局对象名实际上指向同一个对象，即  $ 实际上就等同于 jQuery。
+
+那么只要删除 jQuery.js  中对 $ 的定义，并在 jQuery 相关脚本中将 $ 全部用 jQuery 替代不就可以了么？
+<h3>不必修改代码，jQuery 的 noConflict 方法可用于解决冲突</h3>
+实际上 jQuery 已经考虑到和其他框架命名空间冲突的问题，提供一个 noConflict 方法用于冲突解决。让我们看一段 jQuery 中的代码：
+<pre>行号  24:     // Map over jQuery in case of overwrite
+行号  25:     _jQuery = window.jQuery,
+行号  26:
+行号  27:     // Map over the $ in case of overwrite
+行号  28:     _$ = window.$,
+...
+行号 363: jQuery.extend({
+行号 364:     noConflict: function( deep ) {
+行号 365:         window.$ = _$;
+行号 366:
+行号 367:         if ( deep ) {
+行号 368:             window.jQuery = _jQuery;
+行号 369:         }
+行号 370:
+行号 371:         return jQuery;
+行号 372:     },</pre>
+即只要在 JavaScript 中调用 jQuery.noConflict() 后，$ 就恢复成 jQuery 调用前的命名空间，不再产生冲突。
+
+示例：
+<pre>&lt;html&gt;
+  &lt;head&gt;
+    &lt;script src="prototype.js"&gt;&lt;/script&gt;
+    &lt;script src="jquery.js"&gt;&lt;/script&gt;
+    &lt;script&gt;
+      // 恢复 $ 为 Prototype 中的定义，jQuery 只使用 jQuery 名称来调用
+      jQuery.noConflict();
+
+      // jQuery 使用 jQuery(...) 来调用
+      jQuery(document).ready(function(){
+        // ...
+      });
+
+      // $ 实际上是 Prototype 的调用
+      $('DivID').hide();
+    &lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+      ...
+  &lt;/body&gt;
+&lt;/html&gt;</pre>
+<h2>总结</h2>
+因为 jQuery 提供了避免名字冲突的方法，而 Prototype 代码中大量引用了 $，不便修改，因此使用 jQuery 提供的机制 将 $ 为 Prototype 所用，jQuery 只使用 jQuery 调用，或者使用其他简洁的自定义别名。
+<ul>
+	<li>方案一：为避免冲突，jQuery 只用 jQuery 调用
+<pre>&lt;script src="prototype.js"&gt;&lt;/script&gt;
+&lt;script src="jquery.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+jQuery.noConflict();
+&lt;/script&gt;</pre>
+</li>
+	<li>方案二：为避免冲突并且保持简洁，jQuery 使用别名 $j 调用，不再使用 $ 甚至  jQuery
+<pre>&lt;script src="prototype.js"&gt;&lt;/script&gt;
+&lt;script src="jquery.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+var $j = jQuery.noConflict(true);
+...
+$j(document).ready(function(){
+...</pre>
+</li>
+	<li>方案三：通过闭包，依旧使用 $，而且不会造成和 Prototype 的冲突
+这个方法是通过闭包调用，$ 作为参数或者局部变量的方式指向 jQuery：
+<pre>(function($) {
+    // 这里 $ 指向 jQuery，也不会破坏全局的命名空间
+})(jQuery);</pre>
+</li>
+</ul>

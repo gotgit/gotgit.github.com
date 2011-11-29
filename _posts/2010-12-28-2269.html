@@ -1,0 +1,187 @@
+---
+layout: post
+title: "回到未来 (3)"
+---
+
+<div id="id38">
+<h3><a>9.3.3   时间旅行三</a></h3>
+《回到未来-第三集》铁匠布朗博士手工打造了可以时光旅行的飞行火车，使用蒸汽作为动力。这款时间旅行火车更大，更安全，更舒适，适合一家四口外加宠物的时空旅行。与之对应本次实践也将采用“手工打造”：交互式变基。
+
+<span id="more-2269"></span>交互式变基就是在上一节介绍的变基命令的基础上，添加了 <cite>-i</cite> 参数，在变基的时候进入一个交互界面。使用了交互界面的变基操作，不仅仅是自动化变基转换为手动确认那么没有技术含量，而是充满了魔法。
+
+执行交互式变基操作，会将 <cite>&lt;since&gt;..&lt;till&gt;</cite> 的提交悉数罗列在一个文件中，然后自动打开一个编辑器来编辑这个文件。可以通过修改文件的内容（删除提交，修改提交的动作关键字）实现删除提交，压缩多个提交为一个提交，更改提交的顺序，更改历史提交的提交说明。
+
+例如下面的界面就是针对当前DEMO版本库执行的交互式变基时编辑器打开的文件：
+<pre>pick b3af728 ignore object files.
+pick 3488f2c move .gitignore outside also works.
+pick 48456ab add hello.h
+pick b6f0b0a modify hello.h
+
+# Rebase d71ce92..b6f0b0a onto d71ce92
+#
+# Commands:
+#  p, pick = use commit
+#  r, reword = use commit, but edit the commit message
+#  e, edit = use commit, but stop for amending
+#  s, squash = use commit, but meld into previous commit
+#  f, fixup = like "squash", but discard this commit's log message
+#  x &lt;cmd&gt;, exec &lt;cmd&gt; = Run a shell command &lt;cmd&gt;, and stop if it fails
+#
+# If you remove a line here THAT COMMIT WILL BE LOST.
+# However, if you remove everything, the rebase will be aborted.
+</pre>
+从该文件可以看出：
+<ul>
+	<li>开头的四行由上到下依次对应于提交 C, D, E, F。</li>
+	<li>前四行缺省的动作都是 pick ，即应用此提交。</li>
+	<li>参考配置文件中的注释，可以通过修改动作名称，在变基的时候执行特定操作。</li>
+	<li>动作 <cite>reword</cite> 或者简写为 <cite>r</cite> ，含义是变基时应用此提交，但是在提交的时候允许用户修改提交说明。
+
+这个功能在 Git 1.6.6 之后开始提供，对于修改历史提交的提交说明异常方便。老版本的 Git 还是使用 <cite>edit</cite> 动作吧。</li>
+	<li>动作 <cite>edit</cite> 或者简写为 <cite>e</cite> ，也会应用此提交，但是会在应用时停止，提示用户使用 <cite>git commit --amend</cite> 执行提交，以便对提交进行修补。
+
+当用户执行 <cite>git commit --amend</cite> 完成提交后，还需要执行 <cite>git rebase --continue</cite> 继续变基操作。Git 会对用户进行相应的提示。
+
+实际上用户在变基暂停状态执行修补提交可以执行多次，相当于把一个提交分解为多个提交。而且 <cite>edit</cite> 动作也可以实现 <cite>reword</cite> 的动作，因此对于老版本的 Git 没有 <cite>reword</cite> 可用，则可以使用此动作。</li>
+	<li>动作 <cite>squash</cite> 或者简写为 <cite>s</cite> ，该提交会与前面的提交压缩为一个。</li>
+	<li>动作 <cite>fixup</cite> 或者简写为 <cite>f</cite> ，类似 <cite>squash</cite> 动作，但是此提交的提交说明被丢弃。
+
+这个功能在 Git 1.7.0 之后开始提供，老版本的 Git 还是使用 <cite>squash</cite> 动作吧。</li>
+	<li>可以通过修改配置文件中这四个提交的先后顺序，进而改变最终变基后提交的先后顺序。</li>
+	<li>可以对相应提交对应的行执行删除操作，这样该提交就不会被应用，进而在变基后的提交中被删除。</li>
+</ul>
+有了对交互式变基命令的理解，就可以开始新的“回到未来”之旅了。
+
+确认舞台已经布置完毕。
+<pre>$ git status -s -b
+## master
+$ git log --oneline --decorate -6
+b6f0b0a (HEAD, tag: F, master) modify hello.h
+48456ab (tag: E) add hello.h
+3488f2c (tag: D) move .gitignore outside also works.
+b3af728 (tag: C) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+</pre>
+<strong>现在演出第一幕：干掉坏蛋D</strong>
+<ul>
+	<li>执行交互式变基操作。
+<pre>$ git rebase -i D^
+</pre>
+</li>
+	<li>自动用编辑器修改文件。文件内容如下：
+<pre>pick 3488f2c move .gitignore outside also works.
+pick 48456ab add hello.h
+pick b6f0b0a modify hello.h
+
+# Rebase b3af728..b6f0b0a onto b3af728
+#
+# Commands:
+#  p, pick = use commit
+#  r, reword = use commit, but edit the commit message
+#  e, edit = use commit, but stop for amending
+#  s, squash = use commit, but meld into previous commit
+#  f, fixup = like "squash", but discard this commit's log message
+#  x &lt;cmd&gt;, exec &lt;cmd&gt; = Run a shell command &lt;cmd&gt;, and stop if it fails
+#
+# If you remove a line here THAT COMMIT WILL BE LOST.
+# However, if you remove everything, the rebase will be aborted.
+#
+</pre>
+</li>
+	<li>将第一行删除，使得上面的配置文件看起来像是这样（省略井号开始的注释）：
+<pre>pick 48456ab add hello.h
+pick b6f0b0a modify hello.h
+</pre>
+</li>
+	<li>保存退出。</li>
+	<li>变基自动开始，即刻完成。
+
+显示下面的内容。
+<pre>Successfully rebased and updated refs/heads/master.
+</pre>
+</li>
+	<li>看看日志。当前分支 master 已经完成变基，消灭了“坏蛋D”。
+<pre>$ git log --oneline --decorate -6
+78e5133 (HEAD, master) modify hello.h
+11eea7e add hello.h
+b3af728 (tag: C) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+63992f0 restore file: welcome.txt
+</pre>
+</li>
+</ul>
+<strong>幕布拉上，后台重新布景</strong>
+
+为了第二幕能够顺利演出，需要将 master 分支重新置回到提交 F 上。执行下面的操作完成“重新布景”。
+<pre>$ git checkout master
+Already on 'master'
+git reset --hard F
+HEAD is now at b6f0b0a modify hello.h
+</pre>
+布景完毕，大幕即将再次拉开。
+
+<strong>现在演出第二幕：坏蛋D被感化，融入社会</strong>
+<ul>
+	<li>同样执行交互式变基操作，不过因为要将 C 和 D 压缩为一个，因此变基从 C 的父提交开始。
+<pre>$ git rebase -i C^
+</pre>
+</li>
+	<li>自动用编辑器修改文件。文件内容如下（忽略井号开始的注释）：
+<pre>pick b3af728 ignore object files.
+pick 3488f2c move .gitignore outside also works.
+pick 48456ab add hello.h
+pick b6f0b0a modify hello.h
+</pre>
+</li>
+	<li>修改第二行（提交D），将动作由 <cite>pick</cite> 修改为 <cite>squash</cite> 。
+
+修改后的内容如下：
+<pre>pick b3af728 ignore object files.
+squash 3488f2c move .gitignore outside also works.
+pick 48456ab add hello.h
+pick b6f0b0a modify hello.h
+</pre>
+</li>
+	<li>保存退出。</li>
+	<li>自动开始变基操作，在执行到 squash 命令设定的提交时，进入提交前的日志编辑状态。
+
+显示的待编辑日志如下。很明显 C 和 D 的提交说明显示在了一起。
+<pre># This is a combination of 2 commits.
+# The first commit's message is:
+
+ignore object files.
+
+# This is the 2nd commit message:
+
+move .gitignore outside also works.
+</pre>
+</li>
+	<li>保存退出，即完成 squash 动作标识的提交以及后续变基操作。</li>
+	<li>看看提交日志，看到提交 C 和提交 D 都不见了，代之以一个融合后的提交。
+<pre>$ git log --oneline --decorate -6
+c0c2a1a (HEAD, master) modify hello.h
+c1e8b66 add hello.h
+db512c0 ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+63992f0 restore file: welcome.txt
+</pre>
+</li>
+	<li>可以看到融合C和D的提交日志实际上是两者日志的融合。在前面单行显示的日志中看不出来。
+<pre>$ git cat-file -p HEAD^^
+tree 00239a5d0daf9824a23cbf104d30af66af984e27
+parent d71ce9255b3b08c718810e4e31760198dd6da243
+author Jiang Xin &lt;jiangxin@ossxp.com&gt; 1291720899 +0800
+committer Jiang Xin &lt;jiangxin@ossxp.com&gt; 1292153393 +0800
+
+ignore object files.
+
+move .gitignore outside also works.
+</pre>
+</li>
+</ul>
+时光旅行结束了，多么神奇的 Git 啊。
+
+</div>

@@ -1,0 +1,72 @@
+---
+layout: post
+title: "Windows下Git的安装和配置"
+---
+
+<h1><span style="letter-spacing: normal; line-height: 24px; font-size: 13.3333px;">Git是Linux的创始人Linus Torvalds在2006年开发的，Linus自嘲说是一个“傻瓜内容跟踪器”。</span></h1>
+在Windows下使用Git，可以使用 Cygwin + Git，也可以使用 Msys + Git。
+
+Cygwin太庞大了，我更倾向于使用小巧的Msys。
+
+使用Msys + Git的话，也有两个选择：msys-cn + git，或者 msysgit。<span id="more-2282"></span>
+<div id="msys-cn-git">
+<h1>安装msys-cn + git</h1>
+Msys-cn是Msys的中文化项目，托管在Google Code上，里面提供了一个软件包管理器mpkg，同时提供了一系列实用工具，其中就包括git。
+
+msys-cn的主页：http://code.google.com/p/msys-cn
+
+下载msys-cn： <a href="http://msys-cn.googlecode.com/files/MSYS-Update.7z">http://msys-cn.googlecode.com/files/MSYS-Update.7z</a>
+
+下载完毕解压缩，运行msys.bat进入命令行界面。运行下面的命令来在线安装git：
+<pre>$ mpkg --install git</pre>
+如果网速太慢，可以下载git.mpkg文件后再安装。下载地址：http://msys-cn.googlecode.com/files/git.mpkg
+<pre>$ mpkg --add git</pre>
+如果一切顺利，现在就可以运行git命令了。
+
+</div>
+<div id="msysgit">
+<h1>安装msysgit</h1>
+msysgit是直接将git整合到msys里的一个项目，也是托管在Google Code上： <a href="http://code.google.com/p/msysgit">http://code.google.com/p/msysgit</a>
+
+下载最新版本的安装程序，安装即可。注意安装时最好选择默认的设置，这样保证不和系统的cmd命令冲突。
+
+安装完毕在开始菜单里会有Git菜单，里面有Git Bash和Git GUI。点击Git Bash进入msysgit命令行环境。
+
+msysgit中文输入输出可能会出现以下几方面的问题：
+<ul>
+	<li>ls输出乱码在用户主目录下新建一个bash配置文件.bashrc来保存配置信息：
+<pre>$ echo "alias ls='ls –show-control-chars –color=auto'" &gt;&gt; ~/.bashrc</pre>
+</li>
+	<li>命令行中不能输入中文：修改 /etc/inputrc：
+<pre>set output-meta on
+set convert-meta off</pre>
+</li>
+	<li>git st输出中文显示为UNICODE编码：
+<pre>$ git config --system core.quotepath false</pre>
+</li>
+	<li>git log 输出显示为乱码：在~/.bashrc中增加less命令的编码设置：
+<pre>$ echo export LESSCHARSET=utf-8 &gt;&gt; ~/.bashrc</pre>
+</li>
+</ul>
+以上的根目录指msysgit的安装目录，默认安装目录是C:Program FilesGit。默认用户主目录是我的文档。
+
+msysgit默认集成open ssh客户端。要访问github上的项目，需要使用ssh-keygen来生成本地公私钥对，添加公钥到github上，就可以在本地提交了。
+
+msysgit还带一个简单的图形界面，可以用来方便地浏览项目的历史，但用它来做日常的提交就不太合适了。你可能想到了TortoiseSVN，类似这样的图形界面才好用。幸好Tortoise也有Git版本：TortoiseGit。
+
+</div>
+<div id="tortoisegit">
+<h1>安装TortoiseGit</h1>
+TortoiseGit 也是托管在Google Code上的开源项目：http://code.google.com/p/tortoisegit
+
+TortoiseGit只是Git的前端，要使用它，首先要安装msysgit。这个前面已提到了。
+
+下载最新版的TortoiseGit安装： <a href="http://tortoisegit.googlecode.com/files/TortoiseGit-1.6.2.0-32bit.msi">http://tortoisegit.googlecode.com/files/TortoiseGit-1.6.2.0-32bit.msi</a>
+
+安装完毕以后需要设置TortoiseGit和MsysGit关联。在开始菜单里找到TortoiseGit-&gt;Settings，General选项里输入Git的路径即可。
+
+和msysgit不同，TortoiseGit使用内置的puttygen来生成公私钥对，私钥的扩展名为ppk。要想用TortoiseGit管理GitHub上的项目，则需要将puttygen生成的公钥添加到github上去。
+
+tortoisegit密钥配置参见 <a href="http://rongjih.blog.163.com/blog/static/335744612010619111042465/">http://rongjih.blog.163.com/blog/static/335744612010619111042465/</a>
+<div id="_mcePaste">不过可以修改使用msysgit的ssh，在设置-&gt;Network里，修改SSH Client 为msysgit的ssh.exe路径： c:\ Program Files\Git\bin\ssh.exe即可。</div>
+</div>

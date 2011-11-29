@@ -1,0 +1,156 @@
+---
+layout: post
+title: "TopGit的使用技巧 (3)"
+---
+
+含有分支依赖且产生冲突的update操作
+
+<span id="more-802"></span>
+
+创建一个Git版本库demo1
+<pre>$ git clone demo1
+$ cd demo1
+$ vi sum.py      #编写一个求和的函数
+$ cat sum.py
+def sum(a,b):
+return a + b
+
+print "sum(1+2)=",sum(1,2)
+$ git add .
+$ git ci -m "init respoitory"</pre>
+创建一个TopGit分支
+<pre>$ tg create t/hack1
+$ vi sum.py    #修改sum.py的形参
+$ cat sum.py
+def sum(num1,num2):
+return num1 + num2
+
+print "sum(1+2)=",sum(1,2)
+$ git ci -am "modify sum function's parameter"
+$ tg summary
+&gt;       t/hack1                         [PATCH] t/hack1
+$ git rev-parse master top-bases/t/hack1 t/hack1    #master, top-bases/t/hack1, t/hack1各自指向的提交号
+2cf8a89250157f46205abe12cbc1eb3439cbdcdc
+2cf8a89250157f46205abe12cbc1eb3439cbdcdc
+d532df964b0d0cb2559e37c7ac24137d010e71e7</pre>
+创建一个依赖于 t/hack1的分支
+<pre>$ tg create t/hack2   t/hack1
+$ vi sum.py   #修改输出格式
+$ cat sum.py
+def sum(num1,num2):
+return num1 + num2
+
+print "Hi,sum(1+2)=",sum(1,2)
+$ git ci -am "modify display format"
+$ tg summary
+t/hack1                         [PATCH] t/hack1
+&gt;       t/hack2                         [PATCH] t/hack2
+$ git rev-parse master top-bases/t/hack1 t/hack1 top-bases/t/hack2 t/hack2
+2cf8a89250157f46205abe12cbc1eb3439cbdcdc
+2cf8a89250157f46205abe12cbc1eb3439cbdcdc
+d532df964b0d0cb2559e37c7ac24137d010e71e7
+d532df964b0d0cb2559e37c7ac24137d010e71e7
+20687130ada13f8bbef7634ecf5dfb7b11937ec7</pre>
+修改master,致使 t/hack1, t/hack2过期
+<pre>$ git co master
+$ vi sum.py   #修改sum函数实现
+$ cat sum.py
+def sum(a,b):
+result = a + b
+return result
+
+print "sum(1+2)=",sum(1,2)
+$ git ci -am "modify sum function implements"
+$ tg summary   #D代表过期
+<strong>D   t/hack1                         [PATCH] t/hack1
+D   t/hack2                         [PATCH] t/hack2</strong>
+$ git rev-parse master top-bases/t/hack1 t/hack1 top-bases/t/hack2 t/hack2
+<strong>8814a040199811a17a7e5604c667b58193e85d31</strong>
+2cf8a89250157f46205abe12cbc1eb3439cbdcdc
+d532df964b0d0cb2559e37c7ac24137d010e71e7
+d532df964b0d0cb2559e37c7ac24137d010e71e7
+20687130ada13f8bbef7634ecf5dfb7b11937ec7</pre>
+切换到 t/hack2进行更新时就会出现依赖分支造成意外的冲突
+<pre>$ git co t/hack2
+$ tg update
+tg update
+tg: Recursing to t/hack1...
+[t/hack1] tg: Updating base with master changes...
+Updating 2cf8a89..8814a04
+Fast-forward
+sum.py |    3 ++-
+1 files changed, 2 insertions(+), 1 deletions(-)
+[t/hack1] tg: Updating t/hack1 against new base...
+Auto-merging sum.py
+CONFLICT (content): Merge conflict in sum.py
+Automatic merge failed; fix conflicts and then commit the result.
+[t/hack1] tg: Please commit merge resolution and call exit.
+[t/hack1] tg: You can abort this operation using `git reset --hard`.
+[t/hack1] tg: You are in a subshell. If you abort the merge,
+[t/hack1] tg: use `exit 1` to abort the recursive update altogether.
+[t/hack1]</pre>
+这样进入了一个TopGit提供的一个shell环境下,通过这一环境,TopGit可以是 t/hack1和 t/hack2分支的合并处在同一环境中.
+<pre>[t/hack1]  git rev-parse master top-bases/t/hack1 t/hack1 top-bases/t/hack2 t/hack2
+8814a040199811a17a7e5604c667b58193e85d31
+<strong>8814a040199811a17a7e5604c667b58193e85d31</strong>
+d532df964b0d0cb2559e37c7ac24137d010e71e7
+d532df964b0d0cb2559e37c7ac24137d010e71e7
+20687130ada13f8bbef7634ecf5dfb7b11937ec7
+[t/hack1] vi sum.py
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+def sum(num1,num2):
+return num1 + num2
+=======
+def sum(a,b):
+result = a + b
+return result
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; refs/top-bases/t/hack1
+
+print "sum(1+2)=",sum(1,2)
+[t/hack1] vi sum.py   #手动合并或者用工具( git mergetool)
+[t/hack1] cat sum.py
+def sum(num1,num2):
+result =num1 + num2
+return result
+
+print "sum(1+2)=",sum(1,2)
+[t/hack1] git st
+# On branch t/hack1
+# Unmerged paths:
+#   (use "git add/rm &lt;file&gt;..." as appropriate to mark resolution)
+#
+#       both modified:      sum.py
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+[t/hack1] git ci -am "merge t/hack1 with master"
+[t/hack1 45a0cdd] merge t/hack1 with master
+[t/hack1] git st
+# On branch t/hack1
+nothing to commit (working directory clean)
+[t/hack1] exit
+exit
+[t/hack1] tg: The base is up-to-date.
+[t/hack1] tg: The t/hack1 head is up-to-date wrt. the base.
+tg: Updating base with t/hack1 changes...
+Updating d532df9..45a0cdd
+Fast-forward
+sum.py |    3 ++-
+1 files changed, 2 insertions(+), 1 deletions(-)
+tg: Updating t/hack2 against new base...
+Auto-merging sum.py
+Merge made by recursive.
+sum.py |    3 ++-
+1 files changed, 2 insertions(+), 1 deletions(-)
+wangsheng@pc01:~/tmp/demo1$ git br
+master
+t/hack1
+* t/hack2
+$ tg summary
+<strong>t/hack1                         [PATCH] t/hack1
+&gt;       t/hack2                         [PATCH] t/hack2</strong>
+$ git rev-parse master top-bases/t/hack1 t/hack1 top-bases/t/hack2 t/hack2
+8814a040199811a17a7e5604c667b58193e85d31
+8814a040199811a17a7e5604c667b58193e85d31
+<strong>45a0cddffd8387d8832fef36a62a35d8d723bd69
+45a0cddffd8387d8832fef36a62a35d8d723bd69</strong>
+<strong>075e1100a600d387c669e96a168ab8341fd4502</strong></pre>

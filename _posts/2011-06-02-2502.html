@@ -1,0 +1,54 @@
+---
+layout: post
+title: "Git版本库同步对部分版本库禁用"
+---
+
+使用 Gitolite 假设 Git 服务，可以比较容易的配置服务器的冗余备份，在即将出版的《Git权威指南》，以及之前写的一个文档： http://www.ossxp.com/doc/git/gitolite.html 都可以看到。
+
+当配置了Gitolite 服务器镜像之后，服务器中任何版本库的创建和推送操作都会同步写到另外的镜像服务器中，但有时会有针对个别版本库禁止镜像的需要。
+<ul>
+	<li>某些版本库保存一些二进制软件包之类非源码类文件，版本库太大，同步影响带宽。</li>
+	<li>个人版本库内容各异，做镜像没有必要。</li>
+</ul>
+下面就介绍改造 Gitolite ，实现同步可定制的需求。
+
+<span id="more-2502"></span>
+<h2>使用gitolite.mirror 配置变量禁用版本库同步</h2>
+修改了 gitolite 的 post-receive.mirrorpush 脚本，增加条件判断，对于配置变量 gitolite.mirror 设置为 false 的版本库，停止版本库同步。
+<pre>$ git --git-dir=/path/to/repos.git config gitolite.mirror false</pre>
+<h2>新建版本库自动设置 gitolite.mirror 配置变量</h2>
+例如希望在 local 目录下创建的版本库，不进行镜像。即形如 local/repos1.git 的版本，只在本地服务器中存在，而不向远程服务器镜像。
+
+可以利用 gitolite 配置文件中的 config 指令，对新建的版本库设置 gitolite.mirror 设置：
+
+配置文件 gitolite-admin/conf/gitolite.conf 中相关配置：
+<pre>repo local/.*$
+     C = @admin
+     RW+ = @admin
+     R = @all
+     config gitolite.mirror = false</pre>
+即创建在 local 路径下的版本库，只有 @admin 用户组的用户有权创建，@admin 用户组用户有读写权限，其他所有人只有只读权限。新建立的版本，自动设置配置变量 gitolite.mirror 为 false.
+
+然后别忘了在修改 gitolite 配置文件后，提交并推送到服务器：
+<pre>$ git commit -m "new acl for local/*"
+$ git push</pre>
+正常情况下，git push 命令的输出中会现实服务器端发出的警告，主要是因为 config 指令可能对版本库造成安全风险，缺省 Gitolite 禁用了 config 指令。
+
+要在服务器端解开对 config 指令的限制，编辑服务器端的 ~git/gitolite.rc 文件：
+<pre>$GL_GITCONFIG_KEYS = "gitolite\\..* core\\.logAllRefUpdates";
+$GL_GITCONFIG_WILD = 1;</pre>
+变量 $GL_GITCONFIG_KEYS 列出了允许设置的 config 配置变量，用空格分开，使用正则表达式语法。
+
+变量 $GL_GITCONFIG_WILD 等于1，含义为允许对通配符版本库设置 config 变量。
+
+至此配置完成，当通过推送操作，在服务器 local 路径下建立新版本库时，会看到新版本库没有向远程版本库镜像：
+<pre>$ git push origin master
+Initialized empty Git repository in /data/_gitroot/local/pypi-packages.git/
+Counting objects: 2, done.
+Writing objects: 100% (2/2), 170 bytes, done.
+Total 2 (delta 0), reused 0 (delta 0)
+remote: **************************************************
+remote: WARNING: mirror disabled for this repository.
+remote: **************************************************
+To git@bj.ossxp.com:local/pypi-packages.git
+ * [new branch]      master -&gt; master</pre>

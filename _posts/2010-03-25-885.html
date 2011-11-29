@@ -1,0 +1,71 @@
+---
+layout: post
+title: "Redmine与TestLink的整合"
+---
+
+Redmine是一个灵活的项目管理工具, 它可以有效地管理项目开发的整个流程(需求, 设计, 开发),  但是对测试的流程(测试需求, 测试计划, 测试用例, 测试执行, 测试结果分析)却心有余而力不足. 幸运的是, 开源的测试管理工具TestLink恰好能补充Redmine的不足之处, 而且他们之间通过简单的配置就能合二为一了. 这样整个开发和测试的流程都能有效管理起来了.
+
+下面是Redmine和TestLink整合的步骤
+<h2><span id="more-885"></span> 前提条件</h2>
+<ol>
+	<li>你已经成功安装了 Redmine。</li>
+	<li>安装群英汇 Hack 后的 TestLink。</li>
+</ol>
+之所以安装群英汇增强版的 testlink 是因为 testlink 和缺陷跟踪系统的整合是以 mantis, bugzilla 等为原型进行设计的，没有考虑到 Redmine。而 Redmine 和 Mantis 的不同在于：虽然两者都支持多项目，但是在提交 Bug 的时候，Mantis 使用固定的 URL，而 Redmine 根据不同项目采用不同的 Bug 提交 URL（即在 URL 中包含项目ID）。
+<h2>为 TestLink 的每一个项目设定缺陷跟踪软件对应的项目 ID</h2>
+TestLink 的项目 ID 和对应 Redmine 的项目 ID 可能并不一致，就需要针对不同的 TestLink 项目进行设置。
+
+如下图所示，对每个 TestLink 项目设定对应的 Redmine（缺陷跟踪软件） 项目 ID：
+
+<a href="/wpfiles/2010/03/create_project.png"><img class="aligncenter size-medium wp-image-1751" title="create_project" src="/wpfiles/2010/03/create_project-300x162.png" alt="" width="300" height="162" /></a>
+<h2>编辑配置文件，设定TestLink 和 Redmine 的整合</h2>
+<ol>
+	<li>进入TestLink根目录, 修改custom_config.inc.php文件里$g_interface_bugs 属性的值, 将"NO"改为"REDMINE"；如果没有则添加该属性
+<pre>$g_interface_bugs = 'REDMINE'</pre>
+</li>
+	<li>复制 cfg/redmine.cfg.php 为 cfg/custom_redmine.cfg.php
+<pre>$ sudo cp cfg/redmine.cfg.php custom_redmine.cfg.php</pre>
+</li>
+	<li>修改cfg/custom_redmine.cfg.php 文件,  设置 redmine 和 testlink 的整合。
+下面仅列出关键设置：
+<pre>/** redmine数据库的主机名称 */
+define('BUG_TRACK_DB_HOST', 'localhost');
+
+/** redmine数据库的名称 */
+define('BUG_TRACK_DB_NAME', 'redmine_latest');
+
+/** Redmine使用的数据库类型
+ * 可以查看Redmine安装目录下 config/database.yml 文件中关于数据库的信息
+*/
+define('BUG_TRACK_DB_TYPE', 'mysql');
+
+/** Redmine数据库的用户名和密码 */
+define('BUG_TRACK_DB_USER', 'redmine');
+define('BUG_TRACK_DB_PASS', 'redmine');
+
+/** 定义链接数据库的字符集 **/
+define('BUG_TRACK_DB_CHARSET',"UTF-8");
+
+/* 链接Redmine问题列表的URL */
+define('BUG_TRACK_HREF', "http://foo.bar/redmine/issues/");
+
+/** 链接缺陷跟踪系统（Redmine），新建问题的URL */
+define('BUG_TRACK_ENTER_BUG_HREF',"http://foo.bar/redmine/projects/%s/issues/new");
+</pre>
+其中需要指出的是：
+<ul>
+	<li>BUG_TRACK_ENTER_BUG_HREF 是提交 Bug 的地址，地址中的 %s 将被 TestLink 对应的 remdine 项目 ID 替换</li>
+	<li>连接 redmine 数据库的具体参数值请参考你redmine中database.yml文件里的具体值：
+我的 Redmine 的 database.yml 文件内容如下:
+<pre>production:
+  adapter: mysql
+  database: redmine_latest
+  host: localhost
+  username: redmine
+  password: redmine
+  encoding: utf8</pre>
+</li>
+</ul>
+</li>
+	<li>重启 Apache 服务, 然后进入"测试执行"页面, 点击已经执行过的测试用例, 你就会在右边发现多了一列, 出现一个小爬虫, 点击那个小爬虫, 你就能跳到Redmine平台了.</li>
+</ol>

@@ -1,0 +1,386 @@
+---
+layout: post
+title: "《GotGit》附录D Git 和 Hg 面对面"
+---
+
+<h1><a>附录D   Git 和 Hg 面对面</a></h1>
+<div id="id5">
+<h2><a>D.1   面对面访谈录</a></h2>
+<strong>Git：你好 Hg，我发现我们真的很像。</strong>
+
+Hg：是啊，人们把我们都归类为分布式版本控制工具，所以我们之间的相似度，要比和 CVS、SVN 的相似度高得多了。
+
+Hg：我是用 Python 和少部分的 C 语言实现的，你呢？
+
+<strong>Git：我的核心当然</strong>是<strong>使用 C 语言了，因为 Linus Torvalds 最爱用 C 语言了。我的很多命令还使用了 Shell 脚本和 Perl 语言开发，Python 用的很少。</strong>
+
+Hg：大量的使用 C 语言，是你的性能比我高的原因么？
+
+<strong>Git：当然不是了，你不也在核心模块使用 C  语言了么？问题的关键在于我的对象库设计的非常优秀。你不要忘了我是谁发明的，可是大名鼎鼎的 Linux 之父 Linus Tolvars，他对  Linux 文件系统可是再熟悉不过的了，所以他能够以文件系统开发者的视角实现我的核心。</strong>
+
+<strong>Git：还有我的网络传输过程非常直观，可以显示实时的进度，好像我从你那里没有看到。之所以我能够有这样的实现，是因为我使用了“智能协议”。在网络传输的两端都启用了相应的辅助程序，实现差异传输及传输进度的计算和显示。</strong>
+
+Hg：<span style="color: #808080;"><em><span style="text-decoration: line-through;">是啊，非常的惭愧。当克隆一个比较大的 Hg 版本库时，会出现假死状态，用户不知道克隆操作的进展。</span></em></span>（感谢来自台湾的 Willie Wu，指出我的错误）
+
+Hg：实际上我也支持进度显示，不过是通过Progress插件实现的，需要通过修改配置文件启用该插件。
+
+Hg：我有一个特点是 SVN 用户非常喜欢的，就是我的顺序数字版本号。
+
+<strong>Git：你的顺序数字版本号只在本地版本库中有效。也就是说，你不能像 SVN 那样将顺序数字版本号作为项目本身的版本号，因为换成另外一个版本库的克隆，那个数字版本号就会不一样了。</strong>
+
+Hg：我觉得你的暂存区（stage）的概念太古怪了。我提交的时候，改动的文件会直接提交而不需要什么注册到暂存区的操作。
+
+<strong>Git：让读者来作评判吧。如果读者读过本书的第2篇，一定会说 Git 的暂存区帅呆了。</strong>
+
+Hg：我只允许用户对最近的一次提交进行回滚撤销，而你（Git）怎么能允许用户撤销任意多次历史提交呢？那样安全么？
+
+<strong>Git：这就是的我对象库和引用设计的强大之处，我可以使用 git reset 命令将工作分支进行任意的重置，丢弃任意多的历史。至于安全性，我的重置命令有一个保险，就是 reflog ，我随时可以参照 reflog 的记录来弥补错误的重置。</strong>
+
+Hg：我们的 revert 命令好像不同？
+
+<strong>Git：你 Hg 的 hg revert 命令和 SVN 的 svn revert  命令相似，是取消本地修改，用原始拷贝覆盖。你的这个操作在我这里是用 git checkout 命令实现的。我也有一个 git revert  命令，但是这个命令是针对某个历史提交进行反向操作，以取消该历史提交的改动的。</strong>
+
+Hg：我执行日志查看能够看到文本显示的分支图，你呢？
+
+<strong>Git：我需要在日志显示时添加参数，即用命令 git log --graph 。我支持通过建立别名实现简洁的调用，例如建立一个名为 glog 的别名。</strong>
+
+<strong>Git：我听说你 Hg 不支持分支？</strong>
+
+Hg：<span style="color: #808080;"><em><span style="text-decoration: line-through;">坦白的说，是的。我虽然也有分支命令，但是分支不是一个独立显示的提交空间，而是各个分支都显示在一起，相当于在版本库中同时拥有多个头，选择哪个分支就相当于把帽子戴在哪个头上面而已。所以我尽量要求我的用户使用克隆来当做分支。</span></em></span>（感谢来自台湾的 Willie Wu，指出我的错误）
+
+Hg：你说的是昨天的我，现在有了Bookmarks插件 ，我也拥有和你类似的分支实现。不过传统来讲我还是以克隆来实现分支的。
+
+<strong>Git：实际上我的每一个克隆的版本库也相当于独立的分支，但是因为我有强大的分支功能，因此很多用户还没有意识到。使用 Topgit 的用户就应该使用版本库克隆作为 Topgit 本身的分支管理。</strong>
+
+<strong>Git：还有，因为我对分支的完整支持，使得我可以和 SVN 很好的协同工作。我可以将整个 SVN 转换为本地的 Git 库，但是你 Hg，显然只能每次转换一个分支。</strong>
+
+Hg：是的，我要向你多学习。
+
+</div>
+<h2><a>D.2   Hg 和 Git 命令对照</a></h2>
+<span id="more-2370"></span>
+<table border="1"><colgroup> <col width="17%"></col> <col width="39%"></col> <col width="44%"></col> </colgroup>
+<thead>
+<tr>
+<th>比较项目</th>
+<th>Hg 命令</th>
+<th>Git 命令</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td rowspan="5">URL</td>
+<td><a href="http://host/path/to/repos">http://host/path/to/repos</a></td>
+<td>git://host/path/to/repos.git</td>
+</tr>
+<tr>
+<td><a href="ssh://user@host/path/to/repos">ssh://user@host/path/to/repos</a></td>
+<td><a href="ssh://user@host/path/to/repos.git">ssh://user@host/path/to/repos.git</a></td>
+</tr>
+<tr>
+<td><a>file:///path/to/repos</a></td>
+<td><a href="mailto:user@host">user@host</a>:path/to/repos.git</td>
+</tr>
+<tr>
+<td>/path/to/repos</td>
+<td><a>file:///path/to/repos.git</a></td>
+</tr>
+<tr>
+<td></td>
+<td>/path/to/repos.git</td>
+</tr>
+<tr>
+<td>配置</td>
+<td>
+<pre>[ui]
+username = Firstname Lastname &lt;mail@addr&gt;
+</pre>
+</td>
+<td>
+<pre>[user]
+    name = Firstname Lastname
+    email = mail@addr
+</pre>
+</td>
+</tr>
+<tr>
+<td>版本库初始化</td>
+<td>hg init &lt;path&gt;</td>
+<td>git init [--bare] &lt;path&gt;</td>
+</tr>
+<tr>
+<td>版本库克隆</td>
+<td>hg clone &lt;url&gt; &lt;path&gt;</td>
+<td>git clone &lt;url&gt; &lt;path&gt;</td>
+</tr>
+<tr>
+<td>获取版本库更新</td>
+<td>hg pull --update</td>
+<td>git pull</td>
+</tr>
+<tr>
+<td>更新至历史版本</td>
+<td>hg update -r &lt;rev&gt;</td>
+<td>git checkout &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>更新到指定日期</td>
+<td>hg update -d &lt;date&gt;</td>
+<td>git checkout HEAD@'{&lt;date&gt;}'</td>
+</tr>
+<tr>
+<td>更新至最新提交</td>
+<td>hg update</td>
+<td>git checkout master</td>
+</tr>
+<tr>
+<td>切换至里程碑</td>
+<td>hg update -r &lt;tag&gt;</td>
+<td>git checkout &lt;tag&gt;</td>
+</tr>
+<tr>
+<td>切换至分支</td>
+<td>hg update -r &lt;branch&gt;</td>
+<td>git checkout &lt;branch&gt;</td>
+</tr>
+<tr>
+<td>还原文件/强制覆盖</td>
+<td>hg update -C &lt;path&gt;</td>
+<td>git checkout -- &lt;path&gt;</td>
+</tr>
+<tr>
+<td>添加文件</td>
+<td>hg add &lt;path&gt;</td>
+<td>git add &lt;path&gt;</td>
+</tr>
+<tr>
+<td>删除文件</td>
+<td>hg rm &lt;path&gt;</td>
+<td>git rm &lt;path&gt;</td>
+</tr>
+<tr>
+<td>添加及删除文件</td>
+<td>hg addremove</td>
+<td>git add -A</td>
+</tr>
+<tr>
+<td>移动文件</td>
+<td>hg mv &lt;old&gt; &lt;new&gt;</td>
+<td>git mv &lt;old&gt; &lt;new&gt;</td>
+</tr>
+<tr>
+<td>撤消添加、删除等操作</td>
+<td>hg revert &lt;path&gt;</td>
+<td>git reset -- &lt;path&gt;</td>
+</tr>
+<tr>
+<td>清除未跟踪文件</td>
+<td>hg clean</td>
+<td>git clean -fd</td>
+</tr>
+<tr>
+<td>获取文件历史版本</td>
+<td>hg cat -r&lt;rev&gt; &lt;path&gt; &gt; &lt;output&gt;</td>
+<td>git show &lt;commit&gt;:&lt;path&gt; &gt; &lt;output&gt;</td>
+</tr>
+<tr>
+<td>反删除文件</td>
+<td>hg add &lt;path&gt;</td>
+<td>git add &lt;path&gt;</td>
+</tr>
+<tr>
+<td rowspan="3">工作区差异比较</td>
+<td rowspan="3">hg diff</td>
+<td>git diff</td>
+</tr>
+<tr>
+<td>git diff --cached</td>
+</tr>
+<tr>
+<td>git diff HEAD</td>
+</tr>
+<tr>
+<td>版本间差异比较</td>
+<td>hg diff -r &lt;rev1&gt; -r &lt;rev2&gt; &lt;path&gt;</td>
+<td>git diff &lt;commit1&gt; &lt;commit2&gt; -- &lt;path&gt;</td>
+</tr>
+<tr>
+<td>查看工作区状态</td>
+<td>hg status</td>
+<td>git status -s</td>
+</tr>
+<tr>
+<td>提交</td>
+<td>hg commit -m "&lt;msg&gt;"</td>
+<td>git commit -a -m "&lt;msg&gt;"</td>
+</tr>
+<tr>
+<td>推送提交</td>
+<td>hg push</td>
+<td>git push</td>
+</tr>
+<tr>
+<td rowspan="2">显示提交日志</td>
+<td>hg log | less</td>
+<td>git log</td>
+</tr>
+<tr>
+<td>hg glog | less</td>
+<td>git log --graph</td>
+</tr>
+<tr>
+<td>逐行追溯</td>
+<td>hg annotate</td>
+<td>git annotate, git blame</td>
+</tr>
+<tr>
+<td rowspan="3">显示里程碑/分支</td>
+<td>hg tags</td>
+<td>git tag</td>
+</tr>
+<tr>
+<td>hg branches
+
+hg bookmarks</td>
+<td>git branch</td>
+</tr>
+<tr>
+<td>hg heads</td>
+<td>git show-ref</td>
+</tr>
+<tr>
+<td>创建里程碑</td>
+<td>hg tag [-m "&lt;msg&gt;"] [-r &lt;rev&gt;] &lt;tagname&gt;</td>
+<td>git tag [-m "&lt;msg&gt;"] &lt;tagname&gt; [&lt;commit&gt;]</td>
+</tr>
+<tr>
+<td>删除里程碑</td>
+<td>hg tag --remove &lt;tagname&gt;</td>
+<td>git tag -d &lt;tagname&gt;</td>
+</tr>
+<tr>
+<td rowspan="2">创建分支</td>
+<td rowspan="2">hg branch &lt;branch&gt;
+
+hg bookmark &lt;branch&gt;</td>
+<td>git branch &lt;branch&gt; &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>git checkout -b &lt;branch&gt; &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>删除分支</td>
+<td>hg commit --close-branch
+
+hg bookmark -d &lt;branch&gt;</td>
+<td>git branch -d &lt;branch&gt;</td>
+</tr>
+<tr>
+<td rowspan="2">导出项目文件</td>
+<td rowspan="2">hg archive -r &lt;rev&gt; &lt;output.tar.gz&gt;</td>
+<td>git archive -o &lt;output.tar&gt; &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>git archive -o &lt;output.tar&gt; --remote=&lt;url&gt; &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>反转提交</td>
+<td>hg backout &lt;rev&gt;</td>
+<td>git revert &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>提交拣选</td>
+<td>-</td>
+<td>git cherry-pick &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>分支合并</td>
+<td>hg merge &lt;rev&gt;</td>
+<td>git merge &lt;commit&gt;</td>
+</tr>
+<tr>
+<td>变基</td>
+<td>hg rebase</td>
+<td>git rebase</td>
+</tr>
+<tr>
+<td rowspan="2">冲突解决</td>
+<td>hg resolve --tool=&lt;tool&gt;</td>
+<td>git mergetool</td>
+</tr>
+<tr>
+<td>hg resolve -m &lt;path&gt;</td>
+<td>git add &lt;path&gt;</td>
+</tr>
+<tr>
+<td>更改提交说明</td>
+<td>Hg + MQ</td>
+<td>git commit --amend</td>
+</tr>
+<tr>
+<td>撤消最后一次提交</td>
+<td>hg rollback</td>
+<td>git reset [ --soft | --hard ] HEAD^</td>
+</tr>
+<tr>
+<td>撤消多次提交</td>
+<td>Hg + MQ</td>
+<td>git reset [ --soft | --hard ] HEAD~&lt;n&gt;</td>
+</tr>
+<tr>
+<td>撤消历史提交</td>
+<td>Hg + MQ</td>
+<td>git rebase -i &lt;commit&gt;^</td>
+</tr>
+<tr>
+<td>启动Web浏览</td>
+<td>hg serve</td>
+<td>git instaweb</td>
+</tr>
+<tr>
+<td>二分查找</td>
+<td>hg bisect</td>
+<td>git bisect</td>
+</tr>
+<tr>
+<td>内容搜索</td>
+<td>hg grep</td>
+<td>git grep</td>
+</tr>
+<tr>
+<td>提交导出补丁文件</td>
+<td>hg export</td>
+<td>git format-patch</td>
+</tr>
+<tr>
+<td>工作区根目录</td>
+<td>hg root</td>
+<td>git rev-parse --show-toplevel</td>
+</tr>
+<tr>
+<td rowspan="6">杂项</td>
+<td>.hgignore 文件</td>
+<td>.gitignore 文件</td>
+</tr>
+<tr>
+<td>pager 扩展</td>
+<td>内置分页器</td>
+</tr>
+<tr>
+<td>color 扩展</td>
+<td>color.* 配置变量</td>
+</tr>
+<tr>
+<td>mq 扩展</td>
+<td>StGit, Topgit</td>
+</tr>
+<tr>
+<td>graphlog 扩展</td>
+<td>git log --graph</td>
+</tr>
+<tr>
+<td>hgk 扩展</td>
+<td>gitk</td>
+</tr>
+</tbody>
+</table>

@@ -1,0 +1,194 @@
+---
+layout: post
+title: "回到未来 (2)"
+---
+
+<div id="id37">
+<h3><a>9.3.2   时间旅行二</a></h3>
+《回到未来-第二集》布朗博士改进的时间旅行车使用了未来科技，是陆天两用的飞车，而且燃料不再依赖核物质，而是使用无所不在的生活垃圾。而此次实践使用的工具也进行了升级，采用强大的 <cite>git rebase</cite> 命令。
+
+<span id="more-2267"></span>
+
+命令 <cite>git rebase</cite> 是对提交执行变基操作，即可以实现将指定范围的提交“嫁接”到另外一个提交之上。其常用的命令行格式有：
+<pre>用法1: git rebase --onto  &lt;newbase&gt;  &lt;since&gt;      &lt;till&gt;
+用法2: git rebase --onto  &lt;newbase&gt;  &lt;since&gt;
+用法3: git rebase         &lt;newbase&gt;               &lt;till&gt;
+用法4: git rebase         &lt;newbase&gt;
+用法5: git rebase -i ...
+用法6: git rebase --continue
+用法7: git rebase --skip
+用法8: git rebase --abort
+</pre>
+不要被上面的语法吓到，用法5会在下节（时间旅行三）中予以介绍，后三种用法则是变基运行过程被中断时可采用的命令 —— 继续变基或终止等。
+<ul>
+	<li>用法6是在变基遇到冲突而暂停后，当完成冲突解决后（添加到暂存区，不提交），恢复变基操作的时候使用。</li>
+	<li>用法7是在变基遇到冲突而暂停后，跳过当前提交的时候使用。</li>
+	<li>用法8是在变基遇到冲突后，终止变基操作，回到之前的分支时候使用。</li>
+</ul>
+而前四个用法如果把省略的参数补上（方括号内是省略掉的参数），看起来就都和用法1就一致了。
+<pre>用法1: git rebase  --onto  &lt;newbase&gt;  &lt;since&gt;      &lt;till&gt;
+用法2: git rebase  --onto  &lt;newbase&gt;  &lt;since&gt;      [HEAD]
+用法3: git rebase [--onto] &lt;newbase&gt;  [&lt;newbase&gt;]  &lt;till&gt;
+用法4: git rebase [--onto] &lt;newbase&gt;  [&lt;newbase&gt;]  [HEAD]
+</pre>
+下面就介绍一下 <cite>git rebase</cite> 的用法。命令格式：
+<pre>git rebase  --onto  &lt;newbase&gt;  &lt;since&gt;      &lt;till&gt;
+</pre>
+变基操作的过程：
+<ul>
+	<li>首先会执行 <cite>git checkout</cite> 切换到 <cite>&lt;till&gt;</cite> 。
+
+因为会切换到 <cite>&lt;till&gt;</cite> ，因此如果 <cite>&lt;till&gt;</cite> 指向的不是一个分支（如 master），则变基操作是在 <cite>detached HEAD</cite> （分离头指针）状态进行的，当变基结束后，还要像在“时间旅行一”中那样，对 master 分支执行重置以实现把变基结果记录在分支中。</li>
+	<li>将 <cite>&lt;since&gt;..&lt;till&gt;</cite> 所标识的提交范围写到一个临时文件中。
+
+还记得前面介绍的版本范围语法， <cite>&lt;since&gt;..&lt;till&gt;</cite> 是指包括 <cite>&lt;till&gt;</cite> 的所有历史提交排除 <cite>&lt;since&gt;</cite> 以及 <cite>&lt;since&gt;</cite> 的历史提交后形成的版本范围。</li>
+	<li>当前分支强制重置（git reset --hard）到 <cite>&lt;newbase&gt;</cite> 。
+
+相当于执行： <cite>git reset --hard &lt;newbase&gt;</cite> 。</li>
+	<li>从保存在临时文件中的提交列表中，一个一个将提交按照顺序重新提交到重置之后的分支上。</li>
+	<li>如果遇到提交已经在分支中包含，跳过该提交。</li>
+	<li>如果在提交过程遇到冲突，变基过程暂停。用户解决冲突后，执行 <cite>git rebase --continue</cite> 继续变基操作。或者执行 <cite>git rebase --skip</cite> 跳过此提交。或者执行 <cite>git rebase --abort</cite> 就此终止变基操作切换到变基前的分支上。</li>
+</ul>
+很显然为了执行将 E 和 F 提交跳过提价 D，“嫁接”到 C 提交上。可以如此执行变基命令：
+<pre>git rebase --onto C E^ F
+</pre>
+因为 E^ 等价于 D，并且 F 和当前 HEAD 指向相同，因此可以这样操作：
+<pre>git rebase --onto C D
+</pre>
+有了对变基命令的理解，就可以开始新的“回到未来”之旅了。
+
+确认舞台已经布置完毕。
+<pre>$ git status -s -b
+## master
+$ git log --oneline --decorate -6
+b6f0b0a (HEAD, tag: F, master) modify hello.h
+48456ab (tag: E) add hello.h
+3488f2c (tag: D) move .gitignore outside also works.
+b3af728 (tag: C) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+</pre>
+<strong>现在演出第一幕：干掉坏蛋D</strong>
+<ul>
+	<li>执行变基操作。
+
+因为下面的变基操命令行使用了参数 F。F 是一个里程碑指向一个提交，而非 master，会导致后面变基完成还需要对 master 分支执行重置。在第二幕中会使用 master，会发现省事不少。
+<pre>$  git rebase --onto C E^ F
+First, rewinding head to replay your work on top of it...
+Applying: add hello.h
+Applying: modify hello.h
+</pre>
+</li>
+	<li>最后一步必需的操作，就是要将 master 分支指向变基后的提交上。
+
+下面的切换操作使用了reflog的语法，即 <cite>HEAD@{1}</cite> 相当于切换回 master 分支前的HEAD指向，即 3360440。
+<pre>$ git checkout master
+Previous HEAD position was 3360440... modify hello.h
+Switched to branch 'master'
+$ git reset --hard HEAD@{1}
+HEAD is now at 3360440 modify hello.h
+</pre>
+</li>
+	<li>经过检查，操作完毕，收工。
+<pre>$ git log --oneline --decorate -6
+3360440 (HEAD, master) modify hello.h
+1ef3803 add hello.h
+b3af728 (tag: C) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+63992f0 restore file: welcome.txt
+</pre>
+</li>
+</ul>
+<strong>幕布拉上，后台重新布景</strong>
+
+为了第二幕能够顺利演出，需要将 master 分支重新置回到提交 F 上。执行下面的操作完成“重新布景”。
+<pre>$ git checkout master
+Already on 'master'
+git reset --hard F
+HEAD is now at b6f0b0a modify hello.h
+</pre>
+布景完毕，大幕即将再次拉开。
+
+<strong>现在演出第二幕：坏蛋D被感化，融入社会</strong>
+<ul>
+	<li>执行 <cite>git checkout</cite> 命令，暂时将 HEAD 头指针切换到坏蛋 D。
+
+切换过程显示处于非跟踪状态的警告，没有关系，因为剧情需要。
+<pre>$ git checkout D
+Note: checking out 'D'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -b with the checkout command again. Example:
+
+  git checkout -b new_branch_name
+
+HEAD is now at 3488f2c... move .gitignore outside also works.
+</pre>
+</li>
+	<li>悔棋两次，以便将C和D融合。
+<pre>$ git reset --soft HEAD^^
+</pre>
+</li>
+	<li>执行提交，提交说明重用 C 提交的提交说明。
+<pre>$ git commit -C C
+[detached HEAD 2d020b6] ignore object files.
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+ create mode 100644 .gitignore
+</pre>
+</li>
+	<li>记住这个提交ID: 2d020b6。
+
+用里程碑是最好的记忆提交ID的方法：
+<pre>$ git tag newbase
+$ git rev-parse newbase
+2d020b62034b7a433f80396118bc3f66a60f296f
+</pre>
+</li>
+	<li>执行变基操作，将 E 和 F 提交“嫁接”到 <cite>newbase</cite> 上。
+
+下面的变基操命令行没有像之前的操作使用使用了参数 F，而是使用分支 master。所以接下来的变基操作会直接修改 master 分支，而无须再进行对 master 的重置操作。
+<pre>$  git rebase --onto newbase E^ master
+First, rewinding head to replay your work on top of it...
+Applying: add hello.h
+Applying: modify hello.h
+</pre>
+</li>
+	<li>看看提交日志，看到提交 C 和提交 D 都不见了，代之以融合后的提交 <cite>newbase</cite> 。
+
+还可以看到最新的提交除了和 HEAD 的指向一致，也和 master 分支的指向一致。
+<pre>$ git log --oneline --decorate -6
+2495dc1 (HEAD, master) modify hello.h
+6349328 add hello.h
+2d020b6 (tag: newbase) ignore object files.
+d71ce92 (tag: hello_1.0, tag: B) Hello world initialized.
+c024f34 (tag: A) README is from welcome.txt.
+63992f0 restore file: welcome.txt
+</pre>
+</li>
+	<li>当前的确已经在 master 分支上了，操作全部完成。
+<pre>$ git branch
+* master
+</pre>
+</li>
+	<li>清理一下，然后收工。
+
+前面的操作中为了方便创建了标识提交的新里程碑 <cite>newbase</cite> ，将这个里程碑现在没有什么用处了删除吧。
+<pre>$ git tag -d newbase
+Deleted tag 'newbase' (was 2d020b6)
+</pre>
+</li>
+</ul>
+<strong>别忘了后台的重新布景</strong>
+
+为了接下来的时间旅行三能够顺利开始，需要重新布景，将 master 分支重新置回到提交 F 上。
+<pre>$ git checkout master
+Already on 'master'
+$ git reset --hard F
+HEAD is now at b6f0b0a modify hello.h
+</pre>
+</div>

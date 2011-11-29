@@ -1,0 +1,16 @@
+---
+layout: post
+title: "Redmine 和 Subversion主备模式的整合"
+---
+
+当两个或多个 Subversion 服务器互为主备服务器时，Redmine 部署在其中一台服务器上，如何才能让 Redmine 的版本库的授权能够正确保持呢？前提是 Subversion 的授权只能在主服务器上进行。
+
+下面是部署的逻辑图：
+
+<a href="/wpfiles/2010/11/multi-svn-and-redmine.png"></a><a href="/wpfiles/2010/11/multi-svn-and-redmine.png"><img class="aligncenter size-medium wp-image-2054" title="multi-svn-and-redmine" src="/wpfiles/2010/11/multi-svn-and-redmine-300x213.png" alt="" width="300" height="213" /></a>如图所示：
+<ul>
+	<li> Redmine 部署于 主机A 中。</li>
+	<li>蓝线代表读操作，红线代表写操作。</li>
+	<li>Redmine 的各个项目的版本库指向不同的 svn 根路径（svnroot1 和 svnroot2）下的版本库。</li>
+	<li>Redmine 项目的版本库配置的授权文件，来自不同的授权文件。如 config1 或者 config2。</li>
+</ul>

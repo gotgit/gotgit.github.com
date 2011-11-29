@@ -1,0 +1,67 @@
+---
+layout: post
+title: "如何用apache+mongrel部署Rails应用"
+---
+
+<ol>
+	<li><strong>安装mongrel和mongrel_cluster </strong>
+<pre>sudo gem install mongrel mongrel_cluster</pre>
+由于用gem安装后mongrel_rails命令被放在 /var/lib/gems/1.8/bin/mongrel_rails，使用不方便，所以建议建立符号链接
+<pre>sudo ln -s /var/lib/gems/1.8/bin/mongrel_rails /usr/bin/mongrel_rails</pre>
+</li>
+	<li><strong>配置并启动 mongrel_cluster</strong>
+<span id="more-1355"></span>
+在Rails项目的根目录下执行以下命令，生成config/mongrel_cluster.yml 文件，供启用mongrel集群使用
+<pre>sudo mongrel_rails cluster::configure -e production -p 8000 -a 127.0.0.1 -N 3</pre>
+有关cluster::configure 更多参数使用可借助帮助命令查看
+<pre>mongrel_rails cluster::configure -h</pre>
+生成的文件内容如下：
+<pre>---
+address: 127.0.0.1
+log_file: log/mongrel.log
+port: "8000"
+environment: production
+pid_file: tmp/pids/mongrel.pid
+servers: 3
+</pre>
+启用mongrel_cluster
+<pre>wangsheng@pc01:/opt/redmine/web$ sudo mongrel_rails cluster::start
+starting port 8000
+starting port 8001
+starting port 8002
+</pre>
+</li>
+	<li><strong>添加虚拟主机</strong>
+在/etc/apache2/sites-available 目录下 test 文件，配置Rails程序的虚拟主机。
+文件的内容如下
+<pre>&lt;VirtualHost *:80&gt;
+    # Server name
+    ServerName test.example.com
+
+    # Proxy ACL
+    &lt;Proxy *&gt;
+        Order allow,deny
+        Allow from all
+    &lt;/Proxy&gt;
+
+    # config mongrel cluster proxy
+    &lt;Proxy balancer://mongrel&gt;
+        BalancerMember http://127.0.0.1:8000
+        BalancerMember http://127.0.0.1:8001
+        BalancerMember http://127.0.0.1:8002
+    &lt;/Proxy&gt;
+
+    # Proxy directives
+    ProxyPass / balancer://mongrel/
+    ProxyPassReverse / balancer://mongrel/
+    ProxyPreserveHost on
+
+    # Logfiles
+    ErrorLog  /var/log/apache2/test.example.com.error.log
+    CustomLog /var/log/apache2/test.example.com.access.log combined
+
+&lt;/VirtualHost&gt;</pre>
+<strong> 注意</strong>：前提是你需要开启apache代理以及代理均衡模块（proxy和proxy_balancer)。</li>
+	<li><strong>测试配置是否成功</strong>
+重启apache，在浏览器输入 test.example.com，按回车键。如果正常显示应用程序的主页，则证明配置成功。</li>
+</ol>

@@ -1,0 +1,73 @@
+---
+layout: post
+title: "xapian索引的term处理"
+---
+
+<div id="xapian" class="document">
+
+<em>Xapian </em>是一个用C++编写的全文检索程序，License是GPL，它的作用类似于Java的lucene。Xapian 的 官方网站是<a href="http://xapian.org/">http://xapian.org/</a>,采用trac作为<a href="http://trac.xapian.org/" target="_blank">项目管理软件</a>。如果想要了解更多则可以查看<a href="http://xapian.org/docs/" target="_blank">xapian的文档</a>。Xapian的索引不支持中文切词，不管是单字切词还是多元切词，中文是同英文一样的处理方式。下面就来分析Xapian怎样索引英文文档。
+
+<span id="more-1613"></span>
+
+首先介绍一个迭代器 <em>Utf8Iterator</em>（<em>unicode.h</em>),它在索引的时候起着非常重要的作用。它有三个<span style="font-size: 13.3333px;">私</span><span style="font-size: 13.3333px;">有 成</span><span style="font-size: 13.3333px;">员，其中其中 <em>p</em>表示指向字符数组的元素指针，<em>end</em>表示指向字符数组末端元素的下一个,</span><span style="font-size: 13.3333px;"><em>seqlen</em>表示当前字符所占的字节数:</span>
+<pre class="literal-block">const unsigned char *p;
+const unsigned char *end;
+mutable unsigned seqlen;</pre>
+<em>Utf8Lterator</em>还有四个非常重要的操作符重载，索引时它们多次被调用。其中 * 表示操作符返回对应的<em>unicode</em>码， ++ 表示指针指向下一位字符， == 和 != 是判断迭代器是否相同:
+<pre class="literal-block">unsigned Utf8Iterator::operator*() const {
+   if (p == NULL) return unsigned(-1);
+   if (seqlen == 0) calculate_sequence_length();
+       unsigned char ch = *p;
+       if (seqlen == 1) return ch;
+       if (seqlen == 2) return ((ch &amp; 0x1f) &lt;&lt; 6) | (p[1] &amp; 0x3f);
+       if (seqlen == 3)
+           return ((ch &amp; 0x0f) &lt;&lt; 12) | ((p[1] &amp; 0x3f) &lt;&lt; 6) | (p[2] &amp; 0x3f);
+       return ((ch &amp; 0x07) &lt;&lt; 18) | ((p[1] &amp; 0x3f) &lt;&lt; 12) |
+                 ((p[2] &amp; 0x3f) &lt;&lt; 6) | (p[3] &amp; 0x3f);
+}
+Utf8Iterator &amp; operator++() {
+    if (seqlen == 0) calculate_sequence_length();
+    p += seqlen;
+    if (p == end) p = NULL;
+    seqlen = 0;
+    return *this;
+}
+bool operator==(const Utf8Iterator &amp;other) const { return p == other.p; }
+bool operator!=(const Utf8Iterator &amp;other) const { return p != other.p; }</pre>
+<em>Xapian</em> 是通过调用<em>termgenerator_internal.cc</em>的方法<em>index_text()</em>方法最终处理字符串或字符数组。
+<pre class="literal-block">index_text(Utf8Iterator(text), weight, prefix);</pre>
+<em>Xapian</em>索引字符串或字符数组的处理主要可以分为四个阶段：
+<ol>
+	<li><span style="font-size: 13.3333px;">首先是判断Utf8Iterator类型的itor是不是为空，接着再判断 *p 是不是文字字符，如果 *p 是文字字符推出循环继续向下，如下：</span>
+<pre class="literal-block">while (true) {
+   if (itor == Utf8Iterator()) return;
+   ch = check_wordchar(*itor);
+   if (ch) break;
+   ++itor;
+}</pre>
+</li>
+	<li>接着循环叠加字符成为<em>term</em>，提取词干就是依次提取并叠加直到下一个不是文字字符<em><strong> 。</strong><span style="font-style: normal;">如提取词干</span>“apple”，</em>过程中<em>term</em>的值依次如下 ”a“ , "ap" , "app", "appl" ,"apple"。
+<pre>do {
+    Unicode::append_utf8(term, ch);
+    prevch = ch;
+    if (++itor == Utf8Iterator()) goto endofterm;
+    ch = check_wordchar(*itor);
+} while (ch);</pre>
+</li>
+	<li>索引词干
+<pre>if (with_positions) {
+    doc.add_posting(prefix + term, ++termpos, weight);
+} else {
+    doc.add_term(prefix + term, weight);
+}</pre>
+</li>
+	<li>采用<em><a href="http://snowball.tartarus.org">Snowball</a></em>语言进行词干处理。大致的作用就是索引时建立<em>footballs </em>与<em>football</em>的关联<em> , </em>在查询<em>football</em>时会返回<em>footballs</em>结果。
+<pre>string stem("Z");
+stem += prefix;
+stem += stemmer(term);
+doc.add_term(stem, weight);</pre>
+</li>
+</ol>
+总之，Xapian中的切词就是以<strong><em>下一位是不是文字字符 </em></strong><em>(空格，标点符号等)</em><strong><em> </em></strong>来分割字符串。
+
+</div>

@@ -1,0 +1,51 @@
+---
+layout: post
+title: "整合Plone和Apache"
+---
+
+<h1><span style="letter-spacing: normal; line-height: 24px; font-size: 13.3333px;">使用Apache作为Plone服务器，利用Apache的缓存机制，可以提高Plone的响应速度。</span></h1>
+首先要在Zope中添加Monster。进入ZMI管理界面，在Zope根目录下添加Virtual Host Monster，名称随意。
+<div id="apache">
+<h1>设置Apache代理</h1>
+编辑apache配置文件 /etc/apache2/sites-enabled/000-default， 增加类似下面的几行：
+<pre>ServerName ossxp.com
+ServerAlias www.ossxp.com
+ServerAdmin webmaster@ossxp.com
+ProxyPass / http://localhost:8080/VirtualHostBase/http/ossxp.com:80/mysite/VirtualHostRoot/
+ProxyPassReverse / http://localhost:8080/VirtualHostBase/http/ossxp.com:80/mysite/VirtualHostRoot/</pre>
+关键是ProxyPass和ProxyPassReverse两行。这两行设置代理和反向代理。
+
+后面第一个斜扛说明对整个网站使用代理。
+
+紧跟着的是Plone站点的地址，然后是VirtualHostBase，然后是协议名称http，然后是apache中的域名，也就是第一行的ServerName，再接着是Plone站点的名称，最后是VirtualHostRoot。记着最后有一个斜扛。
+
+Plone的代理搭建好了，但这个代理却是任何人都可以用的，为了安全起见，我们还需要在配置文件里增加几行：
+<pre>&lt;LocationMatch "^[^/]"&gt;
+    Deny from all
+&lt;/LocationMatch&gt;</pre>
+修改完毕，需要重启Apache服务器。但先别忙着重启，先激活proxy模块：
+<pre>$ sudo a2enmod proxy
+$ sudo a2enmod proxy_http</pre>
+然后重启Aapche服务器即可。
+
+</div>
+<div id="id1">
+<h1>在Apache中启用缓存</h1>
+在使用Plone过程中，确实感觉响应速度比较慢，本地都这样，何况远程呢？所以很有必要优化一下响应速度。
+
+首先使用ApacheBench测试一下Plone的相应速度。回头可以做对比。
+<pre>$ ab -n 100 http://www.ossxp.com/</pre>
+使用Expires模块来设置缓存。修改配置文件，增加如下几行：
+<pre>ExpiresActive On
+ExpiresByType image/gif "access plus 14 days"
+ExpiresByType image/jpeg "access plus 14 days"
+ExpiresByType image/png "access plus 14 days"
+ExpiresByType text/css "access plus 14 days"
+ExpiresByType application/x-javascript "access plus 14 days"</pre>
+激活Expires模块：
+<pre>$ sudo a2enmod expires</pre>
+重启Apache服务器即可。
+
+最后，推荐一款分析网页质量和网站速度的Chrome扩展：Monster。
+
+</div>

@@ -1,0 +1,31 @@
+---
+layout: post
+title: "维基中 Include 宏的用法"
+---
+
+<strong><span style="text-decoration: underline;">提问：</span></strong>
+<pre>我的目标是列出当前页面下的一级页面：
+  &lt;&lt;Include(^/, "", ,titleonly)&gt;&gt;
+这个宏列出了当前页面下的所有子页面（递 归），如何写正则表达式来实现这个要求？
+还有就是pagename返回的是什么样的格式呢?是全路径，还是title？
+</pre>
+<strong><span style="text-decoration: underline;">回答：</span></strong>
+<pre>如果想要列出某个页面，如 SomePage 及其所有子页面，可以使用如下语法：
+&lt;&lt;Include(^SomePage, "", ,titleonly)&gt;&gt;
+会显示页面 SomePage, SomePage/subpage, ..., SomePageABC, ...
+如果只想列出 SomePage或者其子页面，使用：
+&lt;&lt;Include(^SomePage(/.*)?$, "", ,titleonly)&gt;&gt;
+</pre>
+<strong><span style="text-decoration: underline;">提问：</span></strong>
+<pre>&lt;&lt;Include(^SomePage(/.*)?$, "", ,titleonly)&gt;&gt;，
+列出了Somepage下的所有页面，如果我只想列出一级呢？
+比如我有如下的目录：系统软件部/内部资料/项目相关文档/上海联通，
+我当前在内部资料这个页面设置如上的宏，但是只想列出项目相关文档
+这一个页面，这个宏该如何写呢？</pre>
+<strong><span style="text-decoration: underline;">回答：</span></strong>
+<pre>替换一下正则表达式的语法就可以了，可以这样：
+&lt;&lt;Include(^SomePage(/[^/]*)?$, "", ,titleonly)&gt;&gt;
+对于你的例子，可以这样：
+&lt;&lt;Include(^系统软件部/内部资料/项目相关文档/([^/]*)$, "", ,titleonly)&gt;&gt;
+说明： [^/] 的含义是除了 / 以外的字符。</pre>
+<hr />关于 Include 宏的详细用法，参见 <a href="http://www.ossxp.com/wiki/HelpCenter/00020_MoinMoin/00020_%E8%AF%AD%E6%B3%95%E5%A4%A7%E5%85%A8/%E5%AE%8F/Include">群英汇帮助手册相关章节</a>

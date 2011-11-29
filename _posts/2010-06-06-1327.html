@@ -1,0 +1,44 @@
+---
+layout: post
+title: "联通有点玩过火了"
+---
+
+最近上网，无端弹出一些广告页面，一开始是在访问公司网站时出现的，还以为是机房发生了 ARP 欺骗（之所以没有考虑木马，是因为本人用 Linux+Firefox，不用 Win+IE）。
+
+今天，出现了一个让人忍无可忍的事情：<strong>提交表单被无故嵌入垃圾域名： w w w . j c x i n x i . c o m</strong> 。证据就是 <a href="http://pylonshq.com/project/pylonshq/ticket/692">我最近在 Pylons 上提交的 bug 描述被恶意插入 URL </a>。
+
+在该 bug 讨论的后几条，本来是 pylons.url 被改写为 pylons.&lt;垃圾域名&gt;url ! 在我的提交中包含了这个垃圾域名，真是丢人，而我又没有权限重新编辑和删除，让我如何跟 Pylons 社区解释！
+
+刚刚 查询了一下这个域名：
+<pre>$ whois jcxinxi.com
+Domain Name ..................... jcxinxi.com
+Name Server ..................... dns17.hichina.com
+ dns18.hichina.com
+Registrant ID ................... hc075975410-cn
+Registrant Name ................. shijie kan
+Registrant Organization ......... CHINA UNITED NETWORK TELECOMMUNICATIONS CORPORATION BEIJING BRANCH
+Registrant Address .............. beijing xuanwuqu luomashi street 9
+Registrant City ................. beijingshi
+Registrant Province/State ....... beijing
+Registrant Postal Code .......... 100052
+Registrant Country Code ......... CN
+Registrant Phone Number ......... +86.01065264566 -
+Registrant Fax .................. +86.01085114267 -
+Registrant Email ................ kansj1@chinaunicom.cn
+</pre>
+看到了么？中国联通！
+
+我在网上找到了这个帖子，更坚信了我的判断： <a href="http://www.zhaomingliang.com/2010/06/2177/fucking-beijing-telecome/">http://www.zhaomingliang.com/2010/06/2177/fucking-beijing-telecome/</a> 。
+
+损失：
+<ul>
+	<li>声誉：个人在社区中的声誉，以及国家的声誉。对了，国家应该排在前面。</li>
+	<li>时间损失：5个小时
+<ul>
+	<li>莫名其妙的弹出广告，关闭广告以及因此平均中断工作20分钟计算，共计 1 小时；</li>
+	<li>误以为 ARP 欺骗，服务器维护消耗 1 个小时；</li>
+	<li>在社区提交 bug 的标题以及帖子中恶意篡改信息的恢复尝试，花掉 2个小时，并且没有完全恢复。客观形成了证据保全。</li>
+	<li>今天在陶然亭陪小孩玩，也一直在考虑这个问题，累计又消耗1个小时</li>
+</ul>
+</li>
+</ul>

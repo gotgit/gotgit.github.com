@@ -1,0 +1,39 @@
+---
+layout: post
+title: "pySvnManager 新功能：LDAP用户同步"
+---
+
+pySvnManager 升级到 0.5 版本，引入了数据库支持，数据库主要用于保存和 LDAP 用户帐号同步的用户帐号信息。
+
+数据库采用 sqlite 数据库（如果需要也可以使用其它类型数据库），无须手动创建数据库，在 pySvnManager 运行时，会根据需要自动创建数据库。
+
+在没有使用 LDAP 用户信息之前，pySvnManager 是读取 SVN 授权文件，从该授权文件中获取用户名单并显示。
+
+<a href="/wpfiles/2010/08/userlist-default.png"><img class="aligncenter size-medium wp-image-1819" title="userlist-default" src="/wpfiles/2010/08/userlist-default-300x174.png" alt="" width="300" height="174" /></a>
+
+可以看出这种实现的问题是：
+<ul>
+	<li>在权限检查的用户列表中，只能看到用户登录ID，而看不到用户 ID 对应的用户名</li>
+	<li>显示的用户帐号很少（只有在 SVN 授权文件中引用的用户帐号才能显示）</li>
+	<li>为新用户授权，如果用户不在授权文件中，需要手工输入用户名，容易出错。</li>
+</ul>
+pySvnManager 0.5 增加了内置数据库和LDAP用户同步功能之后，再看 pySvnManager 中显示的用户列表：
+<p style="text-align: center;"><a href="/wpfiles/2010/08/userlist-ldap.png"><img class="aligncenter" title="userlist-ldap" src="/wpfiles/2010/08/userlist-ldap-300x174.png" alt="" width="300" height="174" /></a></p>
+<p style="text-align: left;">你会发现新版本的用户列表（已经完成和LDAP同步）：</p>
+
+<ul>
+	<li>除了显示用户ID外，还显示用户名</li>
+	<li>显示的用户多了很多，除了在 SVN 授权文件中引用到的用户外，LDAP 中授权的 SVN 用户也显示出来了</li>
+	<li>在为新用户授权时，不必手工输入用户，只需要进行一次 LDAP 用户同步，用户帐号信息自动显示出来。</li>
+</ul>
+<strong>那么如何进行LADP 同步呢？</strong>
+
+我们把 LDAP 用户同步的按钮放在“角色管理”界面，只要点击其中的“和LDAP用户同步”图标按钮，自动完成同步。
+
+<a href="/wpfiles/2010/08/ldap-user-sync.png"><img class="aligncenter size-medium wp-image-1821" title="ldap-user-sync" src="/wpfiles/2010/08/ldap-user-sync-300x174.png" alt="" width="300" height="174" /></a>
+
+其它改进还包括：更好的 IE6 支持，UI 的重新设计等等。我们会陆续协助客户完成软件升级。
+
+用户手册也已经更新，参见： <a href="http://www.ossxp.com/doc/pysvnmanager/user-guide/user-guide.html">《pySvnManager 用户手册》</a>
+
+关于如何升级到新版本的 pySvnManager，参照<a href="/2010/08/09/1832.html">《pySvnManager 0.5 升级指引》</a>

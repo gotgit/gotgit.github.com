@@ -1,0 +1,209 @@
+---
+layout: post
+title: "Python技巧篇(1)：内置对象及函数"
+---
+
+Python作为一种高效的脚本语言，内置了很多实用的函数，同时也提供了丰富的工具模块，所有的这些使得Python用起来得心应手！
+
+下面是我总结的几种内置对象及函数的应用技巧，当然还有很多我并不知道的技巧，望与广大的 Python fans 交流学习。
+
+<span id="more-578"></span>
+
+<strong>1、强大的列表解析功能</strong>
+<ul>
+	<li>对列表元素的简单操作：例如将列表的每个元素乘以2
+<pre>list1 = [1,2,3,4]
+list1 = [x*2 for x in list1]       #[2,4,6,8]</pre>
+</li>
+	<li>对文件的操作：例如只收集文件中以'p'开头的行
+<pre>lines = [line.rstrip() for line in open('filename') if line[0] == 'p']</pre>
+</li>
+	<li>对两个集合进行排列组合：例如对'abc'与'lmn'进行排列组合
+<pre>str1 = 'abc'
+str2 = 'lmn'
+[x+y for x in str1 for y in str2]    #['al', 'am', 'an', 'bl', 'bm', 'bn', 'cl', 'cm', 'cn']</pre>
+</li>
+</ul>
+<strong>2、索引和分片</strong>
+<ul>
+	<li>对字符串的操作
+<pre>#索引操作
+s = 'spam'
+s[0]     # 's'
+s[-1]    # 'm'
+#分片操作
+s[1:3]    # 'pa'
+s[1:]      # 'pam'
+s[:-1]     # 'spa'
+s[:]        # 'spam'
+s[::2]     # 'sa'
+s[1::2]   # 'pm'
+s[::-1]    # 'maps'
+s[-1:0:-1] # 'map'</pre>
+</li>
+	<li>对列表的操作
+<pre>#索引操作
+list1 = ['spam','SPAM','Spam']
+list1[0]     # 'spam'
+list1[-1]    # 'Spam'
+#分片操作
+list1[1:2]    # ['SPAM']
+list1[1:]      # ['SPAM', 'Spam']
+list1[:-1]     # ['spam', 'SPAM']
+list1[:]        # ['spam', 'SPAM', 'Spam']
+list1[::2]     # ['spam', 'Spam']
+list1[1::2]   # ['SPAM']
+list1[::-1]    # ['Spam', 'SPAM', 'spam']
+list1[-1:0:-1] # ['Spam', 'SPAM']</pre>
+</li>
+</ul>
+<strong>3、内置的eval函数可以将字符串转换成对象</strong>
+<pre>a='123'
+type(a)          # &lt;type 'str'&gt;
+type(eval(a))    # &lt;type 'int'&gt;</pre>
+<strong>4、zip函数</strong>
+<ul>
+	<li> 内置的zip函数使用for循环实现并行遍历。在基本运算中，zip会取得一个或多个序列为参数，然后返回元组的列表，将这些序列中的并排的元素配成对。
+<pre>&gt;&gt;&gt; l1 = [1,2,3,4]
+&gt;&gt;&gt; l2 = [5,6,7,8]
+&gt;&gt;&gt; zip(l1,l2)
+[(1, 5), (2, 6), (3, 7), (4, 8)]</pre>
+</li>
+	<li>如果与 for 循环搭配，zip就会支持并行迭代
+<pre>&gt;&gt;&gt; for (x,y) in zip(l1,l2):
+...     print x, y, '--', x+y
+...
+1 5 -- 6
+2 6 -- 8
+3 7 -- 10
+4 8 -- 12</pre>
+</li>
+	<li>在运行时构造字典
+<pre>&gt;&gt;&gt; keys = ['a', 'b', 'A', 'B']
+&gt;&gt;&gt; values = [96, 97, 65, 66]
+&gt;&gt;&gt; d = dict(zip(keys, values))
+&gt;&gt;&gt; d
+{'a': 96, 'A': 65, 'B': 66, 'b': 97}</pre>
+</li>
+</ul>
+<strong>5、工厂函数</strong>
+工厂函数有时也叫闭合(closure)，一个能够记住嵌套作用域变量值的函数，尽管那个作用域或许已经不存在了。
+尽管类是最适合用作记忆状态的，因为它们通过属性赋值这个过程变得很明了，像这样的函数也提供了一种替代的解决方法。
+<pre>&gt;&gt;&gt; def maker(n):
+    ...   def action(x):
+    ...     return x ** n
+    ...   return action
+    ...
+&gt;&gt;&gt; f=maker(2)
+&gt;&gt;&gt; type(f)
+&lt;type 'function'&gt;
+&gt;&gt;&gt; f(3)
+9
+&gt;&gt;&gt; f(4)
+16</pre>
+<strong>6、匿名函数：lambda</strong>
+
+除了def语句之外，Python还提供了一种生成函数对象的表达式形式。由于它于LISP语言中的一个工具很相似，所以称为lambda。就像def一样，这个表达式创建了一个之后能够调用的函数，但是它返回了一个函数而不是将这个函数赋值给一个变量名。这也就是lambda有时被称作匿名函数的原因了。
+<ol>
+	<li>lambda通常用来编写跳转表(jump table)，也就是行为的列表或字典，能够按照需要执行相应的动作
+<ul>
+	<li>行为列表示例：
+<pre>&gt;&gt;&gt; L = [(lambda x: x **2),(lambda x: x**3),(lambda x: x**4)]
+&gt;&gt;&gt; for f in L:
+...   print f(2)
+...
+4
+8
+16</pre>
+</li>
+	<li>行为字典示例：
+<pre>&gt;&gt;&gt; key = 'got'
+&gt;&gt;&gt; {'already':(lambda: 2+2),'got':(lambda: 2*4),'one':(lambda: 2**6)}[key]()
+8</pre>
+这样一个字典也就变成了一个多路分支的工具了</li>
+</ul>
+</li>
+	<li>lambda 与 if/else三元表达式的结合
+<pre>&gt;&gt;&gt; lower = lambda x,y: x if x &lt; y else y
+&gt;&gt;&gt; lower('a','b')
+'a'
+&gt;&gt;&gt; lower('b','a')
+'a'</pre>
+</li>
+	<li>如果要在lambda函数中执行循环，能够嵌入map调用或列表解析表达式
+<ul>
+	<li>嵌入map的示例
+<pre>&gt;&gt;&gt; import sys
+&gt;&gt;&gt; showall = lambda x: map(sys.stdout.write,x)
+&gt;&gt;&gt; t = showall(['spam\n','toast\n','eggs\n'])
+spam
+toast
+eggs
+
+&gt;&gt;&gt; L = [1,2,3,4]
+&gt;&gt;&gt; map((lambda x: x+3),L)
+[4, 5, 6, 7]</pre>
+</li>
+	<li>嵌入列表解析的示例
+<pre>&gt;&gt;&gt; showall = lambda x: [sys.stdout.write(line) for line in x]
+&gt;&gt;&gt; t = showall(('bright\n','side\n','of\n','life\n'))
+bright
+side
+of
+life</pre>
+</li>
+</ul>
+</li>
+	<li>嵌套作用域和lambda
+<pre>def func():
+    x = 4
+    action = (lambda n: x ** n)
+    return action
+
+f = func()
+print f(2)    #16, 4**2</pre>
+</li>
+</ol>
+<strong>7、生成器
+</strong>
+<ul>
+	<li>概念
+不像一般的函数会生成值后退出，生成器函数在生成值后自动挂起并暂停它们的执行和状态。正是因为这一点，无论是在从头计算整个序列的值，或者手动保存和恢 复类中的状态时，它们都常常作为一种使用的替代解决方案。生成器在被挂起时自动地保存状态，它的本地变量将保存状态信息，这些信息在函数恢复时将再度有 效。</li>
+	<li>生成器函数和一般函数的区别：
+它们之间最大的区别就是生成器yield一个值，而不是return一个值。yield语句会将函数挂起，并向它的调用者返回一个值，但是保存足够的状态信息为了让其能够在函数从它挂起的地方恢复。这能够允许这些函数不断地产生一系列的值，而不是一次计算所有的值，之后将值以类似列表之类的形式来返回。</li>
+	<li>生成器函数在Python中与迭代器协议的概念联系在一起
+包含了yield语句的函数将会特地编译为生成器。当调用是，它们返回了一个生成器对象，这个生成器对象支持迭代器对象接口。生成器函数也许有一个return语句，这个语句就是用来终止产生值的。</li>
+	<li>示例：
+<pre>&gt;&gt;&gt; def gensquares(n):
+...   for i in range(n):
+...     yield i ** 2
+...
+&gt;&gt;&gt; type(gensquares(5))
+&lt;type 'generator'&gt;
+&gt;&gt;&gt; for i in gensquares(5):
+...   print i,',',
+...
+0 , 1 , 4 , 9 , 16 ,</pre>
+</li>
+	<li>生成器表达式：
+生成器表达式就像一般的列表解析一样，但是它们是括在圆括号中而不是方括号中的。生成器表达式返回一个生成器对象。
+<pre>&gt;&gt;&gt; for x in (x ** 2 for x in range(4)):
+...   print x,
+...
+0 1 4 9&gt;&gt;&gt; for x in (x ** 2 for x in range(4)):
+...   print x,
+...
+0 1 4 9</pre>
+注意：如果生成器表达式是在其他括号之内的话，就像在那些函数调用之中，生成器自身的括号就不是必须的了。尽管这样，在下面第二个sorted调用中，还是需要额外的括号。
+<pre>&gt;&gt;&gt; sum(x ** 2 for x in range(4))
+14
+&gt;&gt;&gt; sorted(x ** 2 for x in range(4))
+[0, 1, 4, 9]
+&gt;&gt;&gt; sorted((x ** 2 for x in range(4)), reverse=True)
+[9, 4, 1, 0]
+&gt;&gt;&gt; import math
+&gt;&gt;&gt; map(math.sqrt, (x ** 2 for x in range(4)))
+[0.0, 1.0, 2.0, 3.0]</pre>
+</li>
+</ul>
+<a href="/2010/02/22/598.html" target="_blank">Python技巧篇(2)：工具模块</a>

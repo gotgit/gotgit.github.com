@@ -1,0 +1,46 @@
+---
+layout: post
+title: "CruiseControl&#8212;confilg.xml"
+---
+
+<div class="document">
+<div id="config-cml" class="section">
+<h2>config.xml</h2>
+config.xml是CruiseControl的核心配置，主要指明需要测试的项目名，项目的执行脚本，监听变更集，执行任务，以及任务完成后的后续操作。
+
+<span id="more-173"></span>
+
+</div>
+<div id="cruisecontrolconfig-xml" class="section">
+<h2>下面是CruiseControl中实例config.xml</h2>
+<pre class="literal-block">&lt;cruisecontrol&gt;
+    &lt;project name="connectfour"&gt;
+        &lt;listeners&gt;
+            &lt;currentbuildstatuslistener file="logs/${project.name}/status.txt"/&gt;
+        &lt;/listeners&gt;
+        &lt;bootstrappers&gt;
+            &lt;antbootstrapper anthome="apache-ant-1.7.0" buildfile="projects/${project.name}/build.xml" target="clean" /&gt;
+        &lt;/bootstrappers&gt;
+        &lt;modificationset quietperiod="30"&gt;
+            &lt;!-- touch any file in connectfour project to trigger a build --&gt;
+            &lt;filesystem folder="projects/${project.name}"/&gt;
+        &lt;/modificationset&gt;
+        &lt;schedule interval="300"&gt;
+            &lt;ant anthome="apache-ant-1.7.0" buildfile="projects/${project.name}/build.xml"/&gt;
+        &lt;/schedule&gt;
+        &lt;log&gt;
+            &lt;merge dir="projects/${project.name}/target/test-results"/&gt;
+        &lt;/log&gt;
+        &lt;publishers&gt;
+            &lt;onsuccess&gt;
+                &lt;artifactspublisher dest="artifacts/${project.name}" file="projects/${project.name}/target/${project.name}.jar"/&gt;
+            &lt;/onsuccess&gt;
+        &lt;/publishers&gt;
+    &lt;/project&gt;
+&lt;/cruisecontrol&gt;</pre>
+</div>
+<hr class="docutils" />
+<div id="id1" class="section">
+<h2>元素解析</h2>
+<dl class="docutils"> <dt>project.name</dt> <dd>CruiseControl内置的一个特殊属性，解析当前服务的项目名</dd> <dt>cruisecontrol</dt> <dd>根元素</dd> <dt>property</dt> <dd>键值对，既定义变量</dd> <dt>plugin</dt> <dd>注册新的插件，以供CruiseControl配置文件使用</dd> <dt>listeners</dt> <dd>注册多种类型的监听器</dd> <dt>bootstrappers</dt> <dd>构建工作之前触发，可以从SCM取得最新的版本</dd> <dt>modificationset</dt> <dd>收集SCM配置库的变更集合信息</dd> <dt>schedule</dt> <dd>调度构建任务</dd> <dt>log</dt> <dd>构建日志文件</dd> <dt>publishers</dt> <dd>反馈构建信息</dd> </dl></div>
+</div>

@@ -1,0 +1,35 @@
+---
+layout: post
+title: "从 CoSign 看开源软件本地化（6）"
+---
+
+在<a href="/2010/04/11/1001.html">《从 CoSign 看开源软件本地化（3）》</a>博文中，我们采用 Apache 内容协商，实现的静态页面本地化。这在当时是没有办法的办法。有点金玉其外，败絮其中的感觉：
+<ul>
+	<li>冗余度增加了，本来保持静态页面和模板的一致性就够头痛的了（因为用户可能需要定制模板），这回又大大增加的静态页面的数量</li>
+	<li>采用 Apache 内容协商，需要更改 Apache 的配置，增加了软件配置的难度</li>
+</ul>
+在我们实现了 CoSign 核心本地化和模板功能的括中之后，很自然的就想到了将静态页面也纳入到模板的框架中来的想法。
+
+<span id="more-1005"></span>
+<h2>有哪些静态页面呢？</h2>
+CoSign 2.x 有两个静态页面：looping.html 和 post_error.html。CoSign 3.x 又增加了一个静态页面：validation_error.html。
+<ul>
+	<li>looping.html:  当发生循环重定向时，跳转到该页面</li>
+	<li>post_error.html: 当由于单点登录退出导致应用提交过期导致可能的数据丢失，重定向到该说明页面</li>
+	<li>validation_error.html: 当重定向的地址和预设地址不匹配跳转到该警告页面</li>
+</ul>
+这些静态页面的内容非常相似，就是关于异常的描述，并且将登录对话框置灰。
+
+这难道不就是 ERROR 模板的内容么？
+<h2>重新写一个 CGI，提供静态页面显示</h2>
+既然静态页面要模板化，就必须通过一个程序，对于 CoSign 来说就是 CGI 。
+
+这个新的 CGI 就是 info。
+<ul>
+	<li>访问 <a href="https://weblogin.ossxp.com/cgi-bin/info/loop">/cgi-bin/info/looping</a>，就显示循环重定向错误</li>
+	<li>访问 <a href="https://weblogin.ossxp.com/cgi-bin/info/post">/cgi-bin/info/post_error</a>，就显示应用提交失效错误</li>
+	<li>访问 <a href="https://weblogin.ossxp.com/cgi-bin/info/valid">/cgi-bin/info/validation_error</a>，就显示地址验证错误</li>
+</ul>
+而这三个页面实际上都来自于 ERROR 模板，页面的内容都来自于 info CGI 在模板加载过程中的填充。而在填充过程中，使用 gettext 本地化方法。
+
+下一个博客，我们介绍 CoSign 登录成功后显示服务页面的变迁：PHP --&gt; 模板

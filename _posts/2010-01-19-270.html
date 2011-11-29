@@ -1,0 +1,78 @@
+---
+layout: post
+title: "Subversion 用户眼中的 Git (3): 命令集不兼容"
+---
+
+SVN 用户对 Git 的不好的体验，可能大多来自于两者命令集差异很大，不兼容，感觉非常不习惯。
+
+这其中的一部分原因是因为 SVN 和 Git 的原理不同，分属不同阵营——集中式和分布式版本控制；另外一个重要的原因，可能就是 Linus Torvals 痛恨 CVS，而且 Torvals 曾经说过的很有争议话，就是他认为 SVN 也是一个失败。所以，Torvals 设计的 Git 当然要特立独行了。
+
+不过...
+<h2><span id="more-270"></span>由于原理不同，导致 SVN 和 Git 不兼容的命令</h2>
+<h3>svn checkout 和 git clone</h3>
+这两个命令，都是首次从其他版本库创建本地拷贝时运行的命令，都是只需要执行一次就可以的命令。
+<ul>
+	<li>“svn checkout” 就是检出，很形象的比喻，subversion 就是要从服务器的版本库建立本地的工作拷贝（工作区）。检出之后的本地拷贝和版本库有着千丝万缕的联系（每个子目录下的 .svn 目录中的 entries 文件都会标记版本库的地址），本地提交都要上传到服务器版本库中完成。</li>
+	<li>“git clone”就是克隆，也是非常形象的比喻。作为分布式版本控制系统，通过克隆创建的本地版本库和远程版本库一模一样，没有谁比谁更好。克隆之后的本地版本库和源版本库有着一丝联系（在 .git/config 中配置 remote版本库的URL），这一丝联系，无非是为了不定期的双方分享改动而已。</li>
+</ul>
+<h3>svn update 和 git checkout, git pull</h3>
+真的很难说和 "svn update" 对应的 git 命令，是 git checkout? 还是 git pull?
+<ul>
+	<li>"svn update" 是从 subversion 版本库更新最新的提交到本地</li>
+	<li>"git pull" 是从源版本库拉数据到本地版本库，并和本地对应的分支进行合并。“pull”在这里非常形象，因为这个操作不会将本地版本库的改动传递到源版本库（远程版本库），只会将远程版本库最新的改动 fetch 过来，然后在合并。</li>
+	<li>"git checkout" 在某种意义上，也很像。例如像要将本地修改取消或者本地删除的文件还原，在 subversion 中就要用 svn up 命令，而在 git 中，当然用 "git checkout ." 命令了。</li>
+</ul>
+<h2>可以通过别名改进兼容性的 Git 命令</h2>
+一个纯爷们说：
+<ul>
+	<li><span style="background-color: #ffffff;">这个可以有: <em><span style="text-decoration: underline;">git commit</span></em>, 这个真没有: <em><span style="text-decoration: underline;">git ci</span></em></span></li>
+	<li>这个可以有: <span style="text-decoration: underline;"><em>git checkout</em></span>, 这个真没有: <em><span style="text-decoration: underline;">git co</span></em></li>
+	<li><em><span style="font-style: normal;">这个可以有</span>:</em> <em><span style="text-decoration: underline;"><em><span style="text-decoration: underline;">git status</span></em></span>, <span style="font-style: normal;">这个真没</span><span style="font-style: normal;">有: </span><span style="text-decoration: underline;"><em><span style="text-decoration: underline;">git st</span></em></span></em></li>
+	<li>这个可以有: <em><span style="text-decoration: underline;">git branch</span></em>, 这个真没有: <em><span style="text-decoration: underline;">git br</span></em></li>
+</ul>
+如果 Git 真的那么不堪，我也就不再这里写博客，早就洗洗睡了。Git 可以用别名实现
+<pre><code>$ git config --global alias.co checkout
+$ git config --global alias.br branch
+$ git config --global alias.ci commit
+$ git config --global alias.st status</code></pre>
+<span style="font-family: monospace;">通过上面的几条命令，在git的全局配置文件中定义了命令别名，这样就可以使用和 CVS/SVN 兼容的短格式命令了。</span>
+<h2>大同小异，兼容的命令居多</h2>
+<ul>
+	<li><span style="background-color: #ffffff;">svn diff  和 git diff
+git diff 命令自动提供分页显示功能</span></li>
+	<li><span style="background-color: #ffffff;">svn log 和 git log
+如果想要查看提交中的文件变更，svn log -v 可以很好的显示出来，git log -p 或者 git log --stat 显得罗嗦，在这种情况下，可能 git </span>whatchanged 是您需要的</li>
+	<li><span style="background-color: #ffffff;">svn add 和 git add
+要注意的是 git add 不但对新文件操作，还可对修改的文件操作，实际上是将变更加入Index（stage, 可以看作是提交集）
+</span></li>
+	<li><span style="background-color: #ffffff;">svn rm 和 git rm</span></li>
+	<li><span style="background-color: #ffffff;">svn mv 和 git mv</span></li>
+	<li><span style="background-color: #ffffff;">svn commit 和 git commit
+要注意的是 git commit 只提交 stage 中的内容（被 git add 命令记录的变更），git commit -a 可能才是 SVN 用户眼中的对应物</span></li>
+	<li><span style="background-color: #ffffff;">svn blame 和 git blame</span></li>
+	<li><span style="background-color: #ffffff;">svn merge 和 git merge
+svn merge 选择某个合并范围，则对应于 git cherry-pick 命令</span></li>
+</ul>
+<h2><span style="font-family: monospace;">命令行不同，功能相似的命令</span></h2>
+<ul>
+	<li><span style="font-family: monospace;">svnadmin create 和 git init
+用于初始化版本库的命令</span></li>
+	<li><span style="font-family: monospace;">svn cat 和 git show
+</span></li>
+	<li><span style="font-family: monospace;">svn log -v 和 git whatchanged</span></li>
+	<li><span style="font-family: monospace;">svn cp trunk tags/... 和 git tag
+</span></li>
+	<li><span style="font-family: monospace;">svn cp trunk branches/... 和 git branch</span></li>
+	<li><span style="font-family: monospace;">svn switch 和 git checkout branchname</span></li>
+	<li><span style="font-family: monospace;">svn resolve 和 git mergetool</span></li>
+	<li><span style="font-family: monospace;">svn changelist 和 git add
+</span></li>
+</ul>
+<h2>互相找不到对应的命令</h2>
+<ul>
+	<li>svn cp 在 git 中没有对应物</li>
+	<li>git rebase 在 svn 中没有对应物</li>
+	<li>git push 在 svn 中没有对应物</li>
+	<li>git reset 在 svn 中没有对应物</li>
+	<li>git clean, stash,  ... 等命令在 svn 中没有对应物...</li>
+</ul>

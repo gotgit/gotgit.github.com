@@ -1,0 +1,27 @@
+---
+layout: post
+title: "Gistore 备份回滚改用分支实现"
+---
+
+Gistore 备份的回滚原来采用的方法是，建立和回滚 Tag（里程碑）：
+<ul>
+	<li>当 master 分支的提交（备份）数量达到预设次数（缺省200次），建立一个 Tag，如 gistore/1</li>
+	<li>当名为 gistore/XXX 的 tag 的数量达到一定程度，进行回滚，即:
+<ul>
+	<li>gistore/2 -&gt; gistore/1</li>
+	<li>gistore/3 -&gt; gistore/2</li>
+	<li>...</li>
+</ul>
+</li>
+</ul>
+<strong>更改里程碑？！</strong>
+
+正在写 Git 培训资料，开始写里程碑时，突然想到 gistore 实现中有更改里程碑的实现，这种实现是不好的：
+<ul>
+	<li>里程碑在创建后，只在第一次同步（PULL）的时候，被获取</li>
+	<li>当里程碑修改后，其它人再执行 PULL 的时候，不会更新！</li>
+	<li>Gistore原来的实现，如果发生备份回滚，远程同步的服务器不能获取更新后的Tag。在镜像服务器有失去部分备份历史的危险。</li>
+</ul>
+<strong>新的备份回滚用分支来实现</strong>
+
+分支名称为 gistore/1, gistore/2, ...。数字越大的分支保存近期的备份，数字小的保存老的回滚备份。

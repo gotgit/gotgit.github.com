@@ -1,0 +1,22 @@
+---
+layout: post
+title: "Windows下安装Redmine的常见问题"
+---
+
+<h3>一、异常一</h3>
+<pre>Mysql::Error: query: not connected: CREATE TABLE 'schema_migrations' ('version varchar(255) NOT NULL) ENGINE=InnoDB</pre>
+<em>出现这种情况是你没有在ruby的运行环境下，添加MySQl动态链接库 libmySQL.dll</em>
+
+<em></em><strong>解决方法：
+</strong>
+<ol>
+	<li>下载libmySQL.dll <a href="http://instantrails.rubyforge.org/svn/trunk/InstantRails-win/InstantRails/mysql/bin/libmySQL.dll" target="_blank">http://instantrails.rubyforge.org/svn/trunk/InstantRails-win/InstantRails/mysql/bin/libmySQL.dll</a></li>
+	<li>将下载后的libmySQL.dll文件复制到 Ruby/bin目录下（即你安装rubyinstaller的目录）</li>
+</ol>
+<h3>二、异常二</h3>
+<pre>The bundled mysql.rb driver has been removed from Ruby 2.2.</pre>
+<em>出现这种情况是在rails2.2之后已经经mysql的驱动从核心框架中删除， 需要单独安装</em>
+
+<strong>解决方法：</strong>
+执行
+<pre>gem install mysql</pre>

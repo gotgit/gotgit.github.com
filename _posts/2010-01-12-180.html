@@ -1,0 +1,49 @@
+---
+layout: post
+title: "Wordpress中文昵称问题解决方法小结"
+---
+
+我的上一篇博客中大致介绍了Wordpress的基本工作原理，但是了解原理以后还有个问题一直困
+扰着我，我们的日志上面凡是使用了中文昵称的地方都不能被查询到。真的令人挺苦恼，Wordpress
+不是不支持中文链接，象&lt;yourlink&gt;/category/中文链接就能很好地跳转，但&lt;yourlink&gt;/author/
+中文链接为什么就是404的错误。
+最好的文档还是代码，前提是你对Wordpress的工作原理有了一定的了解之后。
+<span id="more-180"></span>还得从Wordpress的调用说起。Wordpress中对页面请求，简言之就是对浏览器输入框中地址的处理
+是由wp-include/classes.php来做的。classes.php中有一个main方法，我们都应该知道main方法对
+整个程序的重要程度。我们再来看一遍main方法，
+<pre>function main($query_args = '') {
+$this-&gt;init();  --初始化环境
+$this-&gt;parse_request($query_args);   --解析请求
+$this-&gt;send_headers();  --发送头信息
+$this-&gt;query_posts();  --查询日志
+$this-&gt;handle_404();   --操作404(URL地址不存在)
+$this-&gt;register_globals();  --注册全局变量
+do_action_ref_array('wp', array(&amp;$this));
+}</pre>
+现在我阐述一下我的大概的思路，也为以后寻找类似问题提供一些参考。
+(1)我主观上判断应该是parse_request对请求地址进行解析错误，导致解析后的地址链接与.htaccess
+中的规则匹配不上，但是后来我使用了中文昵称和英文昵称两个不同的用户在parse_request中插入echo信息
+和die(php中用来对当前程序进行终止)进行实验，得到的信息没有什么异样，我发现我错了。
+(2)还是主观臆断的错误，我还是误以为错误的原因应该归咎于.htaccess中没有匹配的规则，只能匹配到
+英文的地址链接，我找到用来显示昵称的代码，位于&lt;主题名&gt;/post.php中，它调用了get_author_posts_url
+(get_the_author_ID())，你可以根据方法名查找到该方法的地址，它位于wp-includes/author-template.php
+中，我发现原来用来显示的是昵称，因为我们资料中的昵称都是中文，所以显示的也是中文，我就把凡是涉及到
+nicename的参数全部改成login,我想这次该行了，希望再次破灭。还是那个404错误。
+这两次接连的打击让我逐渐清醒了方向，还是看代码吧，一点一点来。
+既然解析请求的地方没有什么错误，下一步$this-&gt;send_headers()(发送头信息),查看函数后你就会发现该函数
+只不过发送了文件头部的一些信息，与你要查找的post信息关联不大。
+下一个，$this-&gt;query_posts()(查询日志),这个函数中调用的第一个$this-&gt;build_query_string()，建立
+查询数据，继续echo、die,你会发现英文昵称和中文昵称在此处也没什么异常。继续寻找，也许就在下一个，
+$wp_the_query-&gt;query($this-&gt;query_vars)，$wp_the_query是已经初始化好的全局变量，在WP_Query
+类中进行初始化的，WP_Query位于wp-include/query.php中，查找WP_Query函数中的function &amp;query()
+方法，我再次异想天开地认为这回应该近了，但是现实就是现实，我一点点地读，然后把echo、die放到不同的
+位置用两种昵称的用户进行实验，结果依旧是看不出什么问题。
+继续，function &amp;query($query)中的第二个调用，$this-&gt;get_posts()，查找author_name你会发现，原来
+根据页面上的用户名调用日志的那一段就在此，
+<pre>$q['author'] = $wpdb-&gt;get_var("SELECT ID FROM $wpdb-&gt;users WHERE user_nicename='".$q['author_name']."'");</pre>
+我终于找到了寻觅了好久的那个nicename,当你用echo、die放到这一句上面进行实验时，你会发现，这次中文昵称
+和英文昵称有区别了，使用中文昵称时查找到的$q['author'] ，也就是Wordpress调用数据库中数据的用户ID
+是空的。OK，锁定目标：$q['author_name'] = sanitize_title($q['author_name'])，
+原来它把自己搞糊涂了，赋给$q['author_name']的参数竟然是用urlencode转换过的内部规则，在此处加上urldecode就行了。
+从这次超级费时的找bug过程中，我发现什么事也不能主观臆断，一定要拿出实实在在的数据。还有，代码是最好的
+文档，当你了解了最基本的原理后，慢慢看，慢慢就会看懂的。

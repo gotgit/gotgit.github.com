@@ -1,0 +1,114 @@
+---
+layout: post
+title: "从 CoSign 看开源软件本地化（5）"
+---
+
+上回提到，我要介绍 JavaScript 在本地化中的作用。那么 JavaScript 能起到什么作用呢？
+
+<span id="more-1004"></span>
+<h3>JavaScript 灵活运用，可减少模板数量，降低冗余</h3>
+我们发现 CoSign 中，除了 login.html 文件作为登录界面的模板外，还有一个 login_error.html 文件，是登录失败的页面模板。
+
+比较二者我们发现，文件 login_error.html 和 login.html 只有一处差别：
+<pre>~/gitwork/cosign/cosign-ossxp/html$ diff -u login.html login_error.html
+--- login.html  2010-04-11 20:18:21.674102270 +0800
++++ login_error.html    2010-04-11 20:18:21.677150125 +0800
+@@ -101,7 +101,7 @@
+ value="$r" /&gt;
+ &lt;input type="hidden" name="service"
+ value="$c" /&gt;
+-                               &lt;!--div id="error"&gt;$e&lt;/div--&gt;
++                               &lt;div id="error"&gt;$e&lt;/div&gt;
+ &lt;div&gt; &lt;a href="#" tabindex="10"&gt;Help&lt;/a&gt;
+ &lt;h2 id="kerbTitle"&gt;&lt;span&gt;&amp;nbsp;&lt;/span&gt;ID &amp;amp; Password&lt;/h2&gt;
+ &lt;div style="display: none;"&gt;Authentication Complete&lt;/div&gt;</pre>
+原来如此：
+<ul>
+	<li>login_error.html 多了一处 &lt;div&gt; 用于显示错误信息。即登录失败，会显示在登录对话框上醒目的错误信息，用户可以继续进行登录尝试。当然如果再多的错误尝试，可能会被拒绝服务。</li>
+	<li>如果我们给 login.html 也加上同样的 &lt;div&gt; （或者将注释掉的 div 打开注释），又会如何？登录界面会显示一个空白的警告区域。没有内容，但是会显示一条四周用红线包围的框框。（幸好还不是黑色的框框）</li>
+</ul>
+那么如果我们用 JavaScript 来实现 DIV 区域的动态显示和隐藏，不就可以了么？
+<pre>&lt;script type="text/javascript" src="/cosign/js/prototype.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="/cosign/js/scriptaculous.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript"&gt;
+...
+window.onload = function() {
+    if ( $( 'error' ) != null ) {
+        var error_div = $( 'error' )
+            if ( error_div.innerHTML.strip() )  {
+                if ( ! error_div.visible() )
+                    error_div.show();
+                new Effect.Highlight( error_div );
+            }
+    }
+}
+...
+&lt;/script&gt;
+...
+&lt;div id="error" style="display: none;"&gt;$e&lt;/div&gt;</pre>
+明白了吧：
+<ul>
+	<li>设置错误信息的 div 缺省不显示： style="display:none;"</li>
+	<li>在页面加载时如果发现存放错误信息的 div 中有内容，则显示错误信息。</li>
+	<li>之所以用 prototype + scriptaculous，因为 CoSign 本身就用到了。</li>
+</ul>
+于是改造好的 login.html 能够用于不同场合，我们可以放心的将 login_error.html 去掉了。同时，将 CoSign 代码中引用 login_error.html 之处进行相应替换处理。
+<h3>JavaScript 实现字符串本地化的试验</h3>
+实际上，在我们对 CoSign 核心本地化之前，有人提议用 JavaScript 对认证因子传递的信息在界面上本地化。于是就有了我们对 JavaScript 字串本地化的试验。虽然最终因为实现了核心本地化抛弃了这个方案，但是我还是想记录在这里。
+<pre>var Localization = {
+    "Hello, world.": {
+        "zh": "世界，你好。" },
+
+    "OpenSourceXpress": {
+        "zh": "北京群英汇信息技术有限公司" },
+
+    "default": "en"
+};
+
+function setLocale(lang) {
+    if (!lang) lang = "en";
+    Localization.default = lang;
+}
+
+(function() {
+    function extend(destination, source) {
+        for (var property in source)
+            destination[property] = source[property];
+            return destination;
+    }
+
+    extend(String.prototype, (function() {
+        function localize(lang) {
+            var code;
+            var s;
+            if (code = /^([0-9]+)\s*:/.exec(this)) code = code[1];
+            if (Localization) {
+                s= Localization[code] ? Localization[code] : Localization[this];
+                if (!s) return this;
+                if (s instanceof Object) {
+                    if (!lang) lang = Localization.default;
+                    return s[lang] ? s[lang] : s["en"];
+                }
+                return s;
+            }
+            return this;
+        }
+
+        return {
+            l: localize,
+            _: localize,
+            localize: localize
+        };
+    })());
+})();
+
+// vim: noet ts=4 sw=4
+</pre>
+上面的代码对 JavaScript 中 String 的原型进行了扩展，增加了一个名为 _() 的方法。下面的调用：
+<pre>&lt;script type="text/javascript"&gt;
+  alert( "Hello, world."._() );
+&lt;/script&gt;
+</pre>
+将会显示中文。同样用 document.write("Hello, world"._()) 也会在页面中显示中文。
+
+下一回，我将介绍是如何用另外的方式，实现静态页面的本地化，而不使用前面提到的用 Apache 自动协商的方式。

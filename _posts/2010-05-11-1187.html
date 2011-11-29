@@ -1,0 +1,152 @@
+---
+layout: post
+title: "国内难觅稳定的 Debian 源"
+---
+
+群英汇内部用 apt-cacher-ng 架设 APT 源代理，用公司内部使用的 Debian 和 Ubuntu 升级服务器。
+
+本来想为国家节省国际出口的带宽，将 apt-cacher-ng 的上级服务器指向一些国内的源，今天再次失望了。
+
+<span id="more-1187"></span>
+
+今天同事修改了 python-docutils 代码，为 REST 转换 HTML 增加了 JavaScript 外部文件链接的功能。想下载一下 python-docutils 的源码包：
+<pre>$ <strong>apt-get source python-docutils</strong>
+正在读取软件包列表... 完成
+正在分析软件包的依赖关系树
+正在读取状态信息... 完成
+需要下载 1,397kB 的源代码包。
+错误 http://mirrors.bj.ossxp.com testing/main python-docutils 0.6-3 (dsc)
+ 404  Not Found
+错误 http://mirrors.bj.ossxp.com testing/main python-docutils 0.6-3 (tar)
+ 404  Not Found
+获取：1 http://mirrors.bj.ossxp.com testing/main python-docutils 0.6-3 (diff) [26.7kB]
+下载 26.7kB，耗时 1秒 (23.6kB/s)
+无法下载 http://mirrors.bj.ossxp.com/debian/pool/main/p/python-docutils/python-docutils_0.6-3.dsc  404  Not Found
+无法下载 http://mirrors.bj.ossxp.com/debian/pool/main/p/python-docutils/python-docutils_0.6.orig.tar.gz  404  Not Found
+E: 有一些包文件无法下载。</pre>
+怎么回事？用浏览器看看上游 APT 源的目录下文件列表：
+<ul>
+	<li>http://mirrors.sohu.com/debian/pool/main/p/python-docutils/
+<pre>python-docutils_0.4-3.diff.gz	36K	10-Jul-2006 15:03
+python-docutils_0.4-3.dsc	853	10-Jul-2006 15:03
+python-docutils_0.4-3_all.deb	1M	10-Jul-2006 15:03
+python-docutils_0.4.orig.tar.gz	1M	04-Feb-2006 04:06
+python-docutils_0.5-2+lenny1_all.deb	2M	03-Jan-2010 02:24
+python-docutils_0.5-2.diff.gz	31K	24-Jul-2008 10:02
+python-docutils_0.5-2.dsc	1496	24-Jul-2008 10:02
+python-docutils_0.5-5.diff.gz	31K	22-Sep-2009 23:17
+python-docutils_0.5-5.dsc	1510	22-Sep-2009 23:17
+python-docutils_0.5.orig.tar.gz	1M	19-Jul-2008 01:17
+python-docutils_0.6-3.debian.tar.gz	26K	10-Jan-2010 18:18
+python-docutils_0.6-3_all.deb	2M	10-Jan-2010 18:18
+python-roman_0.4-3_all.deb	11K	10-Jul-2006 15:03
+python-roman_0.5-2+lenny1_all.deb	14K	03-Jan-2010 02:24
+python-roman_0.6-3_all.deb	15K	10-Jan-2010 18:18</pre>
+</li>
+	<li>http://ftp.us.debian.org/debian/pool/main/p/python-docutils/
+<pre>python-docutils_0.4-3.diff.gz	2006-Jul-10 11:03:20	36.1K
+python-docutils_0.4-3.dsc	2006-Jul-10 11:03:20	0.8K
+python-docutils_0.4-3_all.deb	2006-Jul-10 11:03:20	1.4M
+python-docutils_0.4.orig.tar.gz	2006-Feb-03 23:06:04	1.1M
+python-docutils_0.5-2+lenny1.diff.gz	2010-Jan-02 21:24:16	32.5K
+python-docutils_0.5-2+lenny1.dsc	2010-Jan-02 21:24:16	1.5K
+python-docutils_0.5-2+lenny1_all.deb	2010-Jan-02 21:24:16	1.5M
+python-docutils_0.5.orig.tar.gz	2008-Jul-18 21:17:01	1.2M
+python-docutils_0.6-3.debian.tar.gz	2010-Jan-10 13:18:16	26.1K
+<strong>python-docutils_0.6-3.dsc	2010-Jan-10 13:18:16	1.6K
+</strong>python-docutils_0.6-3_all.deb	2010-Jan-10 13:18:16	1.6M
+<strong>python-docutils_0.6.orig.tar.gz	2009-Dec-07 17:33:01	1.3M</strong>
+python-roman_0.4-3_all.deb	2006-Jul-10 11:03:20	11.2K
+python-roman_0.5-2+lenny1_all.deb	2010-Jan-02 21:24:16	13.8K
+python-roman_0.6-3_all.deb	2010-Jan-10 13:18:16	14.6K</pre>
+</li>
+</ul>
+不理解，为什么 sohu 的源在和上游同步的时候丢掉了上图中加亮显示的两个文件。是不是该买彩票了。
+
+理论上来说，使用 rsync 和上游同步，不应该造成文件丢失问题。又查看了其他的国内源，mirrors.163.com 源的这个目录正常。
+<div id="_mcePaste" style="overflow: hidden; position: absolute; left: -10000px; top: 410px; width: 1px; height: 1px;">
+<table id="list" cellspacing="0" cellpadding="0.1em">
+<tbody>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/">Parent directory/</a></td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.4-3.diff.gz">python-docutils_0.4-3.diff.gz</a></td>
+<td>36K</td>
+<td>10-Jul-2006 15:03</td>
+</tr>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.4-3.dsc">python-docutils_0.4-3.dsc</a></td>
+<td>853</td>
+<td>10-Jul-2006 15:03</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.4-3_all.deb">python-docutils_0.4-3_all.deb</a></td>
+<td>1M</td>
+<td>10-Jul-2006 15:03</td>
+</tr>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.4.orig.tar.gz">python-docutils_0.4.orig.tar.gz</a></td>
+<td>1M</td>
+<td>04-Feb-2006 04:06</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.5-2+lenny1_all.deb">python-docutils_0.5-2+lenny1_all.deb</a></td>
+<td>2M</td>
+<td>03-Jan-2010 02:24</td>
+</tr>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.5-2.diff.gz">python-docutils_0.5-2.diff.gz</a></td>
+<td>31K</td>
+<td>24-Jul-2008 10:02</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.5-2.dsc">python-docutils_0.5-2.dsc</a></td>
+<td>1496</td>
+<td>24-Jul-2008 10:02</td>
+</tr>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.5-5.diff.gz">python-docutils_0.5-5.diff.gz</a></td>
+<td>31K</td>
+<td>22-Sep-2009 23:17</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.5-5.dsc">python-docutils_0.5-5.dsc</a></td>
+<td>1510</td>
+<td>22-Sep-2009 23:17</td>
+</tr>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.5.orig.tar.gz">python-docutils_0.5.orig.tar.gz</a></td>
+<td>1M</td>
+<td>19-Jul-2008 01:17</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.6-3.debian.tar.gz">python-docutils_0.6-3.debian.tar.gz</a></td>
+<td>26K</td>
+<td>10-Jan-2010 18:18</td>
+</tr>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-docutils_0.6-3_all.deb">python-docutils_0.6-3_all.deb</a></td>
+<td>2M</td>
+<td>10-Jan-2010 18:18</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-roman_0.4-3_all.deb">python-roman_0.4-3_all.deb</a></td>
+<td>11K</td>
+<td>10-Jul-2006 15:03</td>
+</tr>
+<tr class="o">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-roman_0.5-2+lenny1_all.deb">python-roman_0.5-2+lenny1_all.deb</a></td>
+<td>14K</td>
+<td>03-Jan-2010 02:24</td>
+</tr>
+<tr class="e">
+<td><a href="http://mirrors.sohu.com/debian/pool/main/p/python-docutils/python-roman_0.6-3_all.deb">python-roman_0.6-3_all.deb</a></td>
+<td>15K</td>
+<td>10-Jan-2010 18:18</td>
+</tr>
+</tbody>
+</table>
+</div>

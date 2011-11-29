@@ -1,0 +1,121 @@
+---
+layout: post
+title: "Debian/Linux下sphinx的安装"
+---
+
+<h2>sphinx的介绍</h2>
+Sphinx是一个基于SQL的全文检索引擎，可以结合MySQL,PostgreSQL做全文搜索，它可以提供比数据库本身更专业的搜索功能，使得应用 程序更容易实现专业化的全文检索。Sphinx特别为一些脚本语言设计搜索API接口，如PHP,Python,Perl,Ruby等，同时为MySQL 也设计了一个存储引擎插件。
+<h2>sphinx的安装步骤</h2>
+<span id="more-688"></span>前提，你的机器上已经安装过mysql数据库。如果没有安装，可运行以下命令安装
+<pre>sudo apt-get install mysql-client-5.0 mysql-server-5.0</pre>
+<ol>
+	<li><strong>下载sphinx的安装包sphinx-0.9.9.tar.gz
+</strong>下载地址：<a href="http://www.sphinxsearch.com/downloads.html" target="_blank">http://www.sphinxsearch.com/downloads.html</a></li>
+	<li><strong>解压 tar -zxvf sphinx-0.9.9.tar.gz
+</strong>
+<pre>$ tar -zxvf sphinx-0.9.9.tar.gz</pre>
+</li>
+	<li><strong>编译安装
+</strong>
+<pre>$ cd sphinx-0.9.9
+$ ./configure --prefix=/usr/local/sphinx
+$ make
+$ sudo make install</pre>
+</li>
+</ol>
+<h2>用Sphinx自带的示例测试是否安装成功</h2>
+<ol>
+	<li><strong>创建test数据库,并创建sphinx用户
+</strong>
+<pre>mysql&gt; create database test;
+mysql&gt; create user 'sphinx'@'localhost' identified by 'sphinx';
+mysql&gt; grant all privileges on test.* to 'sphinx'@'localhost';</pre>
+</li>
+	<li><strong>指定sphinx配置文件
+</strong>
+<pre>$ cd /usr/local/sphinx/etc
+$ sudo cp sphinx.conf.dist sphinx.conf</pre>
+</li>
+	<li><strong>编辑该配置文件
+</strong>
+<pre>vi sphinx.conf
+改动内容如下：
+sql_host        = localhost
+<strong>sql_user        = sphinx
+sql_pass        = sphinx</strong>
+sql_db          = test
+sql_port        = 3306  # optional, default is 3306</pre>
+说明：加粗部分是修改的内容</li>
+	<li><strong>生成sphinx自带示例所需的数据表及测试数据
+</strong>
+<pre>mysql -uroot -p test &lt; /usr/local/etc/example.sql</pre>
+</li>
+	<li><strong>生成索引
+</strong>
+<pre>$ sudo /usr/local/sphinx/bin/indexer --all</pre>
+</li>
+	<li><strong>查询关键字"test"，测试是否成功安装
+</strong>
+<pre>$ /usr/local/sphinx/bin/search test
+Sphinx 0.9.9-release (r2117)
+Copyright (c) 2001-2009, Andrew Aksyonoff
+
+using config file '/usr/local/etc/sphinx.conf'...
+index 'test1': query 'test ': returned 3 matches of 3 total in 0.000 sec
+
+displaying matches:
+1. document=1, weight=2, group_id=1, date_added=Thu Feb 25 18:24:46 2010
+id=1
+group_id=1
+group_id2=5
+date_added=2010-02-25 18:24:46
+title=test one
+content=this is my test document number one. also checking search within phrases.
+2. document=2, weight=2, group_id=1, date_added=Thu Feb 25 18:24:46 2010
+id=2
+group_id=1
+group_id2=6
+date_added=2010-02-25 18:24:46
+title=test two
+content=this is my test document number two
+3. document=4, weight=1, group_id=2, date_added=Thu Feb 25 18:24:46 2010
+id=4
+group_id=2
+group_id2=8
+date_added=2010-02-25 18:24:46
+title=doc number four
+content=this is to test groups
+
+words:
+1. 'test': 3 documents, 5 hits
+
+index 'test1stemmed': query 'test ': returned 3 matches of 3 total in 0.000 sec
+
+displaying matches:
+1. document=1, weight=2, group_id=1, date_added=Thu Feb 25 18:24:46 2010
+id=1
+group_id=1
+group_id2=5
+date_added=2010-02-25 18:24:46
+title=test one
+content=this is my test document number one. also checking search within phrases.
+2. document=2, weight=2, group_id=1, date_added=Thu Feb 25 18:24:46 2010
+id=2
+group_id=1
+group_id2=6
+date_added=2010-02-25 18:24:46
+title=test two
+content=this is my test document number two
+3. document=4, weight=1, group_id=2, date_added=Thu Feb 25 18:24:46 2010
+id=4
+group_id=2
+group_id2=8
+date_added=2010-02-25 18:24:46
+title=doc number four
+content=this is to test groups
+
+words:
+1. 'test': 3 documents, 5 hits</pre>
+</li>
+</ol>
+至此，你已经成功安装了sphinx，并通过了测试。

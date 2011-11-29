@@ -1,0 +1,83 @@
+---
+layout: post
+title: "Subversion管理后台增加对SVN容灾的支持"
+---
+
+群英汇Subversion版本控制系统提供的基本服务，实际上已经包含了简单的容灾实现：
+<ul>
+	<li>在本机使用 gistore 进行数据备份</li>
+	<li>在备机上用 git pull 进行每日一次的数据同步</li>
+</ul>
+这个方法对于大多数公司，对于非核心数据的容灾备份已经足够，但是对于代码，不同的公司有着不同的敏感度，可能每日一次的备份就不合适了。
+
+最近在给一个客户进行SVN版本控制系统的实施时，就碰到了SVN服务器间建立镜像和实时备份的需要
+<ul>
+	<li>两个异地的开发团队，每个团队工作在不同的本地版本库，可能会参考（读取）异地不同版本库的内容</li>
+	<li>异地团队中间通过无线网桥互联，互联网桥的通讯质量易受到环境、气候的影响</li>
+	<li>如果两个异地的SVN服务器能够互做镜像，可以实现双机热备</li>
+	<li>一个团队可以在本地的主版本库中读写，一旦有数据写入本地版本库，就会同步到无线网桥另外一端的版本库。反之亦然。</li>
+	<li>由于本地还提供无线网桥另外一端版本库的镜像，因此访问远程版本库可以改用本地镜像进行访问，实现本地读取速度。
+如果需要写入，配置 SVN反向代理，实现透明的远程写入。</li>
+</ul>
+Subversion可以使用 svnsync 这一工具实现版本库的远程镜像，但是如果使用手工配置，对于客户数量众多的版本库，难以维护。加之很多版本库本身很大，从头建立同步可能会非常缓慢。
+
+我们通过在SVN管理后台增加了一对儿插件，实现了对SVN容灾（镜像）的图形化配置界面。
+<h2><span id="more-1888"></span></h2>
+<h2>为同步用户建立用户帐号，并授权</h2>
+在使用 svnsync 将本地版本库实时同步到远程版本库时，需要使用具有完全读写权限的帐号来完成对远程版本库的同步。
+
+因此需要事先建立svn同步用户帐号，并在镜像的目标版本库对该帐号进行授权。
+<ul>
+	<li>在用户管理平台，创建专门进行 svn 数据同步的用户帐号</li>
+	<li>不要将该用户加入任何用户组，即该用户禁止自行更改口令
+因为该用户的口令更改，将破坏已经配置好的数据同步</li>
+	<li>使用SVN管理后台，对该用户授权，使其可以读写整个版本库（镜像的目标版本库）</li>
+</ul>
+<h2>镜像版本库的配置</h2>
+为镜像版本库配置 ReadonlySvnMirror 插件，如下：
+
+<a href="/wpfiles/2010/08/svnsync-slave.png"><img class="aligncenter size-medium wp-image-1896" title="svnsync-slave" src="/wpfiles/2010/08/svnsync-slave-300x237.png" alt="" width="300" height="237" /></a>
+<ul>
+	<li>本例中，镜像SVN库的服务器地址为： http://svn2.moon.ossxp.com/svn/omed</li>
+	<li>该版本库只需要安装一个插件，即 ReadonlySvnMirror 插件</li>
+	<li>本例中，配置 Svnsync 管理员为 svnmirror
+含义为只有用户 svnmirror 可以对该版本库进行提交，其它用户不能在该版本库中提交</li>
+</ul>
+<h2>源版本库的配置</h2>
+为源版本库配置 SvnSyncMaster 插件
+
+<a href="/wpfiles/2010/08/svnsync-master.png"><img class="aligncenter size-medium wp-image-1897" title="svnsync-master" src="/wpfiles/2010/08/svnsync-master-300x253.png" alt="" width="300" height="253" /></a>
+<ul>
+	<li>本例中，omed的主版本库地址为 http://svn.moon.ossxp.com/svn/omed，该版本库将向 http://svn2.moon.ossxp.com/svn/omed 发起实时的数据同步</li>
+	<li>本例中，发起同步的用户名为 svnmirror，该用户名和在svn2镜像服务器端的 ReadonlySvnMirror 插件配置的 svnsync 管理员用户名保持一致</li>
+	<li>用户口令是在用户管理平台为该用户(svnmirror)设置的口令，尽量选用长的口令</li>
+	<li>在“下游 SVN 镜像 URL”中输入镜像SVN版本库URL地址，每个一行。对于本例，输入地址：
+<pre>http://svn2.moon.ossxp.com/svn/omed</pre>
+</li>
+</ul>
+<h2>镜像同步初始化</h2>
+在SVN主版本库中安装 SvnSyncMaster 插件时，可能会遇到如下错误
+<ul>
+	<li>403错误，无权访问版本库：可能是镜像服务器的版本库尚未对同步用户授权</li>
+	<li>403错误，无权访问版本库：可能是镜像服务器的版本库URL输入错误，错误的URL当然是没有授权的了</li>
+	<li>版本库尚未建立：如果镜像的目标版本库尚未建立，则不能在目标版本库记录同步信息也不能建立同步</li>
+	<li>版本库UUID不匹配：镜像初始化，会检查源版本库和目标版本库的UUID是否一致，如果不一致，可能会导致版本库同步的张冠李戴</li>
+	<li>证书不被信任或者证书签名者不被信任：换用 http 协议试试</li>
+</ul>
+<h2>其它</h2>
+<ul>
+	<li>在配置相关插件之前，可以先通过拷贝方式将目标版本库复制到镜像服务器中
+<ul>
+	<li>使用 scp 或者 rsync 的方式将主版本库复制到镜像服务器更直观，速度也更快</li>
+	<li>可以保证主版本库和镜像版本库的UUID保持一致</li>
+	<li>数据库复制完毕后，要修改镜像版本库的目录和文件的属主及权限。应该属于 www-data 用户</li>
+	<li>配置 SvnSyncMaster 插件，会自动根据当前镜像服务器端的版本号确定同步的进度，建立镜像关系</li>
+</ul>
+</li>
+	<li>注意：不要在同步已经建立后再使用rsync。如果在镜像关系已经建立后，用rsync进行数据同步，会导致：
+<ul>
+	<li>版本库插件配置被覆盖。因为版本库插件的配置位于版本库 conf/hooks.ini 文件中</li>
+	<li>版本库镜像信息被覆盖。因为版本库镜像信息保存在 rev0 的版本属性中</li>
+</ul>
+</li>
+</ul>

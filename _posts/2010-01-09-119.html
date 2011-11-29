@@ -1,0 +1,21 @@
+---
+layout: post
+title: "localization插件实现Rails多语言支持"
+---
+
+<h2>localization 插件介绍</h2>
+在 Rails 2.2 版本之前，Rails 应用程序都是采用localization插件实现应用程序的本地化，支持多语言。localization有点类似于gettext，使用很简单的方法就可以为你的应用实现多语言支持，进而实现应用的本地化。Rails 2.2 之后，Rails 引进了<a href="/2010/01/09/93.html" target="_blank"> I18n</a> 模块，因此不需额外安装插件就支持多语言。
+<h2>安装</h2>
+这个插件的安装方式与其他的Rails插件安装没啥太大区别，只需要在Rails项目目录中按照如下命令安装即可：
+<pre>RAILS_ROOT&gt; ruby script\plugin install localization</pre>
+<h2>使用</h2>
+当localization插件安装完成之后，Rails项目启动之后将自动载入他，我们需要在Rails项目目录中建立一个lang目录用来存放语言包。
+推荐的做法是在lang目录下建立的语言包的文件名应该与语言名能够对应起来，例如我们要建立一个中文语言包，我们就需要在RAILS_ROOT/lang/目录下建立一个名为zh_CN.rb的文件。内容如下：
+<pre>Localization.define('zh_CN') do |l|
+ l.store 'Hello world', '你好，世界'  
+end</pre>
+然后在application.rb文件中加入如下内容，定义需要使用的语言名：
+<pre>Localization.lang = 'zh_CN'</pre>
+再打开一个模板文件，在其中输入如下内容：
+<pre>&lt;title&gt;&lt;%= _("Hello world") %&gt;&lt;/title&gt;</pre>
+启动Rails项目，浏览这个页面，你就会在标题栏看到中文的标题

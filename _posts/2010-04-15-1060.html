@@ -1,0 +1,98 @@
+---
+layout: post
+title: "Ubuntu：不要迷恋哥，哥也只是一个传说"
+---
+
+套用一句当下时髦的话来形容 Ubuntu ：“不要迷恋哥，哥也只是一个传说”。为什么呢？（小沈阳那种独特的声音响起...）
+
+<span id="more-1060"></span>我一直在用的操作系统是 Debian，从 sarge 到 etch 到 lenny，再到现在的 testing 版本：squeeze。Ubuntu 只是在编译服务器上部署了一下下。
+
+公司倒是鼓励使用不同的开源操作系统，但是我发现还是使用 Debian 的人居多，甚至个别人行走在刀锋上，使用的 SID（Debian 的不稳定版）。
+
+这几天，公司准备搭建KVM虚拟机，最终确定用 Unbutu  平台上。因为传说中的 Ubuntu 上关于虚拟的文档很全面，虽然我们知道 RedHat 也正在基于 KVM 开发有竞争力的虚拟机解决方案，但是实在不喜欢 Redhat 的包管理器。
+
+在架设过程中，陆续发现了 Ubuntu 的几个问题，看来 Ubuntu 真的只是个传说。
+<h2>当前的 Lucid 网络安装版无法安装</h2>
+现在是四月15日，再有半个月 Ubuntu 10.4 (lucid) 就要发布了。不如我们直接安装 Lucid？
+
+于是下载了 Lucid 的 netboot，放到公司的 tftp 服务器上，用网络安装的方式来安装 Ubuntu 10.4 lucid.
+
+但是在安装中遇到了大麻烦：<strong>当安装进行到磁盘分区时，提示无法找到硬盘！</strong>
+<ul>
+	<li>原因很明显： 一些必要的驱动没有放到 netboot 的 initrd 中，而 karmic 的网络安装是好的，说明 Lucid 在这一点上出现了功能退化。</li>
+	<li>从 Ubuntu 网站上找到了同样的 bug 报告，已经将此bug列为重要级别，发布前必须解决的问题。
+<a href="https://bugs.launchpad.net/ubuntu/+source/linux/+bug/546929">most PATA/SATA modules missing in Lucid netboot</a></li>
+	<li>还有不到 15 天的发布期限，我回忆起我在担任项目经理时，匆忙发布未经深入测试的产品，后果真的很严重...</li>
+</ul>
+<h2>Gnome 桌面无法最小化安装</h2>
+最终在服务器上安装了 Karmic （Ubuntu 9.10）版本，安装过程一切顺利，重启后出现了亲切的命令提示符。
+
+<em>“这个服务器需要一个桌面吧？” —— 有人提议到。</em>
+
+<em>“好吧，就装一个 Gnome 吧，KDE 有点太重了。” —— 管理员回应道。</em>
+
+于是执行命令：
+<pre>$ sudo aptitude install gnome
+此处报错...
+还是报错...
+好多报错...</pre>
+什么古怪的东西？我再执行：
+<pre>$ sudo aptitude install  gnome-desktop-environment
+...
+下列软件包存在未满足的依赖关系：
+ gamin: 冲突: fam 但是 2.7.0-16ubuntu1 将被安装。
+ gnome-desktop-environment: 依赖: fast-user-switch-applet (&gt;= 2.22.0) 这是一个虚拟软件包。
+ brasero: 冲突: nautilus-cd-burner 但是 2.25.3-0ubuntu3 将被安装。
+...</pre>
+痛苦的寻找原因，原来又是 Ubuntu 自己出现了问题：
+<ul>
+	<li>fast-user-switch-applet 包被 gnome-desktop-environment 包依赖，而gnome 包又依赖 gnome-desktop-environment 包
+<pre>$ aptitude show gnome-desktop-environment
+软件包： gnome-desktop-environment
+状态: 未安装
+版本号： 1:2.22.2~4ubuntu8
+...
+依赖于: ..., fast-user-switch-applet (&gt;= 2.22.0), ...</pre>
+</li>
+	<li>fast-user-switch-applet 包在 karmic 的源中<strong>居然不存在</strong>！
+通过 ubuntu.com 网站，可以查到这个包存在于之前的所有版本中，也存在于即将发布的 10.4 版本中，唯独不存在于 karmic 版本中。</li>
+	<li>gdm 作为 gnome 的重要组件，标识为和 fast-user-switch-applet 冲突！
+<pre>$ aptitude why-not fast-user-switch-applet
+i   gdm 冲突 fast-user-switch-applet</pre>
+</li>
+	<li>看来 Ubuntu 很是为 fast-user-switch-applet 包纠结
+可能是发现 fast-user-switch-applet 包在 Gnome 中存在问题，直接在相关的包中标识为冲突，并从源中撤销该包。但是没有料到还有重要的包对其依赖。</li>
+</ul>
+难道安装不成 Gnome 桌面了么？
+<ul>
+	<li>通过 Google 查询，找到 Ubuntu 官网上关于这个问题的报告：
+<a href="https://bugs.launchpad.net/ubuntu/+source/meta-gnome2/+bug/424771">gnome-desktop-environment has Broken packages in Karmic</a></li>
+	<li>有人回答说，Gnome 可以通过 ubuntu-desktop 包来安装</li>
+	<li>ubuntu-desktop 这个怪兽？
+如果安装 ubuntu-desktop 的话，你要被安装很多服务器上不需要的包：如 OpenOffice.org! 要白白浪费几百兆的空间！</li>
+	<li>如果要避免安装不需要的包，可能你需要安装其他桌面： xfce? kde?</li>
+</ul>
+<h2 id="bug-title">Debian 还是 Ubuntu？</h2>
+Ubuntu 是 Debian 的变种，因此无论选择谁，Debian 都是赢家。两者的包格式兼容，因此如果你的软件产品如果适合 Debian，那么肯定也适合 Ubuntu。
+
+我不能给出一个确定的选择。应该说各有利弊。
+<ul>
+	<li>两者界面的比较
+Ubuntu 胜出。
+Ubuntu 在 Debian 的基础上发展，并有商业公司的支持，在UI上真的下了一番大功夫。</li>
+	<li>软件版本的稳定性上
+Debian 胜出。
+Ubuntu 固定的新版本推出日期（每年4月和10月固定推出两个版本），会给开发人员造成压力，给软件质量造成破坏。如果我的老板让我固定时间出一个版本，我恐怕会疯掉。
+而且操作系统过于频繁的升级，也会给第三方软件公司造成负担。</li>
+	<li>软件的更新频率上
+Debian 胜出。
+你刚刚不是说 Ubuntu 每年两个版本的推出么？怎么反倒是 Debian 软件更新频率块呢？
+这是因为 Debian 有一个叫做 sid 的版本，始终是在刀锋上行走。上面所有的软件包，都会是比较新的。当然还有一个 experimental 版本更加的前卫。
+而且很多软件包维护者，同时维护 Debian 和 Ubuntu，一般会先生成 Debian ，放到 Debian 的源中接受考验。</li>
+	<li>安装介质的完毕性和脱离网络安装
+Debian 胜出。
+Debian 的一个版本就提供 6张 DVD 或者两张 BD （蓝光）作为发行介质。完全可以脱离网络安装。<em>
+（小声的说：“non-free 的包不再之列，所以sun-java* 从光盘安装不到，而且有的驱动也不再其中。嘘，小点声...”）
+</em>不过，Debian 和Ubuntu 都可以通过建立包代理甚至是本地镜像源的方式，实现快速网络安装。</li>
+</ul>
+您在 Linux 上有什么心得体会，愿意与我们分享？注册帐号，在我们的博客中投稿。

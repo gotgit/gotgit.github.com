@@ -1,0 +1,82 @@
+---
+layout: post
+title: "群英汇版本控制系统的选择：subversion, hg, git"
+---
+
+对于软件开发者或者往大了说，有知识管理或者数据管理需要的<strong>数码人</strong> :computer: ，是否使用版本控制系统，肯定已经不再是一个问题。
+
+但是选用什么版本控制系统呢？这真是一个问题。我会告诉我的大部分客户，您可以仍旧选择Subversion作为主要的版本控制工具，但是分布式版本控制系统，在特定场合诸如：异地协同开发、移动办公/开发、涉密项目的封闭式开发都有着各种不同的应用。
+
+如果采用类似我们公司的开源开发模式或者是内部开源模式，那么 Git 可能是您的首选。
+
+这篇博文以我们群英汇自己公司的版本库变迁历史，和网友共享...
+<h2><span id="more-67"></span>Subversion</h2>
+Subversion 是群英汇支持的最重要的产品，我们服务的大多数客户，都或多或少的选择了我们的版本控制服务。群英汇为客户提供Subversion版本控制服务，从培训、应用部署、系统整合到售后服务、技术支持。
+
+我们公司的部分项目使用了Subversion版本控制系统，如：
+<ul>
+	<li>pySvnManager：<a href="http://sourceforge.net/projects/pysvnmanager/">托管在SourceForge上</a></li>
+	<li>FreeMind-MMX: <a href="http://sourceforge.net/projects/freemind-mmx/">托管在SourceForge上</a></li>
+	<li>WordPress的CoSign-SSO插件：<a href="http://wordpress.org/extend/plugins/cosign-sso/">位于官方的Subversion库中</a></li>
+</ul>
+我们公司内部的开发在2007年以前，也主要使用Subversion，但是之后，我们的代码库逐渐的向分布式版本控制系统迁移：
+<ul>
+	<li>先是Hg：Hg是水银的化学元素符号，全称为Mercurial。</li>
+	<li>后来是Git：Git 是 LinusTorvalds 继Linux后的又一个伟大发明，为全人类的另一个伟大贡献</li>
+</ul>
+<h2>Hg/Mercurial</h2>
+Hg走入我们的视线，是因为我们研究的项目都一个一个脱离Subversion阵营，转向Hg，使用Hg作为各自项目的版本控制工具。其中一个我们主要研究的项目是：MoinMoin维基。
+
+使用Hg后，困扰我的问题迎刃而解，就是：
+<ul>
+	<li>我们的软件开发模式是基于成熟的开源软件进行定制。项目的原始代码库称为上游，我们自己的代码库称为下游；</li>
+	<li>使用Subersion，我们采用Subversion的Vendor分支（或称卖主分支）来管理我们的代码</li>
+	<li>一但上游软件软件出现新的版本，我们代码的迁移就成了最让人头痛的事情，可能好几天都不能搞定；</li>
+</ul>
+Hg可以很好的解决这个问题，原因在于：
+<ul>
+	<li>Hg是分布式版本控制工具，整个代码库都在本地，浏览变更历史速度超快，实际上是本地访问，不再受制于网络。这样我们就可以更快的建立和上游版本库的同步，尽早尽快的解决代码合并问题，而不是要等到新版本发布；</li>
+	<li>Hg的最佳拍当MQ！简直就是为我们的开发模式所设计的。Subversoion的卖主分支和MQ相比就好像马车和火箭的对比。</li>
+	<li>Hg简单，并且使用习惯和Subversion非常相似，这也是为什么我们公司的版本控制系统在转向 Git 后，仍有部分项目在使用 Hg的原因</li>
+</ul>
+群英汇的Hg开源代码库:
+<ul>
+	<li><a href="http://bitbucket.org/ossxp_com/">http://bitbucket.org/ossxp_com/</a></li>
+</ul>
+<h2>Git</h2>
+有了Hg，为什么还要用git？
+<ul>
+	<li>和Subversion代码库同步的需要。
+<ul>
+	<li>虽然svn可以镜像远程代码库，但镜像库不能提交</li>
+	<li>Hg不支持分支，因此无法完全克隆一个Subversion代码库</li>
+	<li>Git有着完备的分支支持，可以将远程svn库镜像为一个本地的git库，而且可以提交甚至远程提交</li>
+</ul>
+</li>
+	<li>Git速度更快。如果你用过git和hg，你就会对我说的有所感觉：
+<ul>
+	<li> Hg提交/克隆/push/pull，我经常对自己无所事事 :ZZZ: 而感到恼怒，感觉就像傻子一样，完成了多少？1%还是99%？</li>
+	<li>Git速度超快不说，整个过程有着详尽的提示，真是体贴备至。 :rotfl:</li>
+</ul>
+</li>
+	<li>Git＋Topgit很好的支持上下游的协同开发
+<ul>
+	<li>Hg的MQ虽然很好，但是Git有Topgit，而且Git的rebase功能更成熟</li>
+	<li>MQ可能更适合单人开发，但是没有办法对补丁之间建立依赖关系</li>
+	<li>Topgit采用分支来管理补丁，而且可以在分支之间设置依赖，可以是代码更整洁</li>
+</ul>
+</li>
+</ul>
+群英汇的开放Git代码库：
+<ul>
+	<li><a href="http://github.com/ossxp-com">群英汇在github上的开源代码</a> (请使用 firefox浏览器)</li>
+	<li>我们自己网站上的gitweb演示：<a href="http://git.ossxp.com/">http://git.ossxp.com/</a></li>
+	<li>我们项目管理平台大多数项目也是和git版本整合：<a href="http://redmine.ossxp.com/redmine/repositories/show/redmine">Redmine项目</a></li>
+</ul>
+<hr />参考阅读：
+<ul>
+	<li><a href="http://whygitisbetterthanx.com/">Why Git is Better than X</a></li>
+	<li><a href="http://better-scm.berlios.de/comparison/comparison.html">Version Control System Comparison</a></li>
+	<li><a href="http://www.versioncontrolblog.com/comparison/">Version control systems comparison</a></li>
+	<li><a href="http://www.worldhello.net/doc/cvs_vs_starteam/">CVS vs Starteam</a></li>
+</ul>

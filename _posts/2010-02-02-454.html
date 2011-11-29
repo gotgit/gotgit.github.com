@@ -1,0 +1,20 @@
+---
+layout: post
+title: "解决getRemoteUser()为null的问题"
+---
+
+<div id="rest" class="document">
+
+最近的项目需要Apache2+tomcat6配置Basic认证，项目后台需要得到Basic认证的用户名，但是始终request.getRemoteUser()=null。这几天通过查看 <a class="reference external" href="http://tomcat.apache.org/connectors-doc/reference/apache.html">mod_jk文档</a> 和在同事的帮助下，终于使得index.jsp页面上&lt;%= request.getRemoteUser() %&gt;不再为null。<span id="more-454"></span>
+<h2>主要过程</h2>
+下面我把使用的主要配置说明一下.首先，在${TOMCAT_HOME}/conf /server.xml里面,找到AJP13对应的那个 connector节点,添加tomcatAuthentication="false" ,这个属性默认是True,意思是使用Tomcat本身的认证,不使用外部Server传进来的认证信息。
+
+然后，在apache的httpd.conf配置文件中，使用的JkMount和JkUnMount这两个指令是由mod_jk提供的，JkMount指令把请求转给tomcat,与之相反的是JkUnMount不转发请求。下面是我的配置:
+<pre class="literal-block">JkEnvVar REMOTE_USER null
+JkMount /*.jsp  ajp13_worker
+JkMount /Test/*  ajp13_worker
+JkUnMount /Test/ ajp13_worker
+</pre>
+JkEnvVar指令可以使从Apache转发环境变量给Tomcat。这些变量可以从Servlet中的request.getAttribute(attributeName)得到，但是通过JkEnvVar发送的变量名称不会出现在request.getAttributeNames()中。
+
+</div>

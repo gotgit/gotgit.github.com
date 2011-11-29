@@ -1,0 +1,42 @@
+---
+layout: post
+title: "用 repo 管理 Freemind 代码补丁"
+---
+
+FreeMind 是我几乎每天都会用到的软件，虽说脑图软件不少，但 FreeMind 的文件是纯文本、可版本控制，所以一直是我的最爱。当然为了能更好的进行版本控制，还需要做些改进，就是我在 SourceForge 上建立的 <a href="http://freemind-mmx.sourceforge.net/">FreeMind-MMX 项目</a>。
+
+最近发现 FreeMind 的代码库由 CVS 迁移到了 Git，这下访问官方代码库可方便多了。但是转换的并非尽善尽美，参见我<a href="http://t.sina.com.cn/2080831604/wr4mLm0zS4">新浪微博的评论</a>。
+
+之前把我的改进代码连同 FreeMind 代码一并放在公司的代码库中（用Topgit特性分支），如果迁移到新的 FreeMInd 代码库，再放到 Github 上，不知道又要占用多少宝贵的 Github 托管空间。灵机一动，为什么不用 repo —— 由 Andorid 项目引入的多 Git 版本库管理工具？
+
+使用 repo 之后，我在 Github上Freemind 相关版本库占用甚至不到1M！
+<ul>
+	<li>官方版本库地址： git://freemind.git.sourceforge.net/gitroot/freemind/freemind
+注意不能有 ".git" 后缀，如果添加后缀则无法克隆。</li>
+	<li>Github 上 FreeMind-MMX 的 Manifest 库的网址： <a href="https://github.com/ossxp-com/freemind-manifest">https://github.com/ossxp-com/freemind-manifest</a></li>
+	<li>Github 上 FreeMind-MMX 的 代码补丁： <a href="https://github.com/ossxp-com/freemind-hacks">https://github.com/ossxp-com/freemind-hacks</a></li>
+</ul>
+自己动手编译改进后的 FreeMind，即 FreeMind-MMX 的方法：
+<ul>
+	<li>使用我改进的 repo，原因见<a href="http://t.sina.com.cn/2080831604/wr4mLn4YdI">微博上留言</a>。
+<pre>$ <strong>mkdir workspace</strong>
+$ <strong>cd workspace</strong>
+$ <strong>sudo curl -L -k http://github.com/ossxp-com/repo/raw/master/repo \
+    &gt; /usr/local/bin/repo</strong>
+$ <strong>sudo chmod a+x /usr/local/bin/repo </strong></pre>
+</li>
+	<li>使用 Github 上的 FreeMind Manifest 库进行初始化。
+<pre>$ <strong>repo init -u git://github.com/ossxp-com/freemind-manifest.git</strong></pre>
+</li>
+	<li>同步版本库，包括 SourceForge 上的 FreeMind 和 Github 上的 freemind-hacks。
+这一步骤时间可能会很长，因为 SourceForge 上 FreeMind 代码库太大（50M）。
+<pre>$ <strong>repo sync</strong></pre>
+</li>
+	<li>完成同步后，在当前目录下有一个 build.sh 脚本，执行它完成改进版本 Freemind 的编译和打包。
+<pre>$ <strong>sh build.sh</strong></pre>
+</li>
+	<li>打包后的文件在 post 目录下。如果在 Mac OS X 上打包，还会生成 .dmg 扩展名的软件包。</li>
+</ul>
+
+<hr>
+参考阅读： <a href="/2011/04/19/2464.html">《Repo 新增 hack：URL 自动 DotGit 后缀控制等》</a>

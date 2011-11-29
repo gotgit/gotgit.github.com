@@ -1,0 +1,55 @@
+---
+layout: post
+title: "Redmine 和 subversion 版本库整合的问题"
+---
+
+有网友问：
+<blockquote>请问，如果我的svn是在另外一台服务器，也通过HTTPS能访问了，在redmine还要做什么设置吗？我输入https的地址，但是redmine始终无法找到svn代码库</blockquote>
+<strong>我先说一下在 Redmine 中通过 HTTP 协议访问远程 Subversion 版本库</strong>
+
+我们最早研究的 Redmine，大概是 Redmine 0.8.5，通过  http 协议配置远程版本库，Subversion 的提交总是不能被 Redmine 获取。在排除了 Subversion 授权和认证的可能原因之后，我们发现问题出在 Redmine 调用 svn 命令被阻塞。
+
+即：必须先在服务器以 Apache 的用户（www-data）访问 subversion（HTTP 协议），使用 SVN 命令行。在访问过程中，会出现交互性的提示：“是否在磁盘缓存明文口令之类的提示”，选择“是”之后， Redmine 就可以正常连接到 Subversion 服务器了。
+
+通过研究代码，我们发现 Redmine 直接调用 Subversion 命令来获取 Subversion 的日志和提交之类，如果在命令行中传递参数：“--no-auth-cache” 等就可以避免因为 redmine 调用 svn 命令被阻塞。
+
+<strong>Redmine 0.8.6 的改进</strong>
+
+Redmine 0.8.6 改进了这个问题，和 0.8.5 的代码差异：
+<pre>$ git diff 661bd08^ 661bd08 -- subversion_adapter.rb
+diff --git a/lib/redmine/scm/adapters/subversion_adapter.rb b/lib/redmine/scm/adapters/subversion_adapter.rb
+index 1c85e84..b10100f 100644
+--- a/lib/redmine/scm/adapters/subversion_adapter.rb
++++ b/lib/redmine/scm/adapters/subversion_adapter.rb
+@@ -224,6 +224,7 @@ module Redmine
+           str = ''
+           str &lt;&lt; " --username #{shell_quote(@login)}" unless @login.blank?
+           str &lt;&lt; " --password #{shell_quote(@password)}" unless @login.blank? || @password.blank?
++          str &lt;&lt; " --no-auth-cache --non-interactive"^M
+           str
+         end
+       end
+</pre>
+什么意思呢？因在 Redmine 在调用 SVN 命令的时候，是这么封装的：
+<pre>        # Get info about the svn repository
+        def info
+          cmd = "#{SVN_BIN} info --xml #{target('')}"
+          cmd &lt;&lt; credentials_string
+          info = nil
+          shellout(cmd) do |io|
+              。。。
+          end
+</pre>
+即 Redmine 0.8.6 在连接 subversion 的时候已经能够传递参数“--no-auth-cache --non-interactive” 了。
+
+<strong>HTTPS 协议呢？</strong>
+
+要知道 subversion 还有一个参数：
+<pre>--trust-server-cert      : 不提示的接受未知的 SSL 服务器证书</pre>
+你的 Redmine 一定是在连接 HTTPS 协议的时候，因为证书问题被阻塞。你可以尝试更改 redmine 代码，并且要保证连接 SVN 的 URL 的主机名一定和证书中声明的一样。
+
+<strong>为什么不用本地协议？</strong>
+
+使用 HTTPS 协议除了有上面的麻烦之外，和 HTTP 协议一样，还需要配置专用帐号访问，此专用帐号还要拥有 Subversion 最高访问权限，否则只能有部分提交能够看到。
+
+使用本地 file:// 协议是最理想的，无须认证信息。对于远程版本库，可以通过 svn 同步保持两者的一致。

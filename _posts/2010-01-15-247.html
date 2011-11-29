@@ -1,0 +1,159 @@
+---
+layout: post
+title: "群英汇 TopGit 改进 (1): tg push 全部分支"
+---
+
+TopGit 的项目名称是来自于 Topic Git 的简写，是用于管理多个 Git 的特性分支的工具。如果您对 Hg 的 MQ 有所了解的话，我可以告诉你，TopGit 是用 Git 维护补丁列表的工具；TopGit 就是 MQ 在 Git 中的等价物 ，而且做的更好。 :yes:
+<ol>
+	<li>什么是 TopGit？参见 <a href="http://repo.or.cz/w/topgit.git/blob/HEAD:/README">TopGit 手册</a></li>
+	<li>TopGit 代码库：<a href="http://repo.or.cz/w/topgit.git">http://repo.or.cz/w/topgit.git</a></li>
+</ol>
+群英汇终于决定采用 Git 作为公司内部的代码管理工具，就是因为我们发现了 TopGit。参见：<a title="永久链接: 群英汇版本控制系统的选择：subversion, hg, git" rel="bookmark" href="/2010/01/07/67.html">《群英汇版本控制系统的选择：subversion, hg, git》</a>。
+
+在每日的使用过程中，我们也发现了 TopGit 的一些问题，不断的挠到我们的痒处。遵循 <a href="http://www.ossxp.com/HelpCenter/00000_OSSXP/AboutUs_Slide/1070%20Eric%20S.%20Raymond%20%E5%BC%80%E6%BA%90%E7%90%86%E8%AE%BA%E5%AE%B6">ESR的理论</a> ，我们决定对 TopGit 进行改进，于是就有了我们在 Github 上的 TopGit 版本库： <a href="http://github.com/ossxp-com/topgit">http://github.com/ossxp-com/topgit</a>
+
+最近，我又感觉到 TopGit 一个不便利的地方，今天终于临时决定 Hack。Hack 结束之后，就有了写一个系列文章的想法，于是这个系列文章，就从今天这个最新的 Hack 写起。
+<h2><span id="more-247"></span>为 tg push 命令增加 --all 参数</h2>
+我之前的一篇文章：<a title="永久链接: Git 如何拆除核弹起爆码，以及 topgit 0.7到0.8的变迁" rel="bookmark" href="/2010/01/13/184.html">《Git 如何拆除核弹起爆码，以及 topgit 0.7到0.8的变迁》</a>，曾经提到过，TopGit 0.7 到 0.8 的一个非常大的改变，就是取消了在 .git/config 中的 强制 non-fast-forward 更新的 push 参数。
+
+在 TopGit 0.7 以及之前的版本，可以通过执行一个简单的 <em>git push</em> 命令，就可以将所有的 TopGit 分支以及相关的 top-bases 分支 PUSH 到服务器上。
+
+但是 TopGit 0.8 版本之后，不再向 .git/config 中添加相关 PUSH 指令，因为强制 non-fast-forward 的 PUSH 会导致多人协同工作时，互相覆盖对方改动！！！但是这么做的结果，也就失去了使用 git push 向远程服务器同步 TopGit 分支的便利。
+
+TopGit 0.8 版本提供了一个新命令 <em>tg push</em>，用于向服务器 PUSH TopGit 分支以及关联的 top-bases 分支。这样，就弥补了不能再使用 git push 和服务器同步 TopGit 以及 top-bases 分支的遗憾了。
+
+<strong><span style="text-decoration: underline;">一个让人痒痒的问题产生了：</span></strong>
+<ul>
+	<li>tg push 只能 push 当前工作的 TopGit 分支；</li>
+	<li>或者 tg push 后面加上各个分支的名字，实现对分支的 PUSH</li>
+	<li>但是 tg push 没有一个 --all 选项，必须一个一个的将需要 PUSH 的 tg 分支罗列出来</li>
+	<li>我们有的项目的分支有上百个！！！如果改动的多的话，要一个一个切换或者一个一个写在命令行中，太恐怖了。 :sweat:</li>
+</ul>
+<span style="text-decoration: underline;"><strong>问题的解决：</strong></span>
+<ul>
+	<li>增加了对 -a 以及 --all 参数的支持</li>
+	<li>如果用户没有指定分支，并且提供了 -a | --all 参数，则将当前所有 topgit 分支加入同步的分支列表中</li>
+	<li>创建新的分支，开始写代码：
+<pre>$ <strong>tg create t/tg_push_all tgmaster</strong>
+tg: Creating t/tg_push_all base from tgmaster...
+Switched to a new branch 't/tg_push_all'
+tg: Topic branch t/tg_push_all set up. Please fill .topmsg now and make initial commit.
+tg: To abort: git rm -f .top* &amp;&amp; git checkout tgmaster &amp;&amp; tg delete t/tg_push_all
+
+<strong># Hack, Hack, Hack...
+# Test, Test, Test...</strong>
+
+$ <strong>git st</strong>
+# On branch t/tg_push_all
+# Changes to be committed:
+#   (use "git reset HEAD &lt;file&gt;..." to unstage)
+#
+#       new file:   .topdeps
+#       new file:   .topmsg
+#
+# Changed but not updated:
+#   (use "git add &lt;file&gt;..." to update what will be committed)
+#   (use "git checkout -- &lt;file&gt;..." to discard changes in working directory)
+#
+#       modified:   .topmsg
+#       modified:   tg-push.sh
+#
+
+$ <strong>git ci -a -m "add --all option support to tg_push"</strong>
+[t/tg_push_all 7df16a5] add --all option support to tg_push
+ 3 files changed, 22 insertions(+), 1 deletions(-)
+ create mode 100644 .topdeps
+ create mode 100644 .topmsg</pre>
+</li>
+	<li>切换到 master (debian) 分支，编译新的 群英汇 软件包  topgit＋，并安装
+<pre>$ <strong>git co master</strong>
+$ <strong>git br</strong>
+* master
+ t/debian_locations
+ t/export_quilt_all
+ t/fast_tg_summary
+ t/tg_completion_bugfix
+ t/tg_patch_cdup
+ t/tg_push_all
+ tgmaster
+$ <strong>make -f debian/rules  debian/patches</strong>
+rm -rf debian/patches
+tg export --quilt --all debian/patches
+Exporting t/debian_locations
+Exporting t/export_quilt_all
+Exporting t/fast_tg_summary
+Exporting t/tg_completion_bugfix
+Exporting t/tg_patch_cdup
+Exporting t/tg_push_all
+Exported topic branch  (total 6 topics) to directory debian/patches
+$ <strong>git st</strong>
+# On branch master
+# Changed but not updated:
+#   (use "git add &lt;file&gt;..." to update what will be committed)
+#   (use "git checkout -- &lt;file&gt;..." to discard changes in working directory)
+#
+#       modified:   debian/patches/series
+#
+# Untracked files:
+#   (use "git add &lt;file&gt;..." to include in what will be committed)
+#
+#       debian/patches/t/tg_push_all.diff
+no changes added to commit (use "git add" and/or "git commit -a")
+$ <strong>git add debian/patches/t/tg_patch_all.diff</strong>
+$ <strong>vi debian/changelog</strong>
+edit, edit, edit...
+$ <strong>head -5 debian/changelog</strong>
+topgit (0.8-1+ossxp7) unstable; urgency=low
+
+ * add --all support to tg patch.
+
+ -- Jiang Xin &lt;jiangxin@ossxp.com&gt;
+$ <strong>git ci -a -m "new patch: add --all option support to tg_push."</strong>
+[master c927b02] new patch: add --all option support to tg_push.
+ 3 files changed, 61 insertions(+), 0 deletions(-)
+ create mode 100644 debian/patches/t/tg_push_all.diff
+
+$ <strong>dpkg-buildpackage -b -rfakeroot</strong>
+...
+dpkg-deb：正在新建软件包“topgit”，包文件为“../topgit_0.8-1+ossxp7_all.deb”。
+ dpkg-genchanges -b &gt;../topgit_0.8-1+ossxp7_amd64.changes
+...
+$ <strong>sudo dpkg -i ../topgit_0.8-1+ossxp7_all.deb</strong>
+...</pre>
+</li>
+	<li>改动 PUSH 到 Github
+<pre>$ <strong>git remote -v</strong>
+github  git@github.com:ossxp-com/topgit.git (fetch)
+github  git@github.com:ossxp-com/topgit.git (push)
+origin  git@bj.ossxp.com:users/jiangxin/topgit.git (fetch)
+origin  git@bj.ossxp.com:users/jiangxin/topgit.git (push)
+upstream        git://repo.or.cz/topgit.git (fetch)
+upstream        git://repo.or.cz/topgit.git (push)
+$ <strong>tg -r github summary</strong>
+r     t/debian_locations              [PATCH] make file locations Debian-compatible
+r     t/export_quilt_all              [PATCH] t/export_quilt_all
+r     t/fast_tg_summary               [PATCH] t/fast_tg_summary
+r     t/tg_completion_bugfix          [PATCH] t/tg_completion_bugfix
+r     t/tg_patch_cdup                 [PATCH] t/tg_patch_cdup
+l     t/tg_push_all                   [PATCH] t/tg_push_all
+$ <strong>tg -r github push --all</strong>
+Everything up-to-date
+Everything up-to-date
+Everything up-to-date
+Everything up-to-date
+Everything up-to-date
+Counting objects: 7, done.
+Delta compression using up to 2 threads.
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (5/5), 757 bytes, done.
+Total 5 (delta 2), reused 0 (delta 0)
+To git@github.com:ossxp-com/topgit.git
+* [new branch]      refs/top-bases/t/tg_push_all -&gt; refs/top-bases/t/tg_push_all
+* [new branch]      t/tg_push_all -&gt; t/tg_push_all</pre>
+</li>
+	<li>改完，收工。</li>
+</ul>
+<span style="text-decoration: underline;"><strong>相关代码提交：</strong></span>
+<ul>
+	<li><a href="http://github.com/ossxp-com/topgit/commit/7df16a56c0fff942e731d1831332ba7216162c2a">http://github.com/ossxp-com/topgit/commit/7df16a56c0fff942e731d1831332ba7216162c2a</a></li>
+</ul>

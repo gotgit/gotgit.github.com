@@ -1,0 +1,27 @@
+---
+layout: post
+title: "Redmine 中的 Subversion 版本库设置"
+---
+
+Redmine 管理员手册关于 svn 版本库设置写的不是很详细，在这里补充一下。
+
+用 Redmine 创建一个项目后，进入项目的设置界面，访问“版本库”标签，可以为项目建立匹配的版本库设置。
+
+如果是 Subversion，在下拉框选择 Subversion，其它设置参考下面的示意图：
+
+<a href="/wpfiles/2010/11/redmine-svn-settings.png"><img class="aligncenter size-medium wp-image-2046" title="redmine-svn-settings" src="/wpfiles/2010/11/redmine-svn-settings-300x180.png" alt="" width="300" height="180" /></a>
+
+注意：
+<ul>
+	<li>在 URL 处使用 file:// 协议。一般我们把版本库部署在 /opt/svn/svnroot 下，所以 URL 的开头一般是：
+file:///opt/svn/svnroot/...   （注意 file: 后面有三个斜线，分别是协议要求的两个斜线，和一个代表根路径的斜线）</li>
+	<li>URL一般直接指向版本库的根路径。如果多个项目共用同一个版本库，也可以使用 版本库下的某个路径，如：
+file:///opt/svn/svnroot/myproject/path/to/project1</li>
+	<li>因为使用 file:// 本地协议，因此不必输入认证的登录名和密码。</li>
+	<li>最后两个字段用于版本库浏览时的授权。</li>
+	<li>其中授权文件，我们习惯的部署位置是：
+/opt/svn/conf/svn.access</li>
+	<li>模组名就是版本库的名称，例如 myproject  。</li>
+	<li>如果授权文件和模组不填写，开发者都能够通过 redmine 查看源代码。</li>
+	<li>如果授权文件写错位置（找不到），会导致任何人都无法通过 redmine 查看代码。</li>
+</ul>

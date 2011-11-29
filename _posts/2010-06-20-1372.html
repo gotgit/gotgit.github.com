@@ -1,0 +1,52 @@
+---
+layout: post
+title: "&#8220;当时我就震惊了&#8221;——六月北京 OpenParty"
+---
+
+标题并非取自“豆瓣网”传说中的“震组”，首次听说豆瓣有这个小组以及有这句“潮”语，还是在昨天参加北京OpenParty活动日的时候。
+
+Horse老师/老板在介绍他的“<a href="http://storygarden.me/">奇遇花园</a>”和他的社会学研究心得的时候，提到了豆瓣和这句话，马上就在接下来的由淘宝的章亦春 (Agentzh) 的报告中应验了。Agentzh 的报告主题是他在 Nginx 插件开发和在淘宝中Nginx的应用，“当时我就震惊了”。
+
+知道 Nginx 很久了，就在上一周，公司的一个同事在做 Redmine 性能优化的时候也拿 Apache 和 Nginx 做了对比，吞吐量至少相差了10倍（具体数字我忘记了）。但是有两个东西一直困扰着我，如果解决不了，无法实现由 Apache 向 Nginx 迁移。
+<ol>
+	<li>Subversion。一般客户安装 Subversion，都使用的是 https 协议，依靠 mod-dav-svn 模组运行在 Apache 下</li>
+	<li>CoSign。单点登录需要Web服务器安装相应插件，有 Apache 和 IIS 插件，但是没有 Nginx 插件。</li>
+</ol>
+Agentzh 在他的报告中介绍了他 Hack Nginx 的经历以及他如何使用 Hack 后的 Nginx 极大的提升了服务器吞吐量甚至将千兆网卡跑满。
+<ul>
+	<li>Nginx 的优秀源自于非阻塞IO模型，当然这并非一个简单的话题</li>
+	<li>Nginx 不仅仅是 Web 服务器，可以配置为其它应用服务器。</li>
+	<li>Agentzh 通过 Nginx 的配置文件在一个 URL location 中完成数据库操作等调用并返回 JSON 数据，实现 AJAX 功能，真的让人眼前一亮，看到网络应用优化的另辟蹊径。</li>
+	<li>Nginx 的代理功能，不但可以和 Tomcat 等应用服务器整合，Apache 也可以。这不就是 Subversion 运行在 Nginx 下的办法么。</li>
+</ul>
+回来后，查了一下 Subversion 在 Nginx 下运行的解决方案：
+<ul>
+	<li>Nginx 下直接运行 SVN 是不行的，而且 Nginx 的 WebDAV 协议实现的不完全。</li>
+	<li>SVN 仍旧使用 Apache 做服务器，但是使用 Nginx 代理是可行的，但是会遇到问题：
+<ul>
+	<li>copy，rename，建立分支/里程碑这样的操作有问题，会因为操作的内容中存在路径未经代理替换
+<pre>COPY /path HTTP/1.1
+Host: host
+Destination: https://host/another_path</pre>
+</li>
+	<li>有个解决方案，但是尚未进行验证。原文出自：<a href="http://serverfault.com/questions/121766/webdav-rename-fails-on-an-apache-mod-dav-install-behind-nginx">这里</a>
+<pre>location / {
+    # to avoid 502 Bad Gateway:
+    # http://vanderwijk.info/Members/ivo/articles/ComplexSVNSetupFix
+    set $destination $http_destination;
+
+    if ($destination ~* ^https(.+)$) {
+         set $destination http$1;
+    }
+
+    proxy_set_header Destination $destination;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+
+    proxy_pass http://svn;
+}</pre>
+</li>
+</ul>
+</li>
+</ul>
+至于 CoSign 单点登录系统在 Nginx 的运行，则必须在 Nginx 上开发插件了。还好已经和 agentzh 交换了名片，遇到问题向他请教吧。据 Agentzh 说，Nginx 代码量没有 Apache 那么大，但是也有10万行，没有注释但很优美（这点可能和 CoSign 的代码类似），开发插件因为文档的匮乏，看相当数量的代码是必须的，我再次震惊了。 ;-)

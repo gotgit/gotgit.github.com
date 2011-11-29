@@ -1,0 +1,181 @@
+---
+layout: post
+title: "Gistore 项目正式发布 —— 基于 Git 的 Linux 数据备份系统"
+---
+
+在之前的 <a href="/2010/01/18/287.html">gistore 项目发布预告</a> 的博客中，我们已经提到了 gistore 项目，今天我们正式将此项目发布：
+<ul>
+	<li>pypi 上的项目页：<a href="http://pypi.python.org/pypi/gistore">gistore 项目</a></li>
+	<li>Github 上的版本库：<a href="http://github.com/ossxp-com/gistore">http://github.com/ossxp-com/gistore</a></li>
+</ul>
+什么是 Gistore，如何使用呢？
+<h2><span id="more-406"></span>何为 Gistore?</h2>
+Gistore 是群英汇为了应对企业对于数据备份，信息安全的需求而开发的一款工具软件，以 git 版本控制系统作为数据增量备份的机制。
+<pre>Gistore = Git + Store</pre>
+Gistore 的设计参考了 etckeeper，用户可以对全盘任何目录的数据纳入到备份中，定制非常简单和方便。优点有：
+<ul>
+	<li>备份数据的历史查询和恢复，可以使用 git 命令，而不用去记忆备份工具独有的命令</li>
+	<li>多机异地备份非常简单，使用 git 克隆即可解决。可以采用 git 协议，http，或者更为安全的 ssh 协议</li>
+	<li>Git 的存储效率非常高效</li>
+	<li>Gistore 的备份工作区是 bare 形式的 GIT 版本库，不包含工作区文件，更节省磁盘空间</li>
+</ul>
+Gistore 只能运行在 Linux 或类似系统上，因为 gistore 需要调用系统命令: mount/umount ...
+<h2>Gistore 的安装</h2>
+如前所述，gistore 已经上传到 PYPI，并且源代码也已经贡献到 Github 上，可以使用两种方法来安装：
+<h3>方法一：使用 setuptools 从 PYPI 上获取 gistore 软件包</h3>
+<ul>
+	<li>确保机器上已经安装了 setuptools。
+<ul>
+	<li>在 Debian 上可以使用下面的命令安装 setuptools
+<pre>$ <strong>sudo aptitude install python-setuptools</strong>
+$ <strong>which easy_install</strong>
+/usr/bin/easy_install
+</pre>
+</li>
+	<li>其他 Linux 发行版安装 setuptools，可以参考 <a href="http://peak.telecommunity.com/DevCenter/setuptools">setuptools 官方网站</a></li>
+</ul>
+</li>
+	<li>使用 easy_install 命令安装 gistore
+<pre>$ <strong>sudo easy_install gistore</strong>
+Searching for gistore
+Best match: gistore 0.1
+Adding gistore 0.1 to easy-install.pth file
+
+Using /usr/lib/python2.5/site-packages
+Processing dependencies for gistore
+Finished processing dependencies for gistore
+$ <strong>which gistore</strong>
+/usr/bin/gistore
+</pre>
+</li>
+</ul>
+<h3>方法二：从源码安装 gistore</h3>
+<ul>
+	<li>先用 git 从 Github 上克隆 代码库
+$ <strong>git clone git://github.com/ossxp-com/gistore.git</strong>
+Initialized empty Git repository in /home/jiangxin/gistore/.git/
+remote: Counting objects: 28, done.
+remote: Compressing objects: 100% (23/23), done.
+remote: Total 28 (delta 8), reused 0 (delta 0)
+Receiving objects: 100% (28/28), 19.13 KiB | 5 KiB/s, done.
+Resolving deltas: 100% (8/8), done.
+$ <strong>cd gistore</strong>
+$ <strong>ls -aF</strong>
+./  ../  cfg/  CHANGELOG  COPYING  gistore*  .git/  lib/  MANIFEST.in  README  setup.py</li>
+	<li>执行 setup.py 脚本完成安装
+$ <strong>sudo python setup.py install</strong>
+...
+$ <strong>which gistore</strong>
+/usr/bin/gistore</li>
+</ul>
+<h2>Gistore 的使用</h2>
+<h3>Gistore 的术语</h3>
+<ul>
+	<li>备份库：通过 gistore 创建并维护的一个用于备份的 git 库
+<ul>
+	<li>包含 git 库本身（.git目录, .gitignore文件等）</li>
+	<li>以及 gistore 相关配置（.gistore）目录</li>
+</ul>
+</li>
+	<li>备份项：可以为一个备份库指定任意多的备份项目
+<ul>
+	<li>例如备份 /etc 目录, /var/log 目录, /boot/grub/menulist 文件等</li>
+	<li>备份项在备份库的 .gistore/config 文件中指定，如上例的备份项在配置文件中写法为：
+[store /etc]
+[store /var/log]
+[store /boot/grub/menu.lst]</li>
+</ul>
+</li>
+	<li>备份任务：在执行大部分 gistore 的命令时，需要指定一个任务或者多个任务
+<ul>
+	<li>备份任务，可以是对应的 <em>备份库</em> 的路径，可以使用绝对路径，也可以使用相对路径</li>
+	<li>如果不提供备份任务，缺省将当前目录作为 <em>备份库</em> 的所在</li>
+	<li>也可以使用一个别名来标识备份任务</li>
+</ul>
+</li>
+	<li>任务别名和任务列表：在 /etc/gistore/tasks 目录中创建的备份库的符号链接的名称，作为这些备份库的任务别名
+<ul>
+	<li>如果没有任务别名的机制，管理员很难定位当前到底存在多少个备份库</li>
+	<li>将分散在磁盘各个目录的备份库创建符号链接到目录 /etc/gistore/tasks/ 目录下，就为该备份库创建了一个别名</li>
+	<li>将所有的别名显示出来，就是任务列表</li>
+</ul>
+</li>
+</ul>
+<h3>创建并初始化备份库</h3>
+在使用 gistore 开始备份之前，必须先初始化一个备份库。
+<ul>
+	<li>命令行格式
+<pre><strong>gistore init [备份任务]</strong></pre>
+</li>
+	<li>示例
+<ul>
+	<li>将当前目录作为备份库进行初始化
+<pre>$ <strong>gistore init</strong></pre>
+</li>
+	<li>将指定的目录作为备份库进行初始化
+<pre>$ <strong>sudo gistore init /backup/database</strong></pre>
+</li>
+</ul>
+</li>
+</ul>
+<h3>备份库的配置，以及为备份库指定备份项</h3>
+一个备份库的备份项的设置，是在备份库根目录下的<em> .gistore/config </em>文件中定义的。例如下面的配置内容：
+<pre># Global config for all sections
+[main]
+backend = git
+root_only = true
+
+[default]
+keep_perm = no
+keep_empty_dir = no
+
+[store /etc]
+keep_perm = yes
+keep_empty_dir = yes
+
+[store /opt/mailman/archives]
+
+[store /opt/mailman/conf]
+[store /opt/mailman/lists]
+[store /opt/moin/conf]
+[store /opt/moin/sites]
+</pre>
+如何理解这个配置文件呢？
+<ul>
+	<li>[main] 小节设置了缺省的版本控制系统为 git，并且只有 root 用户能对该版本库进行操作</li>
+	<li>[default] 小节设定了备份项的缺省备份行为。如缺省不记录文件或目录的属主等权限信息，不保存空目录
+这是因为 git 版本控制系统不能记录文件或目录的属主等权限相关设置，git 还直接删除空目录，这在有的情况是不允许的。</li>
+	<li>[store /etc] 小节是说，要对 /etc 目录进行备份，对于该目录，要保留空目录，并且记录用户权限信息</li>
+	<li>后续的小节陆续增加了更多的备份项，包括：/opt/mailman/archives, /opt/mailman/conf, /opt/mailman/lists, /opt/moin/conf, /opt/moin/sites 目录等。这些目录采用缺省的备份设置</li>
+</ul>
+<h3>执行备份任务</h3>
+执行备份任务非常简单：
+<ul>
+	<li>进入到备份库根目录下，执行：
+<pre>$ <strong>sudo gistore commit</strong></pre>
+</li>
+	<li>或者在命令行上指定备份库的路径
+<pre>$ <strong>sudo gistore ci /backup/database</strong></pre>
+</li>
+</ul>
+<h3>设定备份任务的别名以及查看任务列表<strong> </strong></h3>
+因为 gistore 可以在任何目录下创建备份任务，因此管理员很难定位当前到底存在多少个备份库。还有就是执行备份时，要在命令行指定长长备份库路径。
+
+任务别名就是用来解决这些问题的。
+
+为备份任务创建任务别名非常简单，只需要 在 /etc/gistore/tasks 目录中创建的备份库的符号链接，该符号链接的名称，作为这些备份库的任务别名
+<pre>$ <strong>sudo ln -s /home/jiangxin/Desktop/mybackup /etc/gistore/tasks/jx
+</strong>$ <strong><strong>sudo ln -s /backup/database /etc/gistore/tasks/db
+</strong></strong><strong><strong> </strong></strong></pre>
+于是，就创建了两个任务别名，在以后执行备份时，可以简化备份命令：
+<pre>$ <strong>sudo gistore ci jx</strong>
+$ <strong>sudo gistore ci db</strong></pre>
+查看一份完整备份列表也非常简答：
+<pre>$ <strong>gistore list</strong>
+    db        : /backup/database
+    jx        : /home/jiangxin/Desktop/mybackup</pre>
+当 gistore list 命令后面指定某个任务列表时，相当于执行 gistore status 命令，查看备份状态信息：
+<pre>$ <strong>gistore status db
+</strong></pre>
+<h2>关于备份库的镜像，备份数据的恢复</h2>
+无须多言，参见 git 用户手册。

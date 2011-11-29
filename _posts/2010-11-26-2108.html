@@ -1,0 +1,111 @@
+---
+layout: post
+title: "创建Zope产品例子"
+---
+
+Zope作为一个复杂的应用，学习起来难读挺大，如果再没有一份细致而全面的文档来指导学习，那就更难了。
+
+Zope的官方文档中，&lt;&lt;The Zope Book&gt;&gt;适合作为Zope的入门学习手册，里面详细讲解了Zope Management Interface(ZMI)的使用，其实要我总结就是教你如何使用Zope自带的产品的。这份文档通俗易懂，里面也有不少例子，按照它的演示步骤一步一步做，很容易明白。
+
+在了解了Zope的自带产品以后，接下来就想学习如何创建自己的产品。众所周知，Plone就是Zope的一个非常成功的产品。如何开发Zope产品呢？在&lt;&lt;The Zope Book&gt;&gt;里你找不到答案。这时要看的是&lt;&lt;The Zope Developer's Guide&gt;&gt;。它主要讲Zope产品的开发。但遗憾的是，从&lt;&lt;The Zope Book&gt;&gt;到&lt;&lt;The Zope Developer's Guide&gt;&gt;的跨度太大了，两者的衔接不好，导致看过第一份以后，看第二 份却不知道如何入手。相对&lt;&lt;The Zope Book&gt;&gt;而言，&lt;&lt;The Zope Developer's Guide&gt;&gt;比较晦涩，一开始讲组建和接口，举了一个Hello组建的例子，但却没告诉我们这个文件在要存放到哪里，如何去使用等等。
+
+于是去 google 里seek，找到了这篇文章，<a href="http://www.devshed.com/c/a/Zope/Creating-Zope-Products/">Creating Zope Products</a>，写的还算清晰，具有可操作性。然而按照文章操作一遍，重启zope实例，在ZMI的add list里就是”犹抱琵琶半遮面“，迟迟不肯出现。于是又翻查&lt;&lt;The Zope Developer's Guide&gt;&gt;，几经对比，终于将这个例子修改通过，现记录如下。
+
+<span id="more-2108"></span>
+<h2>创建产品</h2>
+首先进入到Zope安装目录（不是实例目录），假设是/opt/zope-2.11/，然后进入lib/python/Products目录。
+<pre>$ cd /opt/Zope-2.11/
+$ ls
+bin  doc  lib  skel
+$ cd lib/python/Products/
+$ ls
+BTreeFolder2    __init__.pyc  PageTemplates  SiteAccess             Transience      ZReST
+ExternalMethod  MailHost      PluginIndexes  SiteErrorLog           ZCatalog        ZSQLMethods
+Five            MIMETools     PythonScripts  StandardCacheManagers  ZCTextIndex
+__init__.py     OFSP          Sessions       TemporaryFolder        ZODBMountPoint</pre>
+可以看到所有的标准Zope产品都在这里，我们平时使用的File，Folder，DTML等都是它们的实例化。
+
+这里我们要创建的产品例子为Person，那么首先创建我们的产品目录Person，然后创建存放产品的文件Person.py。另外产品目录下一般要有一个__init__.py文件。
+<pre>$ sudo mkdir Person
+$ sudo touch Person/Person.py
+$ sudo touch Person/__init__.py</pre>
+这样一个最基本的产品的框架就完成了。下一步就是填充产品的内容了。
+<h2>填充产品</h2>
+<span style="font-size: 13.3333px;">废话不多说，先上代码：</span>
+<pre>$ cat Person/Person.py
+from OFS.SimpleItem import SimpleItem
+
+#在add list里选择添加Person以后跳转到这里
+def addForm(self):   
+    "Accept basic information about the instance."
+    out = '&lt;html&gt;&lt;head&gt;&lt;title&gt;Person Product&lt;/title&gt;&lt;/head&gt;&lt;body&gt;'
+    out = out + '&lt;form action="addProduct"&gt;' 
+    out = out + '&lt;b&gt;ID:&lt;/b&gt; &lt;input type="text" name="id" /&gt;&lt;br /&gt;'
+    out = out + '&lt;b&gt;Name:&lt;/b&gt; &lt;input type="text" name="title" /&gt;&lt;br /&gt;'
+    out = out + '&lt;b&gt;Nickname:&lt;/b&gt; &lt;input type="text" name="nickname" /&gt;&lt;br /&gt;'
+    out = out + '&lt;input type="submit"&gt;&lt;/form&gt;&lt;/body&gt;&lt;/html&gt;'
+    return out
+
+#根据提交内容初始化Person实例
+def addProduct(self, id, title, nickname,REQUEST=None):  
+    "Add an instance."
+    p = Person(id, title, nickname)
+    self._setObject(id, p)
+    if REQUEST is not None:
+        #返回添加前页面
+        return self.manage_main(self,REQUEST)          
+
+class Person(SimpleItem):
+    """A virtual person."""
+    #设置在add list里显示的名称
+    meta_type = 'Person'              
+    def __init__(self,id,title,nickname):
+        "Initialization."
+        self.id = id
+        self.title = title
+        self.nickname = nickname
+    #直接访问实例时显示的内容
+    def index_html(self):            
+        "Default page."
+        out = '&lt;html&gt;&lt;head&gt;&lt;title&gt;' + self.title + '&lt;/title&gt;&lt;/head&gt;&lt;body&gt;'
+        out = out + 'Hello, I am ' + self.title + ', but my friends call me ' + self.nickname + '.'
+        out = out + '&lt;/body&gt;&lt;/html&gt;'
+        return out
+    def list_info(self):
+        "A list of information."
+        out = '&lt;html&gt;&lt;head&gt;&lt;title&gt;' + self.title + '&lt;/title&gt;&lt;/head&gt;&lt;body&gt;'
+        out = out + '&lt;b&gt;ID:&lt;/b&gt;' + self.id
+        out = out + '&lt;br/&gt;&lt;b&gt;Name:&lt;/b&gt;' + self.title
+        out = out + '&lt;br/&gt;&lt;b&gt;Nickname:&lt;/b&gt;' + self.nickname
+        out = out + '&lt;/body&gt;&lt;/html&gt;'
+        return out</pre>
+有几点需要说明一下：
+<ul>
+	<li><span style="font-size: 13.3333px;">继承自 SimpleItem。所有的产品都有一些共同的属性，比如复制，剪切，粘贴，撤销操作，历史记录，安全性等，这在使用ZMI的时候大家都比较熟悉了吧，而这些属性是通过继承 OFS.SimpleItem.SimpleItem 而得来的。我们要定义的Person类也不例外。</span></li>
+	<li><span style="font-size: 13.3333px;">在点击 add list 中的某一个产品时，会跳转到一个页面，提示输入Id，Title，这个页面在这里是通过addForm方法来实现的</span></li>
+	<li><span style="font-size: 13.3333px;">在填写完毕以后，addForm 会将内容提交给 addProduct，这个从提交表单里可以看出。addProduct 的作用是完成Person 的初始化工作。</span></li>
+	<li><span style="font-size: 13.3333px;">产品在 add list 里的显示名称，这个是通过重定义 meta_type 的值来实现的。</span></li>
+</ul>
+<h2>注册产品</h2>
+通过上面的步骤，一个基本的产品就出炉了。但是Zope还不知道我们的产品的存在呢，现在要做的就是向Zope注册我们的产品。
+
+首先了解一下Zope的产品注册过程：当Zope启动的时候，会加载lib/python/Products里的产品，这个过程叫做产品初始化。在产品初始化时，每个产品都可以向Zope注册。具体是<span style="font-size: 13.3333px;">调用产品的initialize函数，通过它注册产品，</span><span style="line-height: 28px; font-size: 13.3333px;">这个在__init__.py里实现。</span>
+<pre>$ cat Person/__init__.py
+import Person
+def initialize(context):
+    """Instructions for creating an object."""
+    context.registerClass(
+                    Person.Person,
+                    constructors = (Person.addForm,
+                    Person.addProduct)
+      )</pre>
+constructors参数是一个包含两个函数的元组，addForm和addProduct。addForm是在add list里选择产品后执行的方法，另一个是在填完addForm表格以后调用的方法。这在前面的Person.py里也有所体现。
+
+好，现在注册产品也完成了。接下来就是测试我们的产品了。
+<h2>测试产品</h2>
+进入zope实例目录，比如我的是 /usr/local/zope-2.11，重启zope实例。
+<pre>$ cd /usr/local/zope-2.11
+$ bin/zopectl restart
+.
+daemon process restarted, pid=23780</pre>
+然后访问 ZMI管理界面 <a href="http://localhost:8080/manage">http://localhost:8080/manage</a>，点击右边的add list下拉菜单，如果看到有一项 Person，那这可是meta_type 的功劳。点击进入 Person 的添加页面，如果没有出错，那说明前面我们写的 Person.py 里的 addForm 方法完全正确。输入完毕以后点击Add，就会执行 addProduct 方法，在后台初始化一个Person实例，然后返回到之前的页面。如果一切顺利，那么这时就会看到我们创建的Person对象实例。若出现错误，Zope会将详细的错误跟踪报告打印在页面上，这样很容易定位错误的原因，修改起来也很方便。

@@ -1,0 +1,81 @@
+---
+layout: post
+title: "Nutch的安装与配置"
+---
+
+<div class="document">
+<div id="nutch" class="section">
+<h3>Nutch的介绍</h3>
+Nutch是一个开源Java实现的 <a class="reference external" href="http://www2.ccw.com.cn/06/0647/b/0647b04_1.html">搜索引擎</a> 。它提供了我们运行自己的搜索引擎所需的全部工具。包括全文搜索和Web爬虫.
+
+<span id="more-746"></span>
+
+</div>
+<div id="id1" class="section">
+<h3>Nutch的安装</h3>
+在Apache官方网页下载目前最新版本的 <a href="http://apache.freelamp.com/lucene/nutch/" target="_blank">Nutch-1.0 </a>,大小83M。解压下载的压缩包:
+<pre class="literal-block">$ tar -zxvf nutch-1.0.tar.gz
+</pre>
+</div>
+<div id="id2" class="section">
+<h3>环境变量的配置</h3>
+确保已安装jdk和tomcat,设置环境变量NUTCH_JAVA_HOME:
+<pre class="literal-block">$ export NUTCH_JAVA_HOME=$JAVA_HOME
+</pre>
+</div>
+<div id="id3" class="section">
+<h3>抓取前的配置工作</h3>
+<ol class="arabic">
+	<li>
+<p class="first">新建myurl文本文件，文件中写入要抓取网站的顶级网址，即要抓取的起始页。以我抓取我们公司的博客网站为例： <a class="reference external" href="http://blog.ossxp.com/">http://blog.ossxp.com/</a></p>
+</li>
+	<li>
+<p class="first">编辑conf/crawl-urlfilter.txt文件，修改MY.DOMAIN.NAME部分，把它替换为你想要抓取的域名（地       址），即把:</p>
+
+<pre class="literal-block"># accept hosts in MY.DOMAIN.NAME
++^http://([a-z0-9]*\.)*MY.DOMAIN.NAME/
+修改为：
+# accept hosts in MY.DOMAIN.NAME
++^http://([a-z0-9]*\.)*ossxp.com/
+</pre>
+</li>
+	<li>
+<p class="first">编辑conf/nutch-site.xml文件，在&lt;configuration&gt;&lt;/configuration&gt;中加入下面一段:</p>
+
+<pre class="literal-block">&lt;configuration&gt;
+    &lt;property&gt;
+        &lt;name&gt;http.agent.name&lt;/name&gt;
+        &lt;value&gt;HD nutch agent&lt;/value&gt;
+    &lt;/property&gt;
+    &lt;property&gt;
+        &lt;name&gt;http.agent.version&lt;/name&gt;
+        &lt;value&gt;1.0&lt;/value&gt;
+    &lt;/property&gt;
+&lt;/configuration&gt;
+</pre>
+</li>
+</ol>
+</div>
+<div id="crawl" class="section">
+<h3>运行crawl命令抓取网站内容</h3>
+在当前工作目录中，运行以下命令行:
+<pre class="literal-block">$ bin/nutch crawl myurl -dir <strong>mydir</strong> -depth 4 -threads 4
+</pre>
+在上述命令的参数中，myurl 就是刚才我们创建的那个文件,存放我们要抓取的网址,dir指定抓取内容所存放的目录，depth表示以要抓取网站顶级网址为起点的爬行深度， threads指定并发的线程数。
+
+</div>
+<div id="tomcat" class="section">
+<h3>使用tomcat运行查看结果</h3>
+如果已经抓取成功，则可以在Tomcat上部署了。复制nutch-1.0.war到tomcat目录/webapps
+修改修改/webapps/nutch/WEB-INF/classes/nutch-site.xml:
+<pre class="literal-block">&lt;nutch-conf&gt;
+   &lt;property&gt;
+      &lt;name&gt;searcher.dir&lt;/name&gt;
+      &lt;value&gt;<strong>mydir目录的地址</strong>&lt;/value&gt;
+   &lt;/property&gt;
+&lt;/nutch-conf&gt;
+</pre>
+最后在浏览器中输入: http://localhost:8080/nutch-1.0 就可以查询了。
+
+</div>
+</div>

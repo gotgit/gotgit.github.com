@@ -1,0 +1,25 @@
+---
+layout: post
+title: "关于限制低版本 Subversion 写操作问题的回复"
+---
+
+有网友提问：
+<blockquote>我在百度文库中看到贵公司发表的一篇文章《开源版本控制SVN 树冲突、目录丢失问题及解决机制探讨》。在文中有提到一个事情是，可以在svn的hook中设置禁止低于某版本的客户端提交操作，不知道具体的脚本是如何实现，还请指教，谢谢。
+
+另外关于svn mergeinfo的问题，对于刚刚创建完的mergeinfo信息是纯在的，但是在开发过一段时间后，这个信息就丢失了，导致在合并的时候出现找不到祖先的错误。（备份库中的mergeinfo信息还是存在的）。不知道这个问题的发生时什么原因呢？</blockquote>
+我认为并非因为有人使用了低版本（&lt;1.5）的 SVN 客户端导致了 svn:mergeinfo 属性的丢失。因为低版本的 SVN 客户端，不了解 svn:mergeinfo 属性，又怎么能够会删除该属性呢？
+
+使用低版本 SVN 客户端的副作用主要是在执行 merge 的过程中，不能将合并操作记录在 svn:mergeinfo 中，而不是会删除 svn:mergeinfo 属性。
+
+实际上找到罪魁祸首很容易，因为 svn:mergeinfo 是受版本控制的属性，可以通过 svn log 命令查到何时，何人，何故删除了 svn:mergeinfo 属性。只需要执行下面的命令：
+<pre>$ svn log -v  PATH/TO/MERGE/ROOT/DIR
+</pre>
+提到的钩子，对于你的情况：
+<ul>
+	<li>配置邮件通知，及时获取版本库变更通知。
+修改 post-commit 和 post-revprop-change 钩子脚本，在有代码/版本控制的属性/非版本控制的属性被修改的时候，发送邮件通知</li>
+	<li>禁止低版本客户端对 SVN 版本库执行写操作
+修改 start-commit 脚本。在 SVNBOOK 中有详细的说明。</li>
+	<li>你也可以参照我写的 pySvnManager 项目，不过其中的钩子脚本为了支持图形化配置，比较复杂。
+<a href="http://pysvnmanager.svn.sourceforge.net/viewvc/pysvnmanager/trunk/pysvnmanager/hooks/init/hook1.5/start-commit?revision=176&amp;view=markup">http://pysvnmanager.svn.sourceforge.net/viewvc/pysvnmanager/trunk/pysvnmanager/hooks/init/hook1.5/start-commit?revision=176&amp;view=markup</a></li>
+</ul>

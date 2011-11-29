@@ -1,0 +1,122 @@
+---
+layout: post
+title: "RPM打包step by step(2)"
+---
+
+<div id="id5" class="section">
+<h1>在源代码中打包</h1>
+仍拿前面的helloworld举例，把spec文件放到开发目录下，修改去掉补丁文件，然后打包：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> ls hello-0.2
+<span style="color: #808080;">hello.c  hello.spec  Makefile</span>
+<span style="color: #000080; font-weight: bold;">$</span> tar zcvf hello-0.2.tar.gz hello-0.2
+<span style="color: #808080;">hello-0.2/</span>
+<span style="color: #808080;">hello-0.2/Makefile</span>
+<span style="color: #808080;">hello-0.2/hello.spec</span>
+<span style="color: #808080;">hello-0.2/hello.c</span></pre>
+</div>
+接下来就要用到rpmbuild另一个很有用的参数了：-t，可以看一个rpmbuild的man：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> man rpmbuild
+<span style="color: #808080;">NAME</span>
+<span style="color: #808080;">       rpmbuild - Build RPM Package(s)</span>
+
+<span style="color: #808080;">SYNOPSIS</span>
+<span style="color: #808080;">   BUILDING PACKAGES:</span>
+<span style="color: #808080;">       rpmbuild {-ba|-bb|-bp|-bc|-bi|-bl|-bs} [rpmbuild-options] SPECFILE ...</span>
+
+<span style="color: #808080;">       rpmbuild {-ta|-tb|-tp|-tc|-ti|-tl|-ts} [rpmbuild-options] TARBALL ...</span>
+
+<span style="color: #808080;">       rpmbuild {--rebuild|--recompile} SOURCEPKG ...</span>
+
+<span style="color: #808080;">   MISCELLANEOUS:</span>
+<span style="color: #808080;">       rpmbuild --showrc</span>
+
+<span style="color: #808080;">...</span></pre>
+</div>
+rpmbuild通过-t参数来构建打包过的源程序。-ta就是构建rpm包和srpm包，-tb就是只构建二进制rpm包，-tp是只构建打过补丁的包，-ts是只构建srpm包。
+
+好了，现在可以生成rpm包了：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> rpmbuild -ta hello-0.2.tar.gz</pre>
+</div>
+如果使用git的话，就更方便了，因为Git提供了对任意分支打包的命令：git-archive。下面我们先使用git初始化我们的开发目录，然后使用git-archive来生成压缩包。
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> <span style="color: #008000;">cd </span>hello-0.2
+<span style="color: #000080; font-weight: bold;">$</span> git init
+<span style="color: #808080;">Initialized empty Git repository in /home/admin/work/hello-0.2/.git/</span>
+<span style="color: #000080; font-weight: bold;">$</span> git add -A
+<span style="color: #000080; font-weight: bold;">$</span> git ci -m init
+<span style="color: #808080;"> 3 files changed, 73 insertions(+), 0 deletions(-)</span>
+<span style="color: #808080;"> create mode 100644 Makefile</span>
+<span style="color: #808080;"> create mode 100644 hello.c</span>
+<span style="color: #808080;"> create mode 100644 hello.spec</span>
+<span style="color: #000080; font-weight: bold;">$</span> git archive --prefix<span style="color: #666666;">=</span>hello-0.2/ master|gzip &gt; hello-0.2.tar.gz
+<span style="color: #000080; font-weight: bold;">$</span> ls
+<span style="color: #808080;">hello-0.2.tar.gz  hello.c  hello.spec  Makefile</span></pre>
+</div>
+通过 --prefix参数使当前master分支下文件打包到hello-0.2目录下，注意在文件夹名后面一定要有一个斜扛，否则就变成一般的文件名前缀了。
+
+生成压缩包以后，就可以像之前一样使用rpmbuild来生成rpm包了。
+
+使用这种方式编译rpm包，无疑给开发者带来了很多方便，尤其是使用git做版本控制的开发者。而且也比debian打包简单，debian打包需要一个debian目录，里面一大堆文件，而rpm打包，一切尽在一个spec文件中，经典！
+
+接下来说说python程序包的制作，这个比较特殊。
+
+</div>
+<div id="pythonrpm" class="section">
+<h1>python应用程序的RPM包制作</h1>
+正如前面所见的，rpmbuild内置了很多宏，使得在写rpm包时方便很多。所有这些宏都在/usr/lib/rpm/macros中定义。
+
+查看python相关的宏：
+<div class="highlight" style="background: #f8f8f8;">
+<pre style="line-height: 125%;"><span style="color: #000080; font-weight: bold;">$</span> cat /usr/lib/rpm/macros | grep python
+<span style="color: #000080; font-weight: bold;">%</span>__python               /usr/bin/python
+<span style="color: #000080; font-weight: bold;">%</span>__python_provides      /usr/lib/rpm/pythondeps.sh --provides
+<span style="color: #000080; font-weight: bold;">%</span>__python_requires      /usr/lib/rpm/pythondeps.sh --requires
+<span style="color: #000080; font-weight: bold;">#</span>       at the python prompt <span style="color: #008000; font-weight: bold;">for </span>example, after <span style="color: #ba2121;">"import rpm"</span>.</pre>
+</div>
+如上，在spec文件里可以使用%{__python}来调用系统python。
+
+这里没有定义sitelib，我们一般在spec文件开头自定义：
+<pre class="literal-block">%{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}</pre>
+可以看出，%()里面是shell命令，通过python的get_python_lib函数得到python的site lib路径。
+
+此外，还有安装要求：
+<pre class="literal-block">BuildRequires:  python-devel
+%if 0%{?fedora} &gt;= 8
+BuildRequires: python-setuptools-devel
+%else
+BuildRequires: python-setuptools
+%endif</pre>
+在安装部分，可以使用%{__python}宏来进行安装：
+<pre class="literal-block">%install
+rm -rf $RPM_BUILD_ROOT
+%{__python} setup.py install --root $RPM_BUILD_ROOT</pre>
+--root $RPM_BUILD_ROOT的作用就是告诉setup.py安装到虚拟根上，类似前面的 RPM_INSTALL_ROOT=$RPM_BUILD_ROOT。
+
+此外，这里还有一个INSTALLED_FILES标志可以使用，用来标记安装到系统中的文件，但来自fedoraproject的建议是，不提倡使用 INSTALLED_FILES，因为它只会标记文件，而不会标记目录，所以有可能遗漏。
+
+打包文件列表部分写法如下：
+<pre class="literal-block">%files
+%defattr(-,root,root,-)
+%attr(755,root,root) %{_bindir}/gistore
+%{python_sitelib}/*
+%doc /usr/share/doc/gistore/README
+%doc /usr/share/doc/gistore/COPYING
+%doc /usr/share/doc/gistore/CHANGELOG</pre>
+%files部分列出要打包的文件和目录，可以使用前面的标记安装文件，但最好的方法就是把文件或目录手动列出来。
+
+%defattr(-,root,root,-)代表使用默认的文件和目录权限
+
+%{_bindir}是系统bin目录，具体为/usr/bin/，这个目录下的文件一般是可执行的。
+
+%doc 代表文档，可以这样写：:
+<pre class="literal-block">%doc README COPYING CHANGELOG</pre>
+这样的话，rpmbuild会从源码根目录下复制上述文件到/usr/share/doc/%{name}-%{version}/目录下，而按照前面的那种三行的写法的话，是自定义doc文件夹的位置，可以看出，自定义的doc文件夹名称没有版本号。
+
+写完了以后就可以打包了，打包过程和前面无异。
+
+下次有时间的话，会讲如何进行多个子包的打包~
+
+</div>

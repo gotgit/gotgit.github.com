@@ -1,0 +1,56 @@
+---
+layout: post
+title: "Redmine 邮件发送问题的诊断"
+---
+
+鉴于部分 redmine 爱好者因邮件发送问题很纠结，<a href="http://blog.ossxp.com/2010/01/358/#comment-199">不知道为何他/她的 redmien 邮件时灵时不灵</a>，回帖的地方太小，因此专门辟此博文。
+
+（说明：下文中出现的 redmine 配置文件路径是 群英汇 Redmine 部署的标准路径，个人配置的 redmine 请勿对号入座  :-D ）
+<h2>Redmine Email 配置</h2>
+配置文件为 /opt/redmine/web/config/email.yml 。我们内网的 redmine 的 email.yml 配置为:
+<pre>production:
+  delivery_method: :smtp
+  smtp_settings:
+    address: localhost
+    port: 25
+    domain: bj.ossxp.com
+    # authentication: :login
+    # user_name: "redmine@example.net"
+    # password: "redmine"</pre>
+可以看出：
+<ul>
+	<li>我们 redmine 服务器本身架设了一个 SMTP 服务器
+这样就避免了使用其他 SMTP，由于授权、网络联通性、邮件发送频率限制、内容过滤等各种原因造成的邮件发送失败的问题</li>
+	<li>domain 实际上是 SMTP 连接时 HELO 命令的参数。
+一般情况，无所谓。但有的 SMTP 会作 DNS 查询，若 SMTP 客户端 IP 和该域名解析的不一致，可能会倒在这里  O:-)</li>
+	<li>后面的三条认证相关语句注释掉，因 localhost 自身允许 open relay，故此没有必要设置认证</li>
+</ul>
+实际上，Redmine 的邮件发送框架采用 Rails 自身的 actionmailer，还有一些重量级配置
+<ul>
+	<li>logger： 是否对邮件处理产生日志？
+Redmine 缺省 production（生产平台）的 environment 设置中， logger 被设置为 nil，不产生和邮件有关的日志</li>
+	<li>raise_delivery_errors： 是否因为邮件发送错误，抛出异常？
+如果设置为 true，则遇到邮件发送失败，页面显示异常，同时在 log 中也记录异常详细信息</li>
+</ul>
+<h2>直接在管理员界面测试邮件配置</h2>
+<a href="/wpfiles/2010/09/email-test.png"><img class="aligncenter size-medium wp-image-1966" title="email-test" src="/wpfiles/2010/09/email-test-300x163.png" alt="" width="300" height="163" /></a>
+
+看到“发送测试邮件”的链接了么？
+<h2>Redmine 的日志文件</h2>
+日志文件的位置在 /opt/redmine/log 目录下。对于生产平台，日志文件是 /opt/redmine/log/production.log。
+
+一个 Linux 下跟踪显示 log 文件的小窍门：
+<pre>$ tail -f /opt/redmine/log/production.log</pre>
+<h2>产生更多的邮件相关日志</h2>
+对于运行在 production 模式的 Redmine，日志很少，是因为配置文件 /opt/redmine/web/config/environments/production.rb 中关闭了 email 相关 log 等。
+
+配置文件 /opt/redmine/web/config/environments/production.rb 和日志相关设置有：
+<ul>
+	<li>config.log_level = :error
+日志级别。如果设置为 :info，则有更多日志。如果设置为 :debug，你会看到海量的日志。</li>
+	<li>config.action_mailer.raise_delivery_errors = false
+是否因为邮件发送错误抛出异常。设置为 true，你不会错过任何邮件发送失败了，不过副作用么...   ;-)</li>
+	<li>config.action_mailer.logger = nil
+不记录邮件相关的日志。注释掉这一行，就可以在日志文件中看到更多邮件相关日志了。</li>
+</ul>
+修改日志别忘了重启 Apache。注意：日志级别调整，会影响 redmine 的性能，在诊断结束后请复原。

@@ -1,0 +1,33 @@
+---
+layout: post
+title: "Subversion 用户眼中的 Git (13): Git 成为 SVN 的伙伴？"
+---
+
+很多公司不能代码开源，甚至也不能实现内部的代码开源，这相当大的原因是政治原因，而非技术原因。
+
+那么当工作在 Subversion 的版本库下，是不是就和 Git 绝缘了呢？
+
+非也，答案就是 Git-svn。
+
+<span id="more-355"></span>
+<h2>Why Git， not others</h2>
+为什么 Git 可以成为 SVN 的好伙伴，而不是其它的分布式版本控制系统呢？
+
+答案就在于分支。
+
+Git 相比其它分布式版本控制系统（Hg），虽然从使用习惯上距离 SVN 最远，但实际上却是最近的。这是因为 Git 有着完整的分支管理机制（比 SVN 还要优秀），因此可以完整的实现 SVN 库到 Git 库的迁移。
+
+另外一个专为 SVN 而生的分布式版本控制系统 SVK 也是一个选择，但是好像已经停止维护了。
+<h2>Git-svn</h2>
+GIT-SVN 是一个 Perl 开发的 Git 插件。因为是 Perl 语言开发，因此还依赖 "Perl bindings for Subversion"。
+
+GIT-SVN 的使用这里不多提，只是介绍一下可以实现的功能：
+<ul>
+	<li>缺省可以克隆标准的 SVN 库，即 trunk/branches/tags 布局的 SVN 库
+很多公司的 SVN 库，没有设置 branches, tags 目录，是缺乏管理的表现</li>
+	<li>对于非标准布局的 SVN 库，可以通过相应参数，实现分支和里程碑的对应</li>
+	<li>对于非常庞大的 SVN 库，也可以只克隆最近的提交，而不必克隆整个历史</li>
+	<li>可以随时从 SVN 库获取（fetch）最新提交</li>
+	<li>可以脱离 SVN 环境，用 git 命令实现脱机提交</li>
+	<li>可以在连接上 SVN 服务器后，一次性将脱机提交内容提交到 SVN 服务器</li>
+</ul>

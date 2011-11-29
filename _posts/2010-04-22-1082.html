@@ -1,0 +1,224 @@
+---
+layout: post
+title: "SVN 树冲突和目录丢失问题（1）"
+---
+
+临下班了，一个老朋友 （之后用yzw代称） 在 MSN 上呼我。说他的 SVN 遇到问题了：
+<ul>
+	<li>在执行分支合并时，一个目录发生了树冲突</li>
+	<li>直接在硬盘上将该目录删除</li>
+	<li>之后执行 svn update 该目录不能检出</li>
+	<li>不知道树冲突为何物，也不知道目录怎么变成了一团糟</li>
+</ul>
+好吧，谁让他公司的 SVN 是我给部署的呢？让他（yzw）执行 svn status 命令，看看显示什么信息，然后我在本地建立一个模型，争取重现并解决他的问题。
+
+<span id="more-1082"></span>在已经一团糟的目录下，执行 svn 显示的信息如下：
+<pre>$ <strong>svn st</strong>
+ M      .
+!  +  C somedir
+      &gt;   local add, incoming add upon update
+</pre>
+看来他遇到的树冲突，是因为在两个分支同时创建了一个同名目录 somedir，然后在<em><span style="text-decoration: line-through;">合并</span></em><strong>更新</strong>时出现树冲突。
+<h2>重现问题的过程</h2>
+<h3>版本库准备</h3>
+<ol>
+	<li>创建svn 版本库于 /tmp/svnserver</li>
+	<li>检出版本库到目录 ~/tmp/svntf 下 （windows用户需要知道的是：~ 代表我的主目录 /home/jiangxin 是也）</li>
+	<li>创建 SVN 三个顶级目录：trunk tags branches</li>
+	<li>创建分支 branches/0.x</li>
+	<li>在 branches/0.x 分支下创建目录 somedir，并增加一个文件 somedir/branch.txt</li>
+	<li>在主线 trunk 下也创建一个目录 somedir，并增加一个文件 somedir/trunk.txt</li>
+</ol>
+看看目前的版本情况
+<ol>
+	<li>主线下执行 svn info
+<pre>~/tmp/svntf/trunk$ <strong>svn info</strong>
+路径: .
+URL: file:///tmp/svnserver/trunk
+版本库根: file:///tmp/svnserver
+版本库 UUID: c0e3cb0f-81b0-40e5-9c35-42972dbc50aa
+版本: 4
+节点种类: 目录
+调度: 正常
+最后修改的作者: jiangxin
+最后修改的版本: 4
+最后修改的时间: 2010-04-22 19:51:55 +0800 (四, 2010-04-22)</pre>
+</li>
+	<li>主线下目录下的文件
+<pre>~/tmp/svntf/trunk$ <strong>svn ls -R</strong>
+somedir/
+somedir/trunk.txt</pre>
+</li>
+	<li> 主线的更改历史
+<pre>~/tmp/svntf/trunk$ <strong>svn log</strong>
+------------------------------------------------------------------------
+r4 | jiangxin | 2010-04-22 19:51:55 +0800 (四, 2010-04-22) | 1 行
+
+to trunk, we add somedir/trunk.txt file.
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-04-22 19:48:57 +0800 (四, 2010-04-22) | 1 行
+
+initial
+------------------------------------------------------------------------</pre>
+</li>
+	<li>分支的中的文件列表
+<pre>~/tmp/svntf/trunk$ <strong>svn ls -R file:///tmp/svnserver/branches/0.x</strong>
+somedir/
+somedir/branch.txt</pre>
+</li>
+	<li>分支的更改历史
+<pre>~/tmp/svntf/trunk$ <strong>svn log file:///tmp/svnserver/branches/0.x</strong>
+------------------------------------------------------------------------
+r3 | jiangxin | 2010-04-22 19:51:21 +0800 (四, 2010-04-22) | 1 行
+
+to branch 0.x, we add somedir/branch.txt file.
+------------------------------------------------------------------------
+r2 | jiangxin | 2010-04-22 19:50:27 +0800 (四, 2010-04-22) | 1 行
+
+trunk =&gt; branch/0.x
+------------------------------------------------------------------------
+r1 | jiangxin | 2010-04-22 19:48:57 +0800 (四, 2010-04-22) | 1 行
+
+initial
+------------------------------------------------------------------------</pre>
+</li>
+</ol>
+<h3>备份当前的 .svn 目录</h3>
+直接拷贝 .svn 到 .svn-orignal，以便在出现意外的时候，进行参照。
+<pre>~/tmp/svntf/trunk$ <strong>cp -a .svn .svn-orignal</strong>
+</pre>
+Tips: 如果不想每次在执行 svn status 时显示 .svn-orignal 目录，设置svn属性 svn:ignore 值为 ".svn*"。（问题优点复杂化了，算了）
+<h3>合并分支改动，引发异常</h3>
+<ol>
+	<li>执行合并操作，引发异常
+<pre>~/tmp/svntf/trunk$ <strong>svn merge file:///tmp/svnserver/branches/0.x</strong>
+--- 正在合并 r2，经由 r4，到 “.”:
+   C somedir
+冲突概要：
+  树冲突：1</pre>
+</li>
+	<li>删除 somedir 目录
+<pre>~/tmp/svntf/trunk$ <strong>rm -rf somedir/</strong></pre>
+</li>
+	<li>执行 svn status 查看当前状态
+<pre>~/tmp/svntf/trunk$ <strong>svn st</strong>
+ M      .
+?       .svn-merge-conflict
+?       .svn-orignal
+!     C somedir
+      &gt;   本地 增加，动作 增加，操作 合并
+</pre>
+</li>
+	<li>虽然结果和yzw很像了，但是还不是完全一致。
+<ul>
+	<li>yzw 执行 svn status 显示的英文，最后一行翻译为中文是：
+<pre>      &gt;   本地 增加，动作 增加，操作 <strong>更新</strong></pre>
+</li>
+	<li>而我的结果是：
+<pre>      &gt;   本地 增加，动作 增加，操作 <strong>合并</strong></pre>
+</li>
+	<li>看来，还需要作些工作才能完全重现错误。</li>
+</ul>
+</li>
+	<li>这时我又备份了一下 .svn 目录，将 .svn 复制到 .svn-merge-conflict，以便后面比较</li>
+	<li>执行 svn up 命令
+<pre>~/tmp/svntf/trunk$ <strong>svn up</strong>
+跳过“somedir”
+D    somedir
+更新到版本 4。
+冲突概要：
+  跳过的路径：1
+~/tmp/svntf/trunk$ <strong>svn up</strong>
+版本 4。</pre>
+</li>
+	<li>以上执行了两次 svn up ，结果不一致，说明 svn 干了些什么。
+实际上，通过比较 .svn 目录和之前备份的 .svn-merge-conflict 可以看出端倪：
+<pre>~/tmp/svntf/trunk$ <strong>diff -r .svn-merge-conflict .svn</strong>
+diff -r .svn-merge-conflict/entries .svn/entries
+38,40d37
+&lt; somedir
+&lt; dir
+&lt;</pre>
+</li>
+	<li>执行 svn 恢复操作，再执行 svn up，发现 somedir 没有了：
+<pre>~/tmp/svntf/trunk$ <strong>svn revert -R .</strong>
+已恢复“somedir”
+~/tmp/svntf/trunk$ <strong>svn up</strong>
+版本 4。
+</pre>
+<strong>执行 svn status，看到本地工作目录的冲突状态已经消失了，一切看起来正常了。</strong>
+<pre>~/tmp/svntf/trunk$ <strong>svn st</strong>
+?       .svn-merge-conflict
+?       .svn-orignal
+</pre>
+<strong>但是，慢着，此时 somedir 目录没有了！</strong>
+<pre>~/tmp/svntf/trunk$ <strong>ls</strong>
+</pre>
+<strong>实际上，这时版本库中还有 somedir 目录，我们可以用 svn ls 命令查看：</strong>
+<pre>~/tmp/svntf/trunk$ <strong>svn ls -R</strong>
+somedir/
+somedir/trunk.txt
+</pre>
+<strong>但是本地的确已经没有了。如果要刨根问底的话，可以比较一下 .svn 目录和我们之前创建的备份：</strong>
+<pre>~/tmp/svntf/trunk$ <strong>diff -r .svn-orignal .svn</strong>
+diff -r .svn-orignal/entries .svn/entries
+38,40d37
+&lt; somedir
+&lt; dir
+&lt;
+</pre>
+</li>
+	<li>这时如果再执行从分支合并，合并的过程就很有意思了
+居然没有发生冲突。yzw 这时后一定很欣喜，居然可以成功合并了。
+<pre>~/tmp/svntf/trunk$ <strong>svn merge file:///tmp/svnserver/branches/0.x</strong>
+--- 正在合并 r2，经由 r4，到 “.”:
+A    somedir
+A    somedir/branch.txt</pre>
+</li>
+	<li>但是慢着，这个合并是假的。不信提交看一看
+<pre>~/tmp/svntf/trunk$ <strong>svn st</strong>
+ M      .
+?       .svn-merge-conflict
+?       .svn-orignal
+A  +    somedir
+A  +    somedir/branch.txt
+~/tmp/svntf/trunk$ <strong>svn ci -m "merge from branch 0.x"</strong>
+正在发送       trunk
+增加           trunk/somedir
+svn: 提交失败(细节如下):
+svn: 目录 “/trunk/somedir” 已经过时</pre>
+</li>
+	<li>提交过时？很简单，SVN 的经典问题：服务器有更新的版本，更新之
+<pre>~/tmp/svntf/trunk$ <strong>svn up</strong>
+版本 4。</pre>
+</li>
+	<li>执行 svn update 没有反应？带目录执行 svn update 试试，果然发生冲突了：
+<pre>~/tmp/svntf/trunk$ <strong>svn up somedir</strong>
+ C somedir
+版本 4。
+冲突概要：
+ 树冲突：1</pre>
+</li>
+	<li>查看冲突的状态，是不是和 yzw 的一致了
+<pre>~/tmp/svntf/trunk$ <strong>svn st</strong>
+ M      .
+?       .svn-merge-conflict
+?       .svn-orignal
+A  +  C somedir
+      &gt;   本地 增加，动作 增加，操作 更新
+A  +    somedir/branch.txt</pre>
+</li>
+	<li><strong>不太一样？删掉 somedir 先。然后看状态:</strong>
+<pre>~/tmp/svntf/trunk$ <strong>rm -rf somedir</strong></pre>
+<strong>再看看状态？</strong>
+<pre>~/tmp/svntf/trunk$<strong> svn st
+ M      .
+?       .svn-merge-conflict
+?       .svn-orignal
+!  +  C somedir
+       &gt;   本地 增加，动作 增加，操作 更新</strong></pre>
+</li>
+</ol>
+饿了，吃饭先。回来继续...
+
+<hr />注：在《<a href="/2010/04/23/1095.html">SVN 树冲突和目录丢失问题（3）</a>》中，我介绍了一个更为直接的重现 yzw 问题的方法。虽然 yzw 还是最有可能用本文的步骤遇到的问题，因为 分支和主线相应的提交都是 yzw 一个人完成的，没有他人参与。

@@ -1,0 +1,300 @@
+---
+layout: post
+title: "Subversion 1.6 修改记录"
+---
+
+<div id="suversion-1-6-x" class="section">
+
+说明：
+<ul>
+	<li>下面的这个subversion 1.6 修改记录，最早是记录在 FreeMind脑图中，今天找出来，用 docbones 转换为 HTML，再粘贴在博客中。因为感觉 WP 的博客编辑功能太弱，更喜欢用 reST 写文档。</li>
+	<li>关于 DocBones，参见 <a href="http://redmine.ossxp.com/redmine/projects/show/docbones">群英汇项目管理页面</a>。这个项目还没有正式发布，还不完善，今天先预告一下。</li>
+</ul>
+<div id="id1" class="contents topic">
+<p class="topic-title first">目录</p>
+
+<ul class="auto-toc simple">
+	<li><a id="id6" class="reference internal" href="#suversion-1-6-x">1   Suversion 1.6.x</a>
+<ul class="auto-toc">
+	<li><a id="id7" class="reference internal" href="#id2">1.1   最重要的改变</a></li>
+	<li><a id="id8" class="reference internal" href="#id3">1.2   较重要的改变</a></li>
+	<li><a id="id9" class="reference internal" href="#id4">1.3   较次要的改变</a></li>
+	<li><a id="id10" class="reference internal" href="#id5">1.4   兼容性</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<span id="more-98"></span>
+<div id="suversion-1-6-x" class="section">
+<h1><a class="toc-backref" href="#id6">1   Suversion 1.6.x</a></h1>
+<div id="id2" class="section">
+<h2><a class="toc-backref" href="#id7">1.1   最重要的改变</a></h2>
+<ol class="arabic">
+	<li>
+<p class="first">改进树冲突(tree conflict)的处理</p>
+
+<ul>
+	<li>
+<p class="first">树冲突(tree conflict)： 就是由于文件/目录改名引起的冲突</p>
+</li>
+	<li>
+<p class="first">在 svn 1.5 包括之前的版本，如果两个开发人员一个修改了文件内容，另外一个删除或者对该文件改名，
+后提交的人会遇到冲突，并且该冲突不能自动解决。可能导致修改丢失，或者检入新的文件。
+Subversion 1.6 新增加的树冲突解决方案，对这种情况有所改善。</p>
+</li>
+	<li>
+<p class="first">Subversoin 1.6 合并/冲突检测能够识别树冲突： 会自动将对原文件的修改传递到改名后的文件。
+被本地修改的而被他人删除的文件，标识为树冲突。</p>
+</li>
+	<li>
+<p class="first">要求客户端和服务器软件都要升级到 1.6 以上的版本，至于服务器端的版本库可以维持原有格式不必导出导入形式的升级。</p>
+</li>
+	<li>
+<p class="first">示例:</p>
+
+<ul class="simple">
+	<li><a class="reference external" href="http://svnbook.red-bean.com/nightly/en/svn.tour.treeconflicts.html">svnbook.red-bean.com &gt; Nightly &gt; En &gt; Svn.tour.treeconflicts</a></li>
+	<li><a class="reference external" href="https://svn.collab.net/repos/svn/trunk/notes/tree-conflicts/use-cases-resolution.txt">Resolution recipes for tree conflict use cases 1 to 6</a></li>
+	<li><a class="reference external" href="http://docs.google.com/Doc?id=dd885dbs_30c8x6bvcn">Tree Conflict Resolutions</a></li>
+</ul>
+</li>
+	<li>
+<p class="first">存在误判的可能</p>
+因为文件改名作为两个操作 （添加和删除），因此可能存在误判</li>
+</ul>
+</li>
+	<li>
+<p class="first">版本库存储效率上的改进</p>
+
+<ul>
+	<li>
+<p class="first">服务器端 commit 打包。</p>
+
+<ul>
+	<li>
+<p class="first">实际上在 svn 1.5 就已经提供了一个改进：为版本库增加了 shard 功能，即用多个目录存储提交记录。</p>
+svn 1.5 服务器端 1000 个commit 放在一个目录下</li>
+	<li>
+<p class="first">svn 1.6 可以进一步优化，可以将每个 shard 目录（最多1000文件）打包为一个文件。</p>
+示例:
+<pre class="literal-block">svnadmin pack 对 revs 下已经的已经满了的 shard 目录进行 pack，保存为两个文件。示例：
+0/... --&gt; 0.pack/
+    manifest
+    pack
+1/... --&gt; 1.pack/
+    manifest
+    pack</pre>
+</li>
+	<li>
+<p class="first">svn 1.6 将目录 PACK 为一个文件的优点:</p>
+
+<ul class="simple">
+	<li>避免过多的磁盘碎片</li>
+	<li>减少了读写的磁盘 I/O</li>
+	<li>更好的利用系统磁盘缓存</li>
+</ul>
+</li>
+	<li>
+<p class="first">对版本库执行 svnadmin pack，即可实现版本库的打包</p>
+</li>
+	<li>
+<p class="first">但是注意这是一个单向操作。而且仅能被 svn 1.6 或以上版本读取</p>
+</li>
+</ul>
+</li>
+	<li>
+<p class="first">服务器端存储效率改进：减少冗余</p>
+
+<ul class="simple">
+	<li>When using many branches and merging between them often, it is common to have files with similar lines of history which contain the exact same content. In the past, Subversion has stored these files as deltas against previous versions of the file. Subversion 1.6 will now use existing representations in the filesystem for duplicate storage. Depending on the size of the repository, and the degree of branching and merging, this can cause an up to 20% space reduction for Berkeley DB repositories and a 15% reduction for FSFS repositories.</li>
+	<li>subversion.tigris.org &gt; Issues &gt; Show bug ? ... &lt;<a class="reference external" href="http://subversion.tigris.org/issues/show_bug.cgi?id=2286">http://subversion.tigris.org/issues/show_bug.cgi?id=2286</a>&gt;</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+</div>
+<div id="id3" class="section">
+<h2><a class="toc-backref" href="#id8">1.2   较重要的改变</a></h2>
+<ol class="arabic">
+	<li>
+<p class="first">mod_dav_svn 支持在 URL 中嵌入 query_string，获取历史版本</p>
+
+<ul>
+	<li>
+<p class="first">这样不用特殊客户端，用浏览器就可以查看历史版本</p>
+<cite>http://host/repos/path?[p=PEG][&amp;r=REV]</cite></li>
+	<li>
+<p class="first">示例</p>
+
+<pre class="literal-block">http://host/repos/path?p=38
+http://host/repos/path?p=38&amp;r=20</pre>
+</li>
+</ul>
+</li>
+	<li>
+<p class="first">支持相对版本库路径（相对于版本库的根路径）： ^/</p>
+
+<pre class="literal-block">$ svn SUBCOMMAND ^/
+$ svn SUBCOMMAND ^/PATH</pre>
+</li>
+	<li>
+<p class="first">svn:externals 改进</p>
+
+<ul>
+	<li>
+<p class="first">svn:externals 支持文件</p>
+
+<ul class="simple">
+	<li>文件必须是本版本库的文件，不能是其它外部版本库的</li>
+	<li>该文件的目录必须已经检出（当然了，因为 svn:externals 是附在目录上的么）</li>
+	<li>和目录external 不同，在目录external 的父目录提交，不会递归到 external 目录提交。而 file external 如果改变，就会提交！</li>
+</ul>
+</li>
+	<li>
+<p class="first">本地名可以使用空格（使用引号或者 ）</p>
+
+<pre class="literal-block">module\ abc svn://server/repo/module%20abc
+"module abc" svn://server/repo/module%20abc</pre>
+</li>
+</ul>
+</li>
+</ol>
+</div>
+<div id="id4" class="section">
+<h2><a class="toc-backref" href="#id9">1.3   较次要的改变</a></h2>
+<ol class="arabic">
+	<li>
+<p class="first">命令行输出格式变更</p>
+
+<ul>
+	<li>
+<p class="first">proplist 和 propget 用 --verbose 参数的输出</p>
+
+<pre class="literal-block">$ svn proplist --verbose build.conf
+Properties on 'build.conf':
+  svn:eol-style
+    native
+  svn:mergeinfo
+    /trunk/build.conf:1-4800
+    /branches/a/build.conf:3000-3400
+    /branches/b/build.conf:3200-3600</pre>
+</li>
+	<li>
+<p class="first">svn status 输出增加了一个第七列，用于标志 tree conflict</p>
+
+<pre class="literal-block">$ svn status
+M       Makefile.in
+A     C src/error.c
+      &gt;   local add, incoming add upon update
+M       src/log.c
+M     C src/path.c
+      &gt;   local edit, incoming delete upon update
+D     C src/properties.c
+      &gt;   local delete, incoming edit upon merge
+M     C src/time.c</pre>
+</li>
+	<li>
+<p class="first">svn update 和 svn merge 的最后，增加了关于冲突的说明</p>
+
+<pre class="literal-block">$ svn update --accept=postpone
+   C alpha
+ C   beta
+C    gamma
+Updated to revision 3.
+Summary of conflicts:
+  Text conflicts: 1
+  Property conflicts: 1
+  Tree conflicts: 1</pre>
+</li>
+</ul>
+</li>
+	<li>
+<p class="first">命令行改进： svn update的参数 --set-depth 支持 exclude</p>
+
+<ul>
+	<li>
+<p class="first">排除某个目录</p>
+
+<pre class="literal-block">$ cd ~/projects/subversion/trunk
+$ svn update --set-depth=exclude www
+D         www
+$ ls www
+ls: cannot access www: No such file or directory</pre>
+</li>
+	<li>
+<p class="first">重新获得排除的目录</p>
+
+<pre class="literal-block">$ svn update --set-depth=infinity www
+A    www
+A    www/links.html
+A    www/testing-goals.html
+…
+A    www/tigris-permissions.html
+A    www/webdav-usage.html
+Updated to revision 36292.</pre>
+</li>
+</ul>
+</li>
+	<li>
+<p class="first">更多命令行改进</p>
+
+<ul>
+	<li>
+<p class="first">svn log 可以查看多个版本</p>
+
+<pre class="literal-block">$ svn log -r36169 -r36171 http://svn.collab.net/repos/svn/
+$ svn log -c36169,36171 http://svn.collab.net/repos/svn/</pre>
+</li>
+	<li>
+<p class="first">svn log 可以使用 --trust-server-cert 参数</p>
+
+<pre class="literal-block">$ svn log -r36364 https://svn.collab.net/repos/svn/trunk --trust-server-cert --non-interactive</pre>
+</li>
+</ul>
+</li>
+	<li>
+<p class="first">SVNSERVE 协议支持 --log-file 参数，这样和 http 协议那样记录日志</p>
+</li>
+	<li>
+<p class="first">钩子脚本</p>
+pre-lock 的输出不再丢弃，而是作为锁令牌的名称</li>
+	<li>
+<p class="first">用户端口令</p>
+
+<ul>
+	<li>
+<p class="first">当以纯文本在客户端保存口令时，提醒用户</p>
+这个设计有点讨厌，尤其是一些软件和 Subversion 整合时，经常因此而停止相应、不能工作。</li>
+	<li>
+<p class="first">支持在 KWallet 和 GNOME Keyring 中存储口令</p>
+</li>
+	<li>
+<p class="first">SSL 客户端证书口令可以保存在 KWallet, GNOME Keyring, Mac OS Keychain, a Windows CryptoAPI encrypted form or in plaintext form.</p>
+</li>
+</ul>
+</li>
+	<li>
+<p class="first">FSFS 版本库: 支持 Memcached, 可以在 Apache 中有更好的表现。</p>
+</li>
+	<li>
+<p class="first">Ctypes python binding</p>
+面向对象的改进的 API，比传统的 swig-python 更好?</li>
+	<li>
+<p class="first">依赖 SQLite： svn1.7 可能会使用 sqlite 管理工作拷贝？</p>
+tortoisesvn.tigris.org &gt; Ds &gt; ViewMessage ? ... &lt;<a class="reference external" href="http://tortoisesvn.tigris.org/ds/viewMessage.do?dsForumId=757&amp;dsMessageId=1173073">http://tortoisesvn.tigris.org/ds/viewMessage.do?dsForumId=757&amp;dsMessageId=1173073</a>&gt;</li>
+</ol>
+</div>
+<div id="id5" class="section">
+<h2><a class="toc-backref" href="#id10">1.4   兼容性</a></h2>
+<ol class="arabic">
+	<li>
+<p class="first">客户端工作区结构升级，不向下兼容（自动升级）</p>
+将 svn1.6 工作区降级为 svn1.5 工作区，用工具 change-svn-wc-format.py</li>
+	<li>
+<p class="first">服务器端版本库结构升级，不向下兼容（手动升级）</p>
+使用命令 svnadmin upgrade 将 sv.1.5 版本库升级为 svn1.6 版本库</li>
+</ol>
+</div>
+</div>
+</div>

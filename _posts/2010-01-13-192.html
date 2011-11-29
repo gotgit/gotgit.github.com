@@ -1,0 +1,30 @@
+---
+layout: post
+title: "velocity 未列入文档的秘密"
+---
+
+<div class="document">
+<div id="velocity" class="section">
+<h2>Velocity小技巧</h2>
+今天，在Velocity模板对i18n字符串进行处理，需要转换小写和将空格替换为下划线。一般情况下，从java代码中通过Context传递是最简单的，但是有的情况，不现实。在CC的模板中，就有这样的情况
+
+下面是一个在模板中实现字符串转换的具体例子：
+
+<span id="more-192"></span>
+<pre class="literal-block">#set( $tab_title = "#springMessage('Build.Log')" )
+&lt;div id="$tab_title.toLowerCase().replace(' ', '_')" class="widget"
+$log_extra_attrs&gt;
+&lt;h2&gt;$tab_title&lt;/h2&gt;
+&lt;span class="logfile"&gt;&lt;a
+href="$req.getContextPath()/tab/build/download/log/$projectName/$logfile"&gt;#springMessage('Download.log')
+&lt;/a&gt;&lt;/span&gt;
+&lt;/div&gt;
+</pre>
+</div>
+<div id="id2" class="section">
+<h2>Velocity</h2>
+Velocity是基于Java的模板引擎。它允许Web页面开发者引用Java代码中定义的方法。Web设计者可以和Java程序开发者并行开发遵循MVC模式的Web站点。这意味着，Web设计者可以将精力放在好的Web站点设计上，而Java程序开发者可以将精力放在编写代码上。Velocity将Java代码从Web页面中分离，使Web站点更具长期可维护性，并提供了一种替代JSP或PHP的方案
+如果有感兴趣的可以看看 <a class="reference external" href="http://velocity.apache.org/engine/devel/user-guide.html">Velocity英文文档</a> .
+
+</div>
+</div>

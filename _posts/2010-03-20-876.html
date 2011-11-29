@@ -1,0 +1,24 @@
+---
+layout: post
+title: "PHP中文乱码的处理"
+---
+
+通常来说, 出现乱码都是因为编码的不一致造成的.
+
+对于PHP来说, 一定要保持以下三个地方的编码一致:
+
+<span id="more-876"></span>
+<ul>
+	<li>php文件的编码
+php文件的编码是指保存文件时选择的编码格式. 如选择utf-8</li>
+	<li>HTML页面里&lt;meta&gt;标签中指定的编码
+<pre>此处的编码设置决定浏览器以什么编码显示该页面
+&lt;meta http-equiv=”Content-Type” content=”text/html; charset=utf-8″&gt;</pre>
+</li>
+	<li>数据库编码
+设置MySQL数据库编码的一劳永逸的办法是修改mysql的配置文件my.ini (Windows)或者my.cnf(Linux).
+<pre>分别在[client]和[mysqld]小节加入 default-character-set=utf8 就OK了</pre>
+如果遇到从数据库里取出数据乱码的时候, 通常要在建立链接之后设置编码,通过下面一条语句:
+<pre>mysql_query("SET NAMES 'UTF8'");</pre>
+</li>
+</ul>

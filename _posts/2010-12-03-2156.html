@@ -1,0 +1,272 @@
+---
+layout: post
+title: "Zope Dev Guide中产品例子学习"
+---
+
+&lt;&lt;The Zope Developer's Guide&gt;&gt;中在第三章详细讲解了Zope产品的开发过程，其中使用了一个在线选举的例子。通过该例子讲述如何定义接口，实现接口，组件产品类，注册产品，设计管理界面，产品图标，产品帮助等等。第一次看这个例子时，感觉太复杂，没看下去，直接去网上找了个例子来实践，就是上篇的<a href="/2010/11/26/2108.html">创建zope产品例子</a>。但“网上得来终觉粗，绝知此事要看书”，为了深入挖掘Zope产品的开发特性，我重新翻开了这本书。经过几天的钻研，终于把这个例子调试通过，在此给大家分享。
+
+<span id="more-2156"></span>
+<h2>简介</h2>
+其实Zope产品的开发传说有两种方式，一个可以通过Web，另外一个就是在本地文件系统里。通过Web进行开发Zope产品的方法貌似在&lt;&lt;The Zope Book&gt;&gt;里的第14章--扩展Zope--里讲(Dev Guide里说是第12章)，这个不是本文讨论的重点，本文的重点是讨论在文件系统上如何一步步开发Zope产品。使用本地文件系统而不是通过Web界面的好处是显而易见的，你可以使用自己喜欢的文本编辑器，比如Vim，使用自己挚爱的版本控制系统，比如Git。这样整个开发尽在掌控之中。
+<h2>定义接口</h2>
+创建产品前先想好要实现哪些功能，将这些要实现的功能通过接口定义出来。自定义接口一般继承自Interface.Base。下面是我们要定义的投票类Poll及其方法(Poll.py)：
+<pre>from Interface import Base
+
+class Poll(Base):
+    "A multiple choice poll"
+
+    def castVote(self, index):
+        "Votes for a choice"
+
+    def getTotalVotes(self):
+        "Returns total number of votes cast"
+
+    def getVotesFor(self, index):
+        "Returns number of votes cast for a given response"
+
+    def getResponses(self):
+        "Return the sequence of response"
+
+    def getQuestion(self):
+        "Return the question"</pre>
+<h2>实现接口</h2>
+定义完接口以后，要设计一个原型来实现这个接口，这里我们使用PollImplement类来实现(PollImplement.py)：
+<pre>from Poll import Poll
+class PollImplementation:
+    """
+    A multiple choice poll, implements the Poll interface.
+
+    The poll has a question and a sequence of responses. Votes are stored in a dictionary which maps response indexes to a number of votes.
+    """
+
+    __implements__ = Poll
+
+    def __init__(self, question, responses):
+        self._question = question
+        sefl._responses = responses
+        self._votes = {}
+        for i in range(len(responses)):
+            self._votes[i]=0
+
+    def castVote(self,index):
+        "Votes for a choice"
+        self._votes[index] = self._votes[index] + 1
+
+    def getTotalVotes(self):
+        "Returns total number of votes cast"
+        total = 0
+        for v in self._votes.values():
+            total = total + v
+        return total
+
+    def getVotesFor(self, index):
+        "Returns number of votes cast for a given response"
+        return self._votes[index]
+
+    def getResponses(self):
+        "Returns the sequence of responses"
+        return tuple(self._responses)
+
+    def getQuestion(self):
+        "Returns the question"
+        return self._question</pre>
+<h2>构建产品类</h2>
+产品类首先是一个自定义接口的实现，其次还要有特定的一些组建的继承，所以除了上面PollImplement类的内容以外，还要实现四个类：﻿Implicit，Persistent，RoleManager，Item，这里我们定义的产品类为PollProduct：
+<pre>from Acquisition import Implicit
+from Globals import Persistent
+from AccessControl.Role import RoleManager
+from OFS.SimpleItem import Item
+
+class PollProduct(Implicit, Persistent, RoleManager, Item):
+    """
+    Poll Product class, implements Poll interface.
+
+    The poll has a  question and a sequence of responses. Votes are stored in a dictionary which maps response indexes to a number of votes.
+    """
+    __implements__ = Poll
+    meta_type = 'Poll'
+   def __init__(self, id , title, question, responses):
+        self.id=id
+        self.title = title
+        self._question = question
+        self._responses = responses
+        self._votes = {}
+        for i in range(len(responses)):
+            self._votes[i]=0
+    ...</pre>
+细心的读者会发现，这里除了多继承四个类以外，还有两点不同：
+<ul>
+	<li><span style="font-size: 13.3333px;">meta_type属性。meta_type在这里用来设定此产品的注册名称。</span></li>
+	<li><span style="font-size: 13.3333px;">__init__参数中多了id和title以及对应的内容。这是因为在Zope中每当新建一个对象时都要指定一个唯一的id，另外还要输入title，这在ZMI里经常遇到。</span></li>
+</ul>
+其他五个方法不变。
+
+注意，自己扩充方法的话一定要有注释行，就是函数定义下要有文档说明，否则此函数无效。
+<h2>安全选项</h2>
+使用ClassSecurityInfo来定义每个属性和方法的访问权限：
+<pre>from AccessControl import ClassSecurityInfo</pre>
+在PollProduct类中增加security属性：
+<pre>security=ClassSecurityInfo()</pre>
+然后定义每个属性或方法的访问权限：
+<pre>security.declareProtected('Use Poll','castVote')
+security.declarePublic('getQuestion')</pre>
+同时还要初始化类：
+<pre>from Globals import InitializeClass
+class PollProduct(...):
+    ....
+InitializeClass(PollProduct)</pre>
+完整的PollProduct.py文件如下：
+<pre>from Poll import Poll
+
+from AccessControl import ClassSecurityInfo
+from Globals import InitializeClass
+
+from Acquisition import Implicit
+from Globals import Persistent
+from AccessControl.Role import RoleManager
+from OFS.SimpleItem import Item
+
+class PollProduct(Implicit, RoleManager, Item):
+    """
+    Poll Product class, implements Poll interface.
+
+    The poll has a  question and a sequence of responses. Votes are stored in a dictionary which maps response indexes to a number of votes.
+    """
+    __implements__ = Poll
+
+    meta_type='Poll'
+
+    security=ClassSecurityInfo()
+
+    def __init__(self, id , title, question, responses):
+        self.id=id
+        self.title = title
+        self._question = question
+        self._responses = responses
+        self._votes = {}
+        for i in range(len(responses)):
+            self._votes[i]=0
+
+    security.declareProtected('Use Poll','castVote')
+    def castVote(self,index):
+        "Votes for a choice"
+        self._votes[index] = self._votes[index] + 1
+        self._p_changed = 1
+
+    security.declareProtected('View Poll results','getTotalVotes')
+    def getTotalVotes(self):
+        "Returns total number of votes cast"
+        total = 0
+        for v in self._votes.values():
+            total = total + v
+        return str(total)
+
+    security.declareProtected('View Poll results','getVotesFor')
+    def getVotesFor(self, index):
+        "Returns number of votes cast for a given response"
+        return self._votes[index]
+
+    security.declarePublic('getResponses')
+    def getResponses(self):
+        "Returns the sequence of responses"
+        return tuple(self._responses)
+
+    security.declarePublic('getQuestion')
+    def getQuestion(self):
+        "Returns the question"
+        return self._question
+
+InitializeClass(PollProduct)</pre>
+<h2>注册产品</h2>
+和上一篇一样，要通过__init__.py注册：
+<pre>from PollProduct import PollProduct, addForm, addFunction
+
+def initialize(context):
+    context.registerClass(
+            PollProduct,
+            constructors = (addForm, addFunction)
+            )</pre>
+同时在PollProduct.py里定义新建产品时的提交表单页面addForm和提交后的操作addFunction：
+<pre>def addForm(self):
+    """
+    Returns an HTML form.
+    """
+    return """&lt;html&gt;
+    &lt;head&gt;&lt;title&gt;Add Poll&lt;/title&gt;&lt;/head&gt;
+    &lt;body&gt;
+    &lt;form action="addFunction"&gt;
+    id &lt;input type="type" name="id"&gt;&lt;br&gt;
+    title &lt;input type="type" name="title"&gt;&lt;br&gt;
+    question &lt;input type="type" name="question"&gt;&lt;br&gt;
+    response (one per line)
+    &lt;textarea name="responses:lines"&gt;&lt;/textarea&gt;
+    &lt;input type="submit" name="Add"/&gt;
+    &lt;/form&gt;
+    &lt;/body&gt;
+    &lt;/html&gt;
+    """
+
+def addFunction(dispatcher, id, title, question, responses,REQUEST=None):
+    """
+    Create a new poll and add it to myself
+    """
+    p = PollProduct(id, title, question, responses)
+    dispatcher.Destination()._setObject(id, p)</pre>
+dispatcher对象有三个方法，Destination()返回的是添加此产品时的对象，DestinationURL是当前URL，manage_main重定向到添加产品是对象的浏览标签页。
+
+现在产品基本就建好了，接下来可以开始重启zope实例进行测试。
+<h2>管理标签页</h2>
+我们知道，在ZMI里创建对象后，打开对象，会进入该对象的管理界面，上面有不同的标签，比如Contents，View，Properties，Security等，这就是产品的管理选项。在产品类定义中使用manage_options可以自定义管理标签。
+
+manage_optins是一个包含字典的元组。其中的每个字典定义一个管理界面。下面是PollProduct.py中的管理选项：
+<pre>class PollProduct(Implicit, Persistent, RoleManager, Item):
+    ...
+    manage_options=(
+            {'label':'Edit','action':'editPollForm'},
+            {'label':'View','action':''},
+            ) + RoleManager.manage_options + Item.manage_options</pre>
+注意，这里字典的顺序就对应了页面标签的顺序。在进入产品管理页面时，会默认进入第一个管理页面，由于各管理页面都显示所有的管理标签，所以我们可以在各标签间跳转。但View页面除外。View页面是最终的显示页面，不会显示其他的管理标签，所以这里千万不要把View放在第一个，否则的话那就只能View了。后面的两个是系统标签，其中RoleManager.manage_options包含了Security选项，而Item.manage_options则包含了undo，Ownership，Interfaces选项。View选项里action值留空说明调用系统默认的index_html页面。
+
+接下来我们就要创建对应的Edit页面editPollForm和View页面index_html。
+
+通常创建页面的方法是使用DTML，我们可以使用DTMLFile类来从文件创建一个DTML方法。
+<pre>    editPollForm=DTMLFile('editPollForm',globals())
+    index_html=DTMLFile('index',globals())</pre>
+这样在点击Edit标签时就会使用editPolllForm.dtml来生成页面，点击View标签时使用index.dtml来生成页面。
+
+对应的dtml文件就不列出来了。值得注意的是，在dtml文件开始时应该包含mange_page_header和manage_tabs。manage_page_header包含有标准管理页面的CSS信息，这样可以使管理页面风格统一，而manage_tabs是前面提到的用来显示tab控件的变量。
+
+在编辑完页面以后要执行更新信息，这里我们定义editPoll方法来执行。
+<pre>   def editPoll(self, title, question, responses, REQUEST=None):
+        """Changes the question and responses as edit response."""
+        self.title = title
+        self._question = question
+        self._responses = responses
+        self._votes = {}
+        for i in range(len(responses)):
+            self._votes[i]=0</pre>
+是不是和__init__里的方法很像呀？对，我们可以重写__init__方法：
+<pre>   def __init__(self, id , title, question, responses):
+        self.id=id
+        self.editPoll(title,question,responses)</pre>
+<h2>测试</h2>
+例子中提到了一个getPercentFor的脚本和对应的DTML来做测试，我没弄明白这个脚本放在哪里。和生成的Poll实例在同一目录下吗？如何使用呢？Poll/getPercentFor？显示不出来。于是我把这个函数放到了PollProduct.py对象里作为一个方法来使用。同时注意初始时票数为0,防止0作为被除数：
+<pre>    def getPercentFor(self,index):
+        """get percent for index."""
+        index = int(index)
+        try:
+            return float(self.getVotesFor(index)) / int(self.getTotalVotes())
+        except ZeroDivisionError:
+            return 0</pre>
+在index_html里显示各票的比例：﻿
+<pre>&lt;h2&gt;Results&lt;/h2&gt;
+&lt;p&gt;&lt;dtml-var getTotalVotes&gt;votes cast&lt;/p&gt;
+&lt;dtml-in getResponses prefix="loop"&gt;
+&lt;p&gt;
+&lt;dtml-var sequence-item&gt; -
+&lt;dtml-var expr="getPercentFor(loop_index)"&gt;
+&lt;/p&gt;
+&lt;/dtml-in&gt;</pre>
+注意在dtml-in里使用了prefix属性。在DTML里像"sequence-index"可以作为变量，但在Python里却被理解成两个对象相减，所以我们不能直接使用getPercentFor(sequence-index)。一种解决方法是使用_.getitem('sequence-index')方法，另一种就是本例中的使用前缀。前缀不能写到前面，比如下面就不行：
+<pre>&lt;dtml-in prefix="loop" getResponses&gt;</pre>
+到这里，例子基本完成了。但还有待改进的地方，比如addForm不够美观，可以改成导入DTML的方式等。最终的完整例子可以在这里<a href="http://docs.zope.org/zope2/zdgbook/examples/Poll-1.0.tgz">下载</a>。

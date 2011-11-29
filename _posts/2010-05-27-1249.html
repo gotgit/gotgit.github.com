@@ -1,0 +1,29 @@
+---
+layout: post
+title: "群英汇 Mailman 人性化设计(4): 列表订阅策略"
+---
+
+Mailman 本身只包含三种订阅策略，有：确认, 要求核准 和 确认并核准。这三种订阅策略都要求用户手工输入自己的邮件地址，以及一个口令。例如：<a href="http://mail.python.org/mailman/listinfo/python-ideas">Python-idea 列表的订阅</a>。<a href="http://mail.python.org/mailman/listinfo/python-ideas"></a>
+
+这样的邮件列表使用起来不方便，尤其对于企业用户可能有着下面的需求：
+<ul>
+	<li>只允许使用公司内部的邮件地址订阅，不允许使用其它非企业邮箱订阅；</li>
+	<li>如果员工用外网邮箱订阅，会出现员工离职但是邮件通知仍然通过外网邮箱获取，导致信息泄漏；</li>
+	<li>企业都有相应的用户管理中心甚至认证中心，应该允许认证用户直接订阅，而不必手工输入邮件地址信息；</li>
+</ul>
+群英汇扩展了邮件列表系统的订阅策略，增加了两个新的订阅策略。
+
+<span id="more-1249"></span>增加的两个新的订阅策略：登录后方能订阅，以及登录并经管理员审核后订阅。
+<h2>登录后方能订阅</h2>
+<ul>
+	<li>如果没有登录，提示用户需要先登录才能订阅
+<a href="/wpfiles/2010/05/sub-policy-login.png"><img class="size-medium wp-image-1250" title="sub-policy-login" src="/wpfiles/2010/05/sub-policy-login-300x49.png" alt="" width="300" height="49" /></a></li>
+	<li>登录后，直接点击按钮即可订阅，而无须再输入邮件地址
+<a href="/wpfiles/2010/05/sub-policy-login2.png"><img class="size-medium wp-image-1251" title="sub-policy-login2" src="/wpfiles/2010/05/sub-policy-login2-300x136.png" alt="" width="300" height="136" /></a></li>
+</ul>
+<h2>登录并经管理员审核后订阅</h2>
+订阅界面和上面的订阅策略类似，但是当发出订阅请求后，订阅不是马上生效，还需要管理员手工处理。当管理员审核通过后，订阅才告成功。这适合于需要严格身份审核的列表。
+
+在订阅界面上会显示需要审核的提示信息：
+
+<a href="/wpfiles/2010/05/sub-policy-login-approve.png"><img class="size-medium wp-image-1252" title="sub-policy-login-approve" src="/wpfiles/2010/05/sub-policy-login-approve-300x136.png" alt="" width="300" height="136" /></a>

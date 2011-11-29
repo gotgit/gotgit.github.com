@@ -1,0 +1,29 @@
+---
+layout: post
+title: "用过滤器解决getRemoteUser()为的null的问题"
+---
+
+<div class="document">
+
+上次在<a href="/2010/02/02/454.html"> 解决getRemoteUser()为null的问题</a>中提到从index.jsp中得到&lt;%= request.getRemoteUser() %&gt;。昨天，同事给我提议使用过滤器，于是我在上次的基础上做了修改。
+
+<span id="more-474"></span>
+
+过滤器是请求和响应之间的一种WEB组件，它驻留在服务器端，用来截取客户端与资源之间的请求，并对这些信息进行“过滤”。我从filter中使用request.getRemoteUser(),然后使用request.getSession().setAttribute("key",value)保存在session中，下面是我使用的代码:
+<pre class="literal-block">public void doFilter(ServletRequest req, ServletResponse rep,
+                FilterChain chain) throws IOException, ServletException {
+      HttpServletRequest request = (HttpServletRequest) req;
+      HttpServletResponse reponse = (HttpServletResponse) rep;
+      String author = request.getSession().getAttribute("author");
+      if(author == null){
+          author = request.getRemoteUser();
+          if(author == null){
+              reponse.sendRedirect("/Test");
+          }else{
+              request.getSession().setAttribute("author",author);
+          }
+       }
+       chain.doFilter(request, reponse);
+}
+</pre>
+</div>

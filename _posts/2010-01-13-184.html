@@ -1,0 +1,118 @@
+---
+layout: post
+title: "Git 如何拆除核弹起爆码，以及 topgit 0.7到0.8的变迁"
+---
+
+我们使用 topgit 和 git 进行公司内部版本控制已经久矣，今天要求大家彻底清除 git 配置中的 push 选项。
+
+要求使用如下命令，先找到遗留topgit错误配置的 git 配置文件：
+<pre>$ find . -maxdepth 4 -name .git -type d | \
+  while read x; do \
+  grep -H push $x/config; done</pre>
+然后对于包含有 push 语句的 config 文件，逐一用 vi 打开，删除包含的 push 语句。
+
+我们为什么这么做呢？这涉及到 git 的 non-fast-forward 以及 topgit 0.7含之前版本的bug 和0.8 的改进。
+
+为什么标题这么吓人呢？什么叫做核弹起爆密码？实际上，这是我们在 Subversion 培训中经常拿来打击商业版本控制工具的一个说法，就是说 SVN 能够将错误提交的代码库中的敏感数据彻底删除（包括历史的删除），这在商业版本控制工具是很难实现的。Git作为开源版本库的No.1，当然可以支持对敏感数据的彻底删除（但是不要在删除前被别人PULL走，否则要逐一“灭口” :X-P: ）。
+
+Git的拆除核弹密码，就是如何进行 non-fast-forward的问题。
+<h2><span id="more-184"></span>关于 Git 的FastForwards</h2>
+Git 在执行 push 时，会执行一个检查：即远程分支的顶节点应该是本地将要 push 上去的新节点的子孙节点，否则报错“non-fast-forward”。
+
+例如：
+<ul>
+	<li>远程版本库中的版本更新（可能别人已经push了新的提交），本地还是旧的提交，拒绝push。(如果提交将会删除其他人的提交)
+<pre>远程版本库：---o---o---o---o
+本地版本库：---o---o</pre>
+</li>
+	<li>本地基于一个老版本做的改动，拒绝push 到服务器；
+<pre>远程版本库：---o---o---o---o
+本地版本库：---o---o
+　　　　　　        \--o'</pre>
+</li>
+</ul>
+正常情况下：
+<ul>
+	<li>第一种情况，需要执行 git pull，本地更新到最新版本，当然也就无须 push 了。
+<pre>远程版本库：---o---o---o---o
+本地版本库：---o---o
+<strong>本地执行命令: <span style="text-decoration: underline;"><em>git pull</em></span> 之后</strong>
+本地版本库：---o---o---o---o</pre>
+</li>
+</ul>
+<ul>
+	<li>本地基于一个老版本做的改动，先要执行 git pull 并完成和服服务版本拒绝push 到服务器；
+<pre>远程版本库：---o---o---o---o
+本地版本库：---o---o
+　　　　　　        \--o'
+<strong>本地执行命令:<span style="text-decoration: underline;"><em> git fetch; git merge; git commit</em></span> 之后</strong>
+本地版本库：---o---o---o---o
+　　　　　　        \--o'---\o"
+<strong>然后 push 到远程服务器：<span style="text-decoration: underline;"><em>git push</em></span></strong>
+远程版本库：---o---o---o---o---o"
+　　　　　　        \--o'-----/</pre>
+</li>
+</ul>
+<h2>但是如果真的要 Non-FastForwards 呢</h2>
+<ul>
+	<li>后悔了！想要撤销之前到远程版本库的 PUSH
+<pre>远程版本库：---o---o---o---o (master)
+<strong>本地版本执行：<em><span style="text-decoration: underline;">git reset --hard HEAD^^</span></em> 之后</strong>
+本地版本库：---o---o (master)
+<strong>执行强制push：<span style="text-decoration: underline;"><em>git push origin +master:master</em></span></strong> <strong>(注意其中的加号)</strong>
+之后远程版本库变迁为：---o---o (master)</pre>
+</li>
+</ul>
+<ul>
+	<li>同样远程的提交包含错误，需要强制用本地改动覆盖远程版本库的改动
+<pre>远程版本库：---o---o---o---o
+本地版本库：---o---o
+　　　　　　        \--o'
+<strong>执行命令　<span style="text-decoration: underline;"><em>git push origin +master:master</em></span></strong> <strong>，同样注意命令中的加号，强制覆盖远程版本库</strong>
+远程版本库变迁为：---o---o---o'</pre>
+</li>
+</ul>
+<h2>Topgit 0.7 的Bug</h2>
+我们在使用 topgit 0.7 的时候，分支改动的相互覆盖，曾经让我非常烦恼。难道选择 topgit 是错误的？后来定位到问题是: topgit 在 .git/config 文件中增加了两行 push 配置：
+<pre>[remote origin]
+  ...
+  push = +refs/top-bases/*:refs/top-bases/*
+  push = +refs/heads/*:refs/heads/*</pre>
+看到push配置命令中的加号了么？Topgit （0.7及更低版本）就是罪魁祸首。
+
+参见 <a href="http://repo.or.cz/w/topgit.git/blob/ad4ba21f04e5c36b258450a886a104351bcef8da:/tg-remote.sh">topgit 0.7版本的 tg-remote.sh</a>
+<pre><a id="l28" href="http://repo.or.cz/w/topgit.git/blob/6e31eca799f0427208df1320b20863c9343478ed:/tg-remote.sh#l28">28</a> ## Configure the remote<a id="l29" href="http://repo.or.cz/w/topgit.git/blob/6e31eca799f0427208df1320b20863c9343478ed:/tg-remote.sh#l29">
+29</a><a id="l30" href="http://repo.or.cz/w/topgit.git/blob/6e31eca799f0427208df1320b20863c9343478ed:/tg-remote.sh#l30">
+30</a> git config --replace-all "remote.$name.fetch" "+refs/top-bases/*:refs/remotes/$name/top-bases/*" "\\+refs/top-bases/\\*:refs/remotes/$name/top-bases/\\*"<a id="l31" href="http://repo.or.cz/w/topgit.git/blob/6e31eca799f0427208df1320b20863c9343478ed:/tg-remote.sh#l31">
+31</a> git config --replace-all "remote.$name.push" "+refs/top-bases/*:refs/top-bases/*" "\\+refs/top-bases/\\*:refs/top-bases/\\*"<a id="l32" href="http://repo.or.cz/w/topgit.git/blob/6e31eca799f0427208df1320b20863c9343478ed:/tg-remote.sh#l32">
+32</a> git config --replace-all "remote.$name.push" "+refs/heads/*:refs/heads/*" "\\+refs/heads/\\*:refs/heads/\\*"</pre>
+怎么解决这个问题呢？
+
+当时我们想到的办法是：配置 git 服务器，让git服务器不允许 non-fast-forward 的 PUSH，配置如下：
+<pre>[receive]
+denyDeletes = false
+denyNonFastForwards = true
+</pre>
+<h2>Topgit 0.8 的改进</h2>
+当 topgit 升级后，我们发现，令人讨厌的 non-fast-forward 的 PUSH 语句不见了，即当执行：tg remote --populate origin 时，不会在 .git/config 中再生成讨厌的 push 配置命令，而是提供一个 tg push 命令来方便分支的 push。
+
+当然这时候我们的 git 服务器中依然配置着，不允许 non-fast-forward 的PUSH。因为毕竟还有人在使用 topgit 0.7 以下版本，或者还存在使用 topgit 0.7及以下版本创建的 git 配置。
+<h2>没有Non-FastForward的日子</h2>
+很多时候，自信满满的push，发现有问题，想要撤销PUSH。或者有的提交应该在分支进行，而有的人在主线master上进行，需要撤销到服务器上的PUSH。
+
+因为服务器已经配置了不允许 non-fast-forward，因此还要麻烦管理员，手动修改服务器的配置，暂时打开允许 non-fast-forward 提交。当用户完成 non-fast-forward PUSH后，在关闭服务器设置。太太麻烦了。
+<h2>管理员愤怒了</h2>
+管理员愤怒了，结果很严重：
+<ul>
+	<li>Topgit<strong> 必须</strong> 升级，而且要升级到<strong> <a href="http://www.ossxp.com/">群英汇</a></strong> 改进后的 topgit 0.8 版本，参见
+<a href="http://github.com/ossxp-com/topgit">http://github.com/ossxp-com/topgit</a> （改进见各个分支）</li>
+	<li>必须检查所有 .git/config 文件，将其中由 topgit 引入的 push 语句全部删除！</li>
+	<li>服务器配置为允许 non-fast-forward 提交。</li>
+</ul>
+管理员又提供了一个更暴力的命令，直接将找到的 config 文件中的 push 语句删除：
+<pre>$ find . -maxdepth 4 -name .git -type d | \
+  while read x; do \
+    grep -q push $x/config  &amp;&amp; \
+    sed -i -e '/^\s*push\s*=/ d' $x/config; \
+  done
+</pre>

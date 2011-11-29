@@ -1,0 +1,46 @@
+---
+layout: post
+title: "解决 gistore 备份数据中的 git 库（submodule）的备份"
+---
+
+昨天在从客户现场回公司的路上，想明白了 Gistore 备份出现的 AM 标识的备份数据就是含有变更的子模组。
+
+之前 Gistore 不能解决的一个备份问题是，当备份的数据中包含 git 库，备份数据将不会保存在 gistore 版本库中，而是以 submodule 方式加入备份库。实际的效果是，数据没有备份下来。例如：
+<ul>
+	<li>安装了 etckeeper，用于维护 /etc 下配置文件的变更。实际上 /etc 目录本身已经是一个 git 库了
+如果在 gistore 任务建立前，/etc 目录已经 git 化，则不能有效的对 /etc 进行备份</li>
+	<li>某个备份数据的目录，被人为的 git 化。这可能是在 hacking 时遗留的 git 库
+我在改动服务器的某些数据（如界面模板等），经常将目录 git 化，然后再修改/比较/提交</li>
+</ul>
+如果不能有效的对 git化的备份目录进行备份，肯定会收到惩罚。
+
+在最早的实现中，只是在备份之后的后处理（post_check）查找以 git 子模组方式添加的目录，并打出相应的警告信息。如何能够自动进行处理，一直排在工作队列中，昨天晚上开始了修改。
+
+<strong>检查子模组</strong>
+
+首先要找出哪些目录是以子模组方式添加的。最开始想到了从状态中找出 AM 标识的子模组，进行修改，但是存在问题：1. 添加没有变更的git化的目录，不会显示为 AM（添加且含修改），而显示为 A（添加）。2. 不能有效的发现 gistore 版本库中已经提交数据中以 git 子模组方式添加的目录。
+
+于是采用分析 git submodules status 命令的输出，确定子模组。不过这个命令需要多次迭代执行（遇到无 .submodules匹配报错退出），才能找到所有的子模组。
+
+<strong>重新以普通目录和文件方式添加子模组</strong>
+
+首先删除已经提交的按照子模组方式保存的目录，重新添加不能直接添加子模组目录，否则仍会按照子模组方式添加。采用的方法是：
+<ul>
+	<li>删除已经按照子模组方式添加的目录
+git --git-dir=repo.git rm --cached sub/module ...</li>
+	<li>在子模组目录下创建一个临时文件，并添加该临时文件
+git --git-dir=repo.git --work-tree=run-time add sub/module/&lt;TMPFILE&gt;</li>
+	<li>对子模组目录执行添加操作
+git --git-dir=repo.git --work-tree=run-time add sub/module</li>
+	<li>别忘了删除临时文件
+git --git-dir=repo.git --work-tree=run-time  rm sub/module/&lt;TMPFILE&gt;</li>
+	<li>迭代执行，直到没有子模组发现为止</li>
+</ul>
+Gistore 版本升级为 0.2.3，在服务器上重新安装和执行，将原来子模组方式添加的目录重新纳入备份中，放心了。
+
+<strong>Gistore 应用：备份博客数据</strong>
+<ul>
+	<li>我们在公司服务器上创建了一个名为 wordpress 的任务，备份 wordpress 数据库导出文件，wordpress 配置文件，wordpress 插件目录，wordpress 上传图片及附件。</li>
+	<li>将 wordpress 任务的 git 库，加入 git 服务器中，并设置权限</li>
+	<li>每个有权限的公司员工，都可以使用 git 命令克隆/同步公司服务器上的 wordpress 版本库，将博客数据保存下来</li>
+</ul>

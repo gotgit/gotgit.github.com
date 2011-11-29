@@ -1,0 +1,128 @@
+---
+layout: post
+title: "Android repo 魔法"
+---
+
+Android 为企业提供一个新的市场，无论大企业，小企业都是处于同一个起跑线上。研究 Android 尤其是 Android 系统核心或者是驱动的开发，首先需要做的就是本地克隆建立一套 Android 版本库管理机制。
+
+Android 使用 Git 作为代码管理工具，开发了 Gerrit 进行代码审核以便更好的对代码进行集中式管理，还开发了 Repo 命令行工具，对 Git 部分命令封装，将 百多个 Git 库有效的进行组织。要想克隆和管理这百多个 Git 库，还真不是一件简单的事情。
+
+在研究 Repo 的过程中，发现很多文档在 Google Group 上，非“翻墙”不可看。非法的事情咱不干，直接阅读 repo 的代码吧。
+<h2><span id="more-1915"></span>创建本地 Android 版本库镜像的思路</h2>
+如果了解了 Repo 的实现，参考 <a href="http://source.android.com/source/git-repo.html">《Using Repo and Git》</a> , 建立一个本地的 android 版本库镜像还是不难的：
+<ul>
+	<li>下载 repo bootstrap 脚本
+<pre>$ curl http://android.git.kernel.org/repo &gt;~/bin/repo
+$ chmod a+x ~/bin/repo
+$ export PATH=$PATH:~/bin</pre>
+</li>
+	<li>提供 --mirror 参数调用 repo init ，建立 git 版本库克隆
+<pre>$ repo init -u git://android.git.kernel.org/platform/manifest.git --mirror</pre>
+<ul>
+	<li>使用 --morror 则下一步和源同步的时候，本地按照源的版本库组织方式进行组织，否则会按照 manifest.xml 指定的方式重新组织并检出到本地</li>
+</ul>
+</li>
+	<li>开始和源同步
+<pre>$ repo sync</pre>
+</li>
+	<li>修改 manifest ，修改 git 库地址，指向本地的 git 服务器
+<ul>
+	<li>修改 platform/manifest.git 库中现有的 xml 文件，或者创建一个新的 xml 文件</li>
+	<li>将 git 的地址改为本地地址，提交并 push</li>
+</ul>
+</li>
+	<li>本地 repo 镜像建立完毕之后，就可以在执行 repo init 时，使用本地更改后的 manifest 库，之后执行 repo sync 就是基于本地版本库进行同步了。</li>
+	<li>也可以改造 repo，使得不必为 repo 工具初始化，也在本地网络完成操作...</li>
+</ul>
+<h2>Repo init 干了些什么？</h2>
+实际上，得到客户使用 repo 的信息后，首先下载 repo 执行脚本开始研究。
+<pre>curl http://android.git.kernel.org/repo &gt;~/bin/repo</pre>
+难道只有 600 行的 python 代码么？要是这样应该很简单的呀。可以看下来，却发现远非如此。
+<h3>Shell script or python？</h3>
+首先 repo 脚本使用了一个魔法：从脚本第一行的 shebang 来看应该是 shell 脚本，但是满眼却都是 python 语法，怎么回事？
+<pre> 1 #!/bin/sh
+ 2
+ 3 ## repo default configuration
+ 4 ##
+ 5 REPO_URL='git://android.git.kernel.org/tools/repo.git'
+ 6 REPO_REV='stable'
+ 7
+ 8 # Copyright (C) 2008 Google Inc.
+   ...
+
+22 magic='--calling-python-from-/bin/sh--'
+23 """exec" python -E "$0" "$@" """#$magic"
+24 if __name__ == '__main__':
+25   import sys
+26   if sys.argv[-1] == '#%s' % magic:
+27     del sys.argv[-1]
+28 del magic</pre>
+魔法就在第 23 行，巧妙的通过 python 三引号字串写出了一个能被 python 和 shell script 都能理解的代码，以此为界，代码由 Shell 脚本进入了 Python 的世界。
+<h3>Bootstrap 和真正的 repo</h3>
+通过 curl 下载的的 repo 并非完整的 repo 脚本，只是一个 bootstrap。当 repo 执行时，会负责下载完整的 repo 代码，并将控制权转移给真正的 repo。
+
+通过 main 函数，可以看到 repo 运行的开始，就试图发现本地真正的完整的 repo 代码，以便移交控制权：
+<pre>544 def main(orig_args):
+545   main, dir = _FindRepo()
+
+586   try:
+587     os.execv(main, me)</pre>
+其中 545 行的 _FindRepo() 会在当前目录开始向上递归查找 ".repo/repo/main.py"，如果找到则移交控制权（587行）。
+<h3>Repo bootstrap 脚本调用 init 只完成第一阶段的初始化</h3>
+Repo 的 bootstrap 脚本只支持两个命令 help 和 init，而 init 也只完成 repo 版本库克隆（即安装 repo 完整工具），之后就转移控制权。
+
+在 Repo bootstrap 执行 init 可以提供很多参数，但实际上第一阶段初始化，只用到两个参数（而且都有默认值）
+<ul>
+	<li>参数：--repo-url=URL
+repo 工具本身的 git 库地址。缺省为：git://android.git.kernel.org/tools/repo.git</li>
+	<li>参数：--repo-branch=REVISION
+使用 repo 的版本库，即 repo git 库的分支或者里程碑名称。缺省为 stable</li>
+</ul>
+<h3>第二阶段的 repo init</h3>
+执行第二阶段的 repo init，控制权已经移交给刚刚克隆出来的 repo git 库的脚本。
+
+Repo git 库被克隆/检出到执行 repo init 命令当前目录下的 .repo/repo 子目录中，主要的执行脚本为 .repo/repo/main.py。main.py 接着执行 repo init 命令。
+
+Repo 的代码组织的非常好，在 .repo/repo/subcmds/ 子目录下，是各个 repo 命令的处理脚本。repo init 的第二阶段脚本正是由 .repo/repo/subcmds/init.py 负责执行的。第二阶段主要完成：
+<ul>
+	<li>克隆由 -u 参数提供的 manifest Git 库，如克隆 android 库时：
+<pre>$ repo init -u git://android.git.kernel.org/platform/manifest.git</pre>
+</li>
+	<li>如果不提供 -b REVISION 或者 --manifest-branch=REVISION参数，则检出 manifest Git 库的 master 分支</li>
+	<li>如果不提供 -m NAME.xml 或者 --manifest-name=NAME.xml 参数，则使用缺省值 default.xml</li>
+	<li>如果提供 --mirror 参数，则后续同步操作会有相应的体现</li>
+</ul>
+<h2>Repo start 干了些什么？</h2>
+Android 源码网站在介绍 repo 的使用模型中，有一个图片： http://source.android.com/images/git-repo-1.png , 介绍了 repo 的使用流程。其中 "repo start" 是紧接着 "repo sync" 后的第一个动作。那么这个动作是干什么的呢？
+
+得益于 repo 对 git 操作的封装，"repo start" 命令的处理代码只有区区 68 行。
+<pre> 37   def Execute(self, opt, args):
+
+ 41     nb = args[0]
+
+ 47     projects = []
+ 48     if not opt.all:
+ 49       projects = args[1:]
+
+ 54     all = self.GetProjects(projects)
+
+ 57     for project in all:
+
+ 59       if not project.StartBranch(nb):
+ 60         err.append(project)</pre>
+看到第 59 行了么，就是对 repo 同步下来的项目的多个 Git 版本库，逐一执行 project.StartBranch 操作。 nb 是 repo start 的第一个参数，即分支名称。
+
+关于 StartBranch 的代码，在 project.py 中：
+<pre> 857   def StartBranch(self, name):
+ 858     """Create a new branch off the manifest's revision.
+ 859     """
+
+ 894     if GitCommand(self,
+ 895                   ['checkout', '-b', branch.name, revid],
+ 896                   capture_stdout = True,
+ 897                   capture_stderr = True).Wait() == 0:
+ 898       branch.Save()
+ 899       return True</pre>
+原来如此， repo start &lt;branch_name&gt; 就是逐一为各个版本库创建工作分支，以便在此分支下进行工作。
+
+读者可以按图索骥，找到 repo 各个命令的实现，破解心中的疑惑。

@@ -1,0 +1,83 @@
+---
+layout: post
+title: "如何用nginx+mongrel部署Rails应用"
+---
+
+<strong>为什么选择nginx+mongrel部署Rails应用？</strong>
+
+<span>nginx 接受公网上的http请求，然后nginx通过反向代理用http协议再把这些请求转发给mongrel，mongrel上启动的Rails对请求进行处理完后再把响应逆向返回，如果如果在高负载 的情况下还可以通过mongrel_cluster启动的mongrel集群，并且在nginx上启动负载均衡，从而成倍地提高处理请求的能力。</span>
+
+<span>以下是安装nginx+mongrel，并部署redmine（一个用Rails做的项目管理工具）的过程。</span>
+
+<span><span id="more-1347"></span></span>
+<ol>
+	<li><span><strong>安装nginx</strong>
+下载地址 </span><a href="http://nginx.org/en/download.html" target="_blank">http://nginx.org/en/download.html</a>
+<em>我下载的版本是 nginx-0.8.40.tar.gz</em>
+解压安装
+<pre>tar -zxvf nginx-0.8.40.tar.gz
+cd nginx-0.8.40/
+.configure
+make
+sudo make install</pre>
+<em>默认情况下安装目录是 /usr/local/nginx</em></li>
+	<li><span><strong>安装mongrel和mongrel_cluster</strong>
+</span>
+<pre>sudo gem install mongrel mongrel_cluster</pre>
+由于用gem安装后mongrel_rails命令被放在 /var/lib/gems/1.8/bin/mongrel_rails，使用不方便，所以建议建立符号链接
+<pre>sudo ln -s /var/lib/gems/1.8/bin/mongrel_rails /usr/bin/mongrel_rails</pre>
+</li>
+	<li><span><strong>部署redmine</strong>
+</span>
+<ol>
+	<li><span><strong>配置nginx，添加一个server块，用于服务redmine</strong>
+编辑 </span>vi /usr/local/nginx/conf/nginx.conf，以下是添加的内容
+<pre>    upstream mongrel {
+        server 127.0.0.1:8000;
+        server 127.0.0.1:8001;
+    }
+
+    # rails server
+    server {
+        listen        80;
+        server_name   redmine.moon.ossxp.com;
+        root    /opt/redmine/web/public;  #注意这里一定要指向Rails应用的public目录
+        index   index.html index.htm;
+
+        location / {
+            proxy_pass http://mongrel;
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+</pre>
+</li>
+	<li><span><strong>配置mongrel_cluster</strong>
+在Rails项目的根目录下执行以下命令，生成</span>config/mongrel_cluster.yml 文件，供启用mongrel集群使用
+<pre>sudo mongrel_rails cluster::configure -e production -p 8000 -a 127.0.0.1 -N 2</pre>
+有关cluster::configure 更多参数使用可借助帮助命令查看
+<pre>mongrel_rails cluster::configure -h</pre>
+生成的文件内容如下：
+<pre>---
+address: 127.0.0.1
+log_file: log/mongrel.log
+port: "8000"
+environment: production
+pid_file: tmp/pids/mongrel.pid
+servers: 2</pre>
+</li>
+	<li><strong>启用mongrel_cluster</strong>
+<pre>wangsheng@pc01:/opt/redmine/web$ sudo mongrel_rails cluster::start
+starting port 8000
+starting port 8001</pre>
+</li>
+	<li><strong>启用nginx</strong>
+<pre>sudo /usr/local/nginx/sbin/nginx</pre>
+</li>
+	<li><strong>测试是否部署成功</strong>
+在浏览器输入server_name，（我这里用的是redmine.moon.ossxp.com），按回车键，如果显示redmine主页，则证明部署成功。</li>
+</ol>
+</li>
+</ol>

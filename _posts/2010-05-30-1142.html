@@ -1,0 +1,19 @@
+---
+layout: post
+title: "群英汇 Mailman 人性化设计(6): 存档安全性"
+---
+
+Mailman 本身包含两种邮件存档策略：公开的和成员。即或者所有用户均可访问，或者只有订阅者有权访问。当设置为成员访问时，访问列表需要输入密码，而密码是在订阅时输入的，而且可能每月一变，新的密码会发到邮箱中。
+
+我们发现企业用户对邮件列表存档访问的需求有：
+<ul>
+	<li>只允许公司内部人员访问，不允许其它人员访问</li>
+	<li>访问存档的身份认证不要那么复杂，每月一变的密码，让用户访问起来非常不便</li>
+</ul>
+于是我们在存档访问时也使用单点登录认证，并在存档访问增加了“认证用户”的新的策略。
+
+即群英汇最新实现的 Mailman 支持三种存档策略：
+
+<a href="/wpfiles/2010/05/archive-policy.png"><img class="aligncenter size-full wp-image-1261" title="archive-policy" src="/wpfiles/2010/05/archive-policy.png" alt="" width="412" height="48" /></a>
+
+群英汇在 Mailman 上还有更多的界面上的改进，如 CSS 支持等，不再一一列举。

@@ -1,0 +1,128 @@
+---
+layout: post
+title: "软RAID 提供低成本和高可靠性的 Linux 服务器"
+---
+
+群英汇服务器硬件升级，首先考虑到的就是使用 RAID 来提高磁盘的高可靠性。
+
+本文介绍 Linux 下软 RAID 的管理...
+<h2><span id="more-783"></span>硬 RAID，软 RAID?</h2>
+硬 RAID 从性能考虑肯定是首选，毕竟有独立的控制器负责 RAID 的数据同步、校验等等，而软 RAID 则依靠操作系统本身，需要占用 CPU 时间。
+
+事情都有两面。硬件 RAID 的成本很高，一块可靠的 RAID 卡可能要比几块硬盘加起来都要贵。硬件 RAID 的安全性存在隐患，如果 RAID 卡失效，必须要保证能够购买到同类型的 RAID 卡来替换，否则硬盘中的数据可能会永久失去。
+
+软件RAID，无须任何多余的成本（除了需要多一块或几块硬盘），也不存在 RAID 卡损坏导致数据丢失的问题。而且软件 RAID 的配置非常简单。
+<h2>Linux 下软件 RAID 的配置</h2>
+<ol>
+	<li>需要多个硬盘，如果是 RAID1，至少需要两块硬盘。
+对于软RAID，可以使用不同大小的硬盘，这是因为 软件 RAID 是建立在磁盘分区上，不同大小的硬盘可以建立同样大小的分区。</li>
+	<li>RAID 的设置，只是在安装过程的分区中进行设置</li>
+	<li>磁盘分区的文件系统类型选择为 RAID 分区，而不要选择 ext3 等类型；不同的硬盘的分区要保持一致；</li>
+	<li>当有磁盘分区的文件系统类型设置为 RAID 类型时，分区的界面中会出现 RAID 配置界面，通过此界面创建 RAID 设备
+RAID 的设备号为： /dev/md0, /dev/md1, .</li>
+	<li>就像对待普通分区一样对待 RAID 设备
+为各个分区设备（/dev/md0,...）设定文件系统格式，如 swap, ext2, ext3, ext4 等，并设置挂载点</li>
+</ol>
+<h2>GRUB loader 重建</h2>
+在完成 Linux 操作系统安装后，重启系统后的第一件事，就是为各个硬盘的 MBR 写入 GRUB Loader。这是因为：
+<ul>
+	<li>和硬件 RAID 不同，软件 RAID 是在系统过程中加载的，因此 GRUB 引导系统启动时，还不能识别 RAID</li>
+	<li>Linux 安装过程中，只对指定的一块硬盘的主引导扇区写入了 Grub 的loader，其他硬盘则未写入</li>
+	<li>如果写入 Grub loader 的硬盘损坏不能工作，则整个系统根本无法启动</li>
+</ul>
+为各个硬盘的主引导扇区写入 Grub loader 的方法为：
+<pre>$ <strong><em>sudo grub</em></strong>
+grub&gt; <strong><em>root (hd0,0)</em></strong>
+grub&gt; <strong><em>setup (hd0)</em></strong>
+grub&gt; <strong><em>setup (hd1)
+</em></strong></pre>
+<h2>测试 RAID 的可靠性</h2>
+例如对于用两颗硬盘做 RAID1 ，分别用一个硬盘启动，拔掉另外一个硬盘的电源线和数据线，看看系统能否启动。
+
+如果已经分别在两个硬盘上重写 GRUB loader，则两个硬盘都能够单独启动。
+
+最后，所有的硬盘全部插电，恢复连接，启动。启动后执行下面的操作，会看到磁盘已经不同步了，RAID 处于被破坏状态。
+<pre>
+<pre>$ <em><strong>cat /proc/mdstat</strong></em>
+Personalities : [raid1]
+md5 : active raid1 sda8[0] sdb8[1]
+130720768 blocks [2/2] [UU]
+
+md4 : active raid1 sda7[0] sdb7[1]
+5855552 blocks [2/2] [UU]
+
+md3 : active raid1 sdb6[1]
+39061952 blocks [2/1] [_U]
+
+md2 : active raid1 sda5[0]
+19534912 blocks [2/1] [U_]
+
+md1 : active raid1 sdb2[2] sda2[0]
+48829440 blocks [2/1] [U_]
+
+md0 : active raid1 sda1[0] sdb1[1]
+192640 blocks [2/2] [UU]</pre>
+</pre>
+上面的 RAID 设备的状态，如果是 [UU] 则代表正常，如果是 [_U] 或者 [U_] 则说明 RAID1 中只有一块硬盘在工作。
+
+为什么会这样呢？因为刚刚两个硬盘分别单独启动了一次，分区上可能都有数据更新，两个硬盘的数据不同步了，应该用哪个硬盘的数据为主呢？这个应该让客户做主，因而系统的 RAID 处于中断状态。
+<h2>重建 RAID</h2>
+通过 /proc/mdstat 查看 RAID 设备状态时，如果有 RAID1 设备标识为 [U_] 或者 [_U]，说明本应该两个设备冗余备份的，现在只有一个设备在工作。这时，可以用命令 mdadm 来详细查看 RAID 设备状态，以及重建 RAID。
+<ul>
+	<li>查看 RAID 设备状态
+<pre>$ <strong><em>sudo mdadm --detail /dev/md2</em></strong>
+/dev/md2:
+Version : 00.90
+Creation Time : Fri Feb 26 04:41:54 2010
+Raid Level : raid1
+Array Size : 19534912 (18.63 GiB 20.00 GB)
+Used Dev Size : 19534912 (18.63 GiB 20.00 GB)
+Raid Devices : 2
+Total Devices : 1
+Preferred Minor : 2
+Persistence : Superblock is persistent
+
+Update Time : Tue Mar 2 10:11:16 2010
+State : clean, degraded
+Active Devices : 1
+Working Devices : 1
+Failed Devices : 0
+Spare Devices : 0
+
+UUID : 0f1af21d:04bc67df:fcf36ba8:11fc1b46
+Events : 0.424
+
+Number Major Minor RaidDevice State
+0 8 5 0 active sync /dev/sda5
+1 0 0 1 removed</pre>
+</li>
+	<li>添加新的设备（硬盘/分区）到RAID中，以重建RAID设备
+<pre>$ <em><strong>sudo mdadm /dev/md2 --add /dev/sdb5</strong></em>
+mdadm: re-added /dev/sdb5
+</pre>
+</li>
+	<li>通过 /proc/mdstat 可以查看同步状态
+<pre>$ <em><strong>cat /proc/mdstat</strong></em>
+Personalities : [raid1]
+md5 : active raid1 sda8[0] sdb8[1]
+130720768 blocks [2/2] [UU]
+
+md4 : active raid1 sda7[0] sdb7[1]
+5855552 blocks [2/2] [UU]
+
+md3 : active raid1 sdb6[1]
+39061952 blocks [2/1] [_U]
+
+md2 : active raid1 sdb5[2] sda5[0]
+19534912 blocks [2/1] [U_]
+[==&gt;..................] recovery = 11.7% (2303744/19534912)
+finish=3.7min speed=76791K/sec
+
+md1 : active raid1 sdb2[1] sda2[0]
+48829440 blocks [2/2] [UU]
+
+md0 : active raid1 sda1[0] sdb1[1]
+192640 blocks [2/2] [UU]
+</pre>
+</li>
+</ul>

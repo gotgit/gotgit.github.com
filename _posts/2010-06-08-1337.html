@@ -1,0 +1,16 @@
+---
+layout: post
+title: "redmine 问题导入插件"
+---
+
+在使用redmine的过程中可能会遇到以下几种情况：
+<ol>
+	<li>有一些问题是固定的，多个项目中都需要用到这些问题，新建一个项目后，都需要手动添加这些固定问题，即繁琐又浪费时间。</li>
+	<li>经常需要导入其他缺陷跟踪系统的问题列表</li>
+	<li>大型项目异地开发可能需要将总部redmine中的一些问题导出，然后导入到异地团队使用的redmine中(这两个redmine没有部署在同一台服务器上）。</li>
+</ol>
+对于第一个问题，如果你的redmine是0.9以后的版本，可以通过 项目复制 功能，将原项目的问题复制到新项目中去。但这个复制是将原项目的所有问题都复制到新项目中，显然那些非固定问题也被复制了，这就需要额外手动删除这些非固定问题，大量时间浪费在删除操作上。
+
+群英汇 redmine-issue-import 插件可以完美地解决上面的问题，它可以将redmine系统导出的问题（csv格式）或者手动创建的csv文件，直接导入到redmine项目中。
+
+更多关于此插件的信息可参考用户文档 <a title="redmine-issue-import: user_manual" href="http://www.ossxp.com/doc/redmine-plugins/redmine-issue-import/user_manual/user_manual.html">redmine-issue-import: user_manual</a>

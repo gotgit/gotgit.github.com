@@ -1,0 +1,94 @@
+---
+layout: post
+title: "reST 输出文档中页眉和页脚的定制"
+---
+
+群英汇采用 reStructuredText（简称 reST）文本标记语言进行文档维护。在 cuirui 解决了<a href="/2010/07/26/1533.html"> rst2pdf 对 reST 转换 PDF 的图片缩放问题</a>之后，如何让生成的 PDF 更有表现力，下了一番功夫去研究。
+<ul>
+	<li>页眉和页脚根据转换的格式（HTML，PDF），自动进行选择</li>
+	<li>PDF 的页眉显示章节标题以及页码，而页脚则显示文档标题和公司名称及相关链接</li>
+	<li>HTML 的页眉显示文档标题以及到官方文档的链接（公司网站该文档的安装位置），页脚显示网址</li>
+	<li>文档版本号和文档编译时间由 Debian 软件包配置文件中的 changelog 动态替换</li>
+</ul>
+<h2><span id="more-1600"></span>PDF页眉、页脚和 HTML 不兼容</h2>
+软件 rst2pdf 为 reST 添加了许多扩展，例如在页眉或者页脚中使用 “###Page### ”插入页码，但是 python-docutils 中的  rst2html 并不支持。这也难怪，HTML 本身并无页码的概念。
+
+那么一个难题就出现了，在 reST 格式书写的文档中，如何能够让 HTML 和 PDF 输出显示不同的页眉和页脚，难道我们要被迫选择最大公约数？
+<h2>reST 文本的宏替换实现</h2>
+实际上，在研究自适应的页眉和页脚实现之前，我们就已经根据需要增加了宏替换的功能。
+
+如果编译的文档文件名为 filename.rst.in，则启动宏替换脚本，将 filename.rst.in 文件替换为 filename.rst。会将其中的 <em>@ENV(NAME)@</em> 用相应的环境变量进行替换。
+
+例如：模板文件 abc.rst.in：
+<pre>:版本: |doc_rev|
+:日期: |doc_date|
+
+.. |doc_rev| replace::  @ENV(DOC_REV)@
+.. |doc_date| replace:: @ENV(DOC_DATE)@
+</pre>
+会根据编译文档时的传参，进行替换。例如用命令：
+<pre>$ DOC_REV=1.2.5  DOC_DATE="2010-07-28 20:14:56"  rake html</pre>
+会自动根据模板 abc.rst.in 文件创建 abc.rst 文件，并编译出相应的 HTML 文档
+<pre>:版本: |doc_rev|
+:日期: |doc_date|
+
+.. |doc_rev| replace::  1.2.5
+.. |doc_date| replace:: 2010-07-28 20:14:56</pre>
+<h2>将 HTML 和 PDF 的页眉和页脚写在一个包含文件中</h2>
+我们将 html 和 PDF 的页眉和页脚写在一个包含文件中，并分别在前后用注释进行区分。
+
+文件 DEFINES.txt
+<pre>.. START_PDF_HEADER_FOOTER                                                                                                                                 
+
+.. header::
+
+ .. class:: headertable
+
+ +---+---------------------+----------------+
+ |   |.. class:: centered  |.. class:: right|
+ |   |                     |                |
+ |   |章节 ###Section###   |第###Page###页  |
+ +---+---------------------+----------------+
+
+.. footer::
+
+ .. class:: footertable
+
+ +---------------------+---+-------------------+
+ |.. class:: left      |   |.. class:: right   |
+ |                     |   |                   |
+ ||ArticleTitle|_      |   ||AuthorOSSXP|_     |
+ +---------------------+---+-------------------+
+
+.. END_PDF_HEADER_FOOTER
+
+.. START_HTML_HEADER_FOOTER
+
+.. header:: |ArticleTitle|_
+.. footer:: |AuthorOSSXP|_ - http://www.ossxp.com/
+
+.. END_HTML_HEADER_FOOTER
+</pre>
+<h2>reST 文档包含指令中使用宏</h2>
+在我们的 reST 格式文档中，会看到类似下面的语法，实际上就是从上面提到的包含文件中引入相应的页首和页脚
+<pre>.. contents:: 目录
+.. sectnum::
+<strong>
+.. include:: DEFINES.txt
+ :start-after: START_@ENV(DOC_BACKEND)@_HEADER_FOOTER
+ :end-before: END_@ENV(DOC_BACKEND)@_HEADER_FOOTER</strong>
+
+.. raw:: pdf
+
+ Transition Dissolve 1
+ PageBreak contentsPage
+</pre>
+加粗显示的是包含语句，在包含的起始和包含的结束指令中使用了宏。包含指令之前是显示目录，包含指令之后是显示一个分页符并切换页面模板。
+
+这样，答案就非常明显了，我们的文件本身以 .rst.in 结尾，告诉我们的文档编译器：“这是一个模板”。然后模板会正确的生成相应的 rest 文档，包含正确的页眉和页脚。
+
+不同于 @ENV(DOC_REV)@ 宏， @ENV(DOC_BACKEND)@ 无须通过环境变量传递，处理器会根据文档输出的类型，自动用 HTML 或者 PDF 进行字符串替换。
+<h2>使用 Docbones 管理文档的编译</h2>
+Docbones 是我们群英汇开发和使用的文档编译工具，支持 reST 和 docbook 格式（主要用 reST，Docbook 只是我以前的爱好，很久没有再用了）。
+
+你可以从 <a href="http://github.com/ossxp-com/docbones">http://github.com/ossxp-com/docbones</a> 下载和研究，至于用法，有需要的求求<strong> 崔锐</strong> 写博客。

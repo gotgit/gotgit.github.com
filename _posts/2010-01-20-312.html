@@ -1,0 +1,67 @@
+---
+layout: post
+title: "用Debian/Ubuntu提供的软件包整合apache2和tomcat6"
+---
+
+上篇日志写了用下载源码包的方式整合apache2和tomcat6，或许你会问：怎么不用Debian自己提供的软件包整合呢？
+
+其实在我用下载源码包的方式成功整合apache2和tomcat6后，我就开始实验用Debian自己提供的软件包整合，可是摸索了好长时间，还是整合不成功 :-?  。今天在同事蒋鑫的帮助下，终于有了眉目 :-) 。下面是具体步骤：
+
+<span id="more-312"></span>1、安装 tomcat6
+<pre>sudo aptitude  install tomcat6 tomcat6-docs tomcat6-admin tomcat6-examples</pre>
+2、安装 apache2
+<pre>sudo aptitude install apache2</pre>
+3、安装apache-tomcat 连接器模组 libapache2-mod-jk
+<pre>sudo aptitude install libapache2-mod-jk</pre>
+4、配置jk
+<pre>cd /etc/apache2/mods-available
+/etc/apache2/mods-available$ sudo vi jk.conf</pre>
+jk.conf的内内容如下
+<pre># 指出jk模块工作所需要的工作文件workers.properties的位置
+JkWorkersFile /etc/libapache2-mod-jk/workers.properties
+
+# Where to put jk logs
+JkLogFile /var/log/apache2/mod_jk.log
+
+# Set the jk log level [debug/error/info]
+JkLogLevel info
+
+# Select the log format
+JkLogStampFormat "[%a %b %d %H:%M:%S %Y]"
+
+# JkOptions indicate to send SSL KEY SIZE,
+JkOptions  +ForwardKeySize +ForwardURICompat -ForwardDirectories
+
+# JkRequestLogFormat set the request format
+JkRequestLogFormat "%w %V %T"</pre>
+5、 开启jk模组及其配置
+<pre>/etc/apache2$ sudo a2enmod jk</pre>
+6、添加一个VisualHost
+<pre>/etc/apache2$ sudo vi sites-available/tomcat</pre>
+内容如下
+<pre>&lt;VirtualHost *:80&gt;
+ ServerAdmin root@bj.ossxp.com
+ ServerName tomcat6.moon.ossxp.com
+ ServerAlias tomcat.moon.ossxp.com
+ DocumentRoot /var/www
+ ErrorLog /var/log/apache2/tomcat-error.log
+ LogLevel warn
+ CustomLog /var/log/apache2/tomcat.log combined
+
+ JKMount /* ajp13_worker
+&lt;/VirtualHost&gt;</pre>
+7、开启该站点
+<pre>/etc/apache2$ sudo a2ensite tomcat</pre>
+8、重启tomcat6和apache2
+
+<strong>注意在重启tomcat6 时应该首先修改/etc/tomcat6/server.xml文件，打开8009端口。</strong><strong>
+在默认情况下，debian 安装的tomcat6关闭掉了8009端口
+</strong>
+<pre>&lt;!-- Define an AJP 1.3 Connector on port 8009 --&gt;
+&lt;!--
+&lt;Connector port="8009" protocol="AJP/1.3" redirectPort="8443" /&gt;
+--&gt;</pre>
+<strong>同时要考虑到如果你的机器上已经安装了tomcat5.5,那么这将造成端口冲突。</strong>
+<pre>sudo /etc/init.d/tomcat6 restart
+sudo /etc/init.d/apache2 restart</pre>
+打开浏览器输入 tomcat6.moon.ossxp.com 你就可以看到tomcat的主界面了

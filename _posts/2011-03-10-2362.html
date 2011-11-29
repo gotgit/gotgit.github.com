@@ -1,0 +1,1078 @@
+---
+layout: post
+title: "《GotGit》附录A Git 命令索引"
+---
+
+<h1><a>附录A. Git 命令索引</a></h1>
+每一个 Git 子命令都和特定目录下的一个名为 <cite>git-&lt;cmd&gt;</cite> 的文件相对应，也就是在这个特定目录下存在的名为 <cite>git-&lt;cmd&gt;</cite> 的可执行文件（有几个脚本文件被其他脚本包含提供相应的函数库，不能单独运行。如 <cite>git-sh-setup</cite> ）可以用命令 <cite>git &lt;cmd&gt;</cite> 执行。这个特定的目录的位置可以用下面的命令查看：
+<pre>$ git --exec-path
+/usr/lib/git-core/</pre>
+在这个目录下有150多个可执行文件，也就是说 Git  有非常多的子命令。在如此众多的子命令中，实际上常用的只有三分之一不到，其余的命令或者做为底层命令供其他命令及脚本调用，或者用于某些生僻场合，或者 已经过时但出于兼容性的考虑而仍然健在。下面的表格分门别类的对所有Git命令做一概要性介绍，凡是在本书出现过的命令标以章节号和页码。
+
+<span id="more-2362"></span>
+<div id="a-1-git">
+<h2><a>A.1 常用的Git命令</a></h2>
+<table border="1"><colgroup> <col width="24%"></col> <col width="19%"></col> <col width="18%"></col> <col width="40%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git add</td>
+<td>4.1; 10.2.3; 10.4</td>
+<td>xxx; xxx; xxx</td>
+<td>添加至暂存区</td>
+</tr>
+<tr>
+<td>git add--interactive</td>
+<td>10.6</td>
+<td></td>
+<td>交互式添加</td>
+</tr>
+<tr>
+<td>git apply</td>
+<td>38.1</td>
+<td></td>
+<td>应用补丁</td>
+</tr>
+<tr>
+<td>git am</td>
+<td>20.2</td>
+<td></td>
+<td>应用邮件格式补丁</td>
+</tr>
+<tr>
+<td>git annotate</td>
+<td>-</td>
+<td>-</td>
+<td>同义词，等同于 git blame</td>
+</tr>
+<tr>
+<td>git archive</td>
+<td>10.9</td>
+<td></td>
+<td>文件归档打包</td>
+</tr>
+<tr>
+<td>git bisect</td>
+<td>11.4.6</td>
+<td></td>
+<td>二分查找</td>
+</tr>
+<tr>
+<td>git blame</td>
+<td>11.4.5</td>
+<td></td>
+<td>文件逐行追溯</td>
+</tr>
+<tr>
+<td>git branch</td>
+<td>18.2</td>
+<td></td>
+<td>分支管理</td>
+</tr>
+<tr>
+<td>git cat-file</td>
+<td>6.1</td>
+<td></td>
+<td>版本库对象研究工具</td>
+</tr>
+<tr>
+<td>git checkout</td>
+<td>8.1; 18.4.2</td>
+<td></td>
+<td>检出到工作区、切换或创建分支</td>
+</tr>
+<tr>
+<td>git cherry-pick</td>
+<td>12.3.1</td>
+<td></td>
+<td>提交拣选</td>
+</tr>
+<tr>
+<td>git citool</td>
+<td>11.1</td>
+<td></td>
+<td>图形化提交，相当于 git gui 命令</td>
+</tr>
+<tr>
+<td>git clean</td>
+<td>5.3</td>
+<td></td>
+<td>清除工作区未跟踪文件</td>
+</tr>
+<tr>
+<td>git clone</td>
+<td>13.1; 41.3.2</td>
+<td></td>
+<td>克隆版本库</td>
+</tr>
+<tr>
+<td>git commit</td>
+<td>4.1; 4.4; 5.4</td>
+<td></td>
+<td>提交</td>
+</tr>
+<tr>
+<td>git config</td>
+<td>4.3</td>
+<td></td>
+<td>查询和修改配置</td>
+</tr>
+<tr>
+<td>git describe</td>
+<td>17.1</td>
+<td></td>
+<td>通过里程碑直观地显示提交ID</td>
+</tr>
+<tr>
+<td>git diff</td>
+<td>5.3</td>
+<td></td>
+<td>差异比较</td>
+</tr>
+<tr>
+<td>git difftool</td>
+<td>-</td>
+<td>-</td>
+<td>调用图形化差异比较工具</td>
+</tr>
+<tr>
+<td>git fetch</td>
+<td>19.1</td>
+<td></td>
+<td>获取远程版本库的提交</td>
+</tr>
+<tr>
+<td>git format-patch</td>
+<td>20.1</td>
+<td></td>
+<td>创建邮件格式的补丁文件。参见 git am 命令</td>
+</tr>
+<tr>
+<td>git grep</td>
+<td>4.2</td>
+<td></td>
+<td>文件内容搜索定位工具</td>
+</tr>
+<tr>
+<td>git gui</td>
+<td>11.1</td>
+<td></td>
+<td>基于Tcl/Tk的图形化工具，侧重提交等操作</td>
+</tr>
+<tr>
+<td>git help</td>
+<td>3.1.2</td>
+<td></td>
+<td>帮助</td>
+</tr>
+<tr>
+<td>git init</td>
+<td>4.1; 13.4</td>
+<td></td>
+<td>版本库初始化</td>
+</tr>
+<tr>
+<td>git init-db*</td>
+<td>-</td>
+<td>-</td>
+<td>同义词，等同于 git init</td>
+</tr>
+<tr>
+<td>git log</td>
+<td>11.4.3</td>
+<td></td>
+<td>显示提交日志</td>
+</tr>
+<tr>
+<td>git merge</td>
+<td>16.1</td>
+<td></td>
+<td>分支合并</td>
+</tr>
+<tr>
+<td>git mergetool</td>
+<td>16.4.2</td>
+<td></td>
+<td>图形化冲突解决</td>
+</tr>
+<tr>
+<td>git mv</td>
+<td>10.4</td>
+<td></td>
+<td>重命名</td>
+</tr>
+<tr>
+<td>git pull</td>
+<td>13.1</td>
+<td></td>
+<td>拉回远程版本库的提交</td>
+</tr>
+<tr>
+<td>git push</td>
+<td>13.1</td>
+<td></td>
+<td>推送至远程版本库</td>
+</tr>
+<tr>
+<td>git rebase</td>
+<td>12.3.2</td>
+<td></td>
+<td>分支变基</td>
+</tr>
+<tr>
+<td>git rebase--interactive</td>
+<td>12.3.3</td>
+<td></td>
+<td>交互式分支变基</td>
+</tr>
+<tr>
+<td>git reflog</td>
+<td>7.2</td>
+<td></td>
+<td>分支等引用变更记录管理</td>
+</tr>
+<tr>
+<td>git remote</td>
+<td>19.3</td>
+<td></td>
+<td>远程版本库管理</td>
+</tr>
+<tr>
+<td>git repo-config*</td>
+<td>-</td>
+<td>-</td>
+<td>同义词，等同于 git config</td>
+</tr>
+<tr>
+<td>git reset</td>
+<td>7.1</td>
+<td></td>
+<td>重置改变分支“游标”指向</td>
+</tr>
+<tr>
+<td>git rev-parse</td>
+<td>4.2; 11.4.1</td>
+<td></td>
+<td>将各种引用表示法转换为哈希值等</td>
+</tr>
+<tr>
+<td>git revert</td>
+<td>12.5</td>
+<td></td>
+<td>反转提交</td>
+</tr>
+<tr>
+<td>git rm</td>
+<td>10.2.2</td>
+<td></td>
+<td>删除文件</td>
+</tr>
+<tr>
+<td>git show</td>
+<td>11.4.3</td>
+<td></td>
+<td>显示各种类型的对象</td>
+</tr>
+<tr>
+<td>git stage*</td>
+<td>-</td>
+<td>-</td>
+<td>同义词，等同于 git add</td>
+</tr>
+<tr>
+<td>git stash</td>
+<td>9.2</td>
+<td></td>
+<td>保存和恢复进度</td>
+</tr>
+<tr>
+<td>git status</td>
+<td>5.1</td>
+<td></td>
+<td>显示工作区文件状态</td>
+</tr>
+<tr>
+<td>git tag</td>
+<td>17.1</td>
+<td></td>
+<td>里程碑管理</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-2">
+<h2><a>A.2 对象库操作相关命令</a></h2>
+<table border="1"><colgroup> <col width="29%"></col> <col width="16%"></col> <col width="11%"></col> <col width="44%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git commit-tree</td>
+<td>12.4</td>
+<td></td>
+<td>从树对象创建提交</td>
+</tr>
+<tr>
+<td>git hash-object</td>
+<td>12.4</td>
+<td></td>
+<td>从标准输入或文件计算哈希值或创建对象</td>
+</tr>
+<tr>
+<td>git ls-files</td>
+<td>5.3; 18.4.2</td>
+<td></td>
+<td>显示工作区和暂存区文件</td>
+</tr>
+<tr>
+<td>git ls-tree</td>
+<td>5.3</td>
+<td></td>
+<td>显示树对象包含的文件</td>
+</tr>
+<tr>
+<td>git mktag</td>
+<td>-</td>
+<td>-</td>
+<td>读取标准输入创建一个里程碑对象</td>
+</tr>
+<tr>
+<td>git mktree</td>
+<td>-</td>
+<td>-</td>
+<td>读取标准输入创建一个树对象</td>
+</tr>
+<tr>
+<td>git read-tree</td>
+<td>24.2</td>
+<td></td>
+<td>读取树对象到暂存区</td>
+</tr>
+<tr>
+<td>git update-index</td>
+<td>41.3.1</td>
+<td></td>
+<td>工作区内容注册到暂存区及暂存区管理</td>
+</tr>
+<tr>
+<td>git unpack-file</td>
+<td>-</td>
+<td>-</td>
+<td>创建临时文件包含指定 blob 的内容</td>
+</tr>
+<tr>
+<td>git write-tree</td>
+<td>5.3</td>
+<td></td>
+<td>从暂存区创建一个树对象</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-3">
+<h2><a>A.3 引用操作相关命令</a></h2>
+<table border="1"><colgroup> <col width="29%"></col> <col width="16%"></col> <col width="11%"></col> <col width="44%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git check-ref-format</td>
+<td>17.7</td>
+<td></td>
+<td>检查引用名称是否符合规范</td>
+</tr>
+<tr>
+<td>git for-each-ref</td>
+<td>-</td>
+<td>-</td>
+<td>引用迭代器，用于shell编程</td>
+</tr>
+<tr>
+<td>git ls-remote</td>
+<td>13.4</td>
+<td></td>
+<td>显示远程版本库的引用</td>
+</tr>
+<tr>
+<td>git name-rev</td>
+<td>17.1</td>
+<td></td>
+<td>将提交ID显示为友好名称</td>
+</tr>
+<tr>
+<td>git peek-remote*</td>
+<td>-</td>
+<td>-</td>
+<td>过时命令，请使用 git ls-remote</td>
+</tr>
+<tr>
+<td>git rev-list</td>
+<td>11.4.2</td>
+<td></td>
+<td>显示版本范围</td>
+</tr>
+<tr>
+<td>git show-branch</td>
+<td>-</td>
+<td>-</td>
+<td>显示分支列表及拓扑关系</td>
+</tr>
+<tr>
+<td>git show-ref</td>
+<td>14.1</td>
+<td></td>
+<td>显示本地引用</td>
+</tr>
+<tr>
+<td>git symbolic-ref</td>
+<td>-</td>
+<td>-</td>
+<td>显示或者设置符号引用</td>
+</tr>
+<tr>
+<td>git update-ref</td>
+<td>-</td>
+<td>-</td>
+<td>更新引用的指向</td>
+</tr>
+<tr>
+<td>git verify-tag</td>
+<td>-</td>
+<td>-</td>
+<td>校验 GPG 签名的Tag</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-4">
+<h2><a>A.4 版本库管理相关命令</a></h2>
+<table border="1"><colgroup> <col width="29%"></col> <col width="16%"></col> <col width="11%"></col> <col width="44%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git count-objects</td>
+<td>-</td>
+<td>-</td>
+<td>显示松散对象的数量和磁盘占用</td>
+</tr>
+<tr>
+<td>git filter-branch</td>
+<td>35.4</td>
+<td></td>
+<td>版本库重构</td>
+</tr>
+<tr>
+<td>git fsck</td>
+<td>14.2</td>
+<td></td>
+<td>对象库完整性检查</td>
+</tr>
+<tr>
+<td>git fsck-objects*</td>
+<td>-</td>
+<td>-</td>
+<td>同义词，等同于 git fsck</td>
+</tr>
+<tr>
+<td>git gc</td>
+<td>14.4</td>
+<td></td>
+<td>版本库存储优化</td>
+</tr>
+<tr>
+<td>git index-pack</td>
+<td>-</td>
+<td>-</td>
+<td>从打包文件创建对应的索引文件</td>
+</tr>
+<tr>
+<td>git lost-found*</td>
+<td>-</td>
+<td>-</td>
+<td>过时，请使用 git fsck --lost-found 命令</td>
+</tr>
+<tr>
+<td>git pack-objects</td>
+<td>-</td>
+<td>-</td>
+<td>从标准输入读入对象ID，打包到文件</td>
+</tr>
+<tr>
+<td>git pack-redundant</td>
+<td>-</td>
+<td>-</td>
+<td>查找多余的 pack 文件</td>
+</tr>
+<tr>
+<td>git pack-refs</td>
+<td>14.1</td>
+<td></td>
+<td>将引用打包到 .git/packed-refs 文件中</td>
+</tr>
+<tr>
+<td>git prune</td>
+<td>14.2</td>
+<td></td>
+<td>从对象库删除过期对象</td>
+</tr>
+<tr>
+<td>git prune-packed</td>
+<td>-</td>
+<td>-</td>
+<td>将已经打包的松散对象删除</td>
+</tr>
+<tr>
+<td>git relink</td>
+<td>-</td>
+<td>-</td>
+<td>为本地版本库中相同的对象建立硬连接</td>
+</tr>
+<tr>
+<td>git repack</td>
+<td>14.4</td>
+<td></td>
+<td>将版本库未打包的松散对象打包</td>
+</tr>
+<tr>
+<td>git show-index</td>
+<td>14.1</td>
+<td></td>
+<td>读取包的索引文件，显示打包文件中的内容</td>
+</tr>
+<tr>
+<td>git unpack-objects</td>
+<td>-</td>
+<td>-</td>
+<td>从打包文件释放文件</td>
+</tr>
+<tr>
+<td>git verify-pack</td>
+<td>-</td>
+<td>-</td>
+<td>校验对象库打包文件</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-5">
+<h2><a>A.5 数据传输相关命令</a></h2>
+<table border="1"><colgroup> <col width="16%"></col> <col width="8%"></col> <col width="8%"></col> <col width="67%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git fetch-pack</td>
+<td>15.1</td>
+<td></td>
+<td>执行 git fetch 或 git pull 命令时在本地执行此命令，用于从其他版本库获取缺失的对象</td>
+</tr>
+<tr>
+<td>git receive-pack</td>
+<td>15.1</td>
+<td></td>
+<td>执行 git push 命令时在远程执行的命令，用于接受推送的数据</td>
+</tr>
+<tr>
+<td>git send-pack</td>
+<td>15.1</td>
+<td></td>
+<td>执行 git push 命令时在本地执行的命令，用于向其他版本库推送数据</td>
+</tr>
+<tr>
+<td>git upload-archive</td>
+<td>-</td>
+<td>-</td>
+<td>执行 git archive --remote 命令基于远程版本库创建归档时，远程版本库执行此命令传送归档</td>
+</tr>
+<tr>
+<td>git upload-pack</td>
+<td>15.1</td>
+<td></td>
+<td>执行 git fetch 或 git pull 命令时在远程执行此命令，将对象打包、上传</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-6">
+<h2><a>A.6 邮件相关命令</a></h2>
+<table border="1"><colgroup> <col width="26%"></col> <col width="15%"></col> <col width="10%"></col> <col width="48%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git imap-send</td>
+<td>-</td>
+<td>-</td>
+<td>将补丁通过 IMAP 发送</td>
+</tr>
+<tr>
+<td>git mailinfo</td>
+<td>-</td>
+<td>-</td>
+<td>从邮件导出提交说明和补丁</td>
+</tr>
+<tr>
+<td>git mailsplit</td>
+<td>-</td>
+<td>-</td>
+<td>将 mbox 或 Maildir 格式邮箱中邮件逐一提取为文件</td>
+</tr>
+<tr>
+<td>git request-pull</td>
+<td>21.2.1</td>
+<td></td>
+<td>创建包含提交间差异和执行PULL操作地址的信息</td>
+</tr>
+<tr>
+<td>git send-email</td>
+<td>20.1</td>
+<td></td>
+<td>发送邮件</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-7">
+<h2><a>A.7 协议相关命令</a></h2>
+<table border="1"><colgroup> <col width="27%"></col> <col width="15%"></col> <col width="10%"></col> <col width="48%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git daemon</td>
+<td>28.2</td>
+<td></td>
+<td>实现Git协议</td>
+</tr>
+<tr>
+<td>git http-backend</td>
+<td>27.2</td>
+<td></td>
+<td>实现HTTP协议的CGI程序，支持智能HTTP协议</td>
+</tr>
+<tr>
+<td>git instaweb</td>
+<td>27.3.4</td>
+<td></td>
+<td>即时启动浏览器通过 gitweb 浏览当前版本库</td>
+</tr>
+<tr>
+<td>git shell</td>
+<td>-</td>
+<td>-</td>
+<td>受限制的shell，提供仅执行Git命令的SSH访问</td>
+</tr>
+<tr>
+<td>git update-server-info</td>
+<td>15.1</td>
+<td></td>
+<td>更新哑协议需要的辅助文件</td>
+</tr>
+<tr>
+<td>git http-fetch</td>
+<td>-</td>
+<td>-</td>
+<td>通过HTTP协议获取版本库</td>
+</tr>
+<tr>
+<td>git http-push</td>
+<td>-</td>
+<td>-</td>
+<td>通过HTTP/DAV协议推送</td>
+</tr>
+<tr>
+<td>git remote-ext</td>
+<td>-</td>
+<td>-</td>
+<td>由Git命令调用，通过外部命令提供扩展协议支持</td>
+</tr>
+<tr>
+<td>git remote-fd</td>
+<td>-</td>
+<td>-</td>
+<td>由Git命令调用，使用文件描述符作为协议接口</td>
+</tr>
+<tr>
+<td>git remote-ftp</td>
+<td>-</td>
+<td>-</td>
+<td>由Git命令调用，提供对FTP协议的支持</td>
+</tr>
+<tr>
+<td>git remote-ftps</td>
+<td>-</td>
+<td>-</td>
+<td>由Git命令调用，提供对FTPS协议的支持</td>
+</tr>
+<tr>
+<td>git remote-http</td>
+<td>-</td>
+<td>-</td>
+<td>由Git命令调用，提供对HTTP协议的支持</td>
+</tr>
+<tr>
+<td>git remote-https</td>
+<td>-</td>
+<td>-</td>
+<td>由Git命令调用，提供对HTTPS协议的支持</td>
+</tr>
+<tr>
+<td>git remote-testgit</td>
+<td>-</td>
+<td>-</td>
+<td>协议扩展示例脚本</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-8">
+<h2><a>A.8 版本库转换和交互相关命令</a></h2>
+<table border="1"><colgroup> <col width="27%"></col> <col width="16%"></col> <col width="11%"></col> <col width="46%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git archimport</td>
+<td>-</td>
+<td>-</td>
+<td>导入Arch版本库到Git</td>
+</tr>
+<tr>
+<td>git bundle</td>
+<td>-</td>
+<td>-</td>
+<td>提交打包和解包，以便在不同版本库间传递</td>
+</tr>
+<tr>
+<td>git cvsexportcommit</td>
+<td>-</td>
+<td>-</td>
+<td>将Git的一个提交作为一个CVS检出</td>
+</tr>
+<tr>
+<td>git cvsimport</td>
+<td>-</td>
+<td>-</td>
+<td>导入CVS版本库到Git。或者使用 cvs2git</td>
+</tr>
+<tr>
+<td>git cvsserver</td>
+<td>-</td>
+<td>-</td>
+<td>Git的CVS协议模拟器，可供CVS命令访问Git版本库</td>
+</tr>
+<tr>
+<td>git fast-export</td>
+<td>-</td>
+<td>-</td>
+<td>将提交导出为 git-fast-import 格式</td>
+</tr>
+<tr>
+<td>git fast-import</td>
+<td>35.3</td>
+<td></td>
+<td>其他版本库迁移至Git的通用工具</td>
+</tr>
+<tr>
+<td>git svn</td>
+<td>26.1</td>
+<td></td>
+<td>Git 作为前端操作 Subversion</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="a-9">
+<h2><a>A.9 合并相关的辅助命令</a></h2>
+<table border="1"><colgroup> <col width="24%"></col> <col width="14%"></col> <col width="9%"></col> <col width="53%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git merge-base</td>
+<td>11.4.2</td>
+<td></td>
+<td>供其他脚本调用，找到两个或多个提交最近的共同祖先</td>
+</tr>
+<tr>
+<td>git merge-file</td>
+<td>-</td>
+<td>-</td>
+<td>针对文件的两个不同版本执行三向文件合并</td>
+</tr>
+<tr>
+<td>git merge-index</td>
+<td>-</td>
+<td>-</td>
+<td>对index中的冲突文件调用指定的冲突解决工具</td>
+</tr>
+<tr>
+<td>git merge-octopus</td>
+<td>-</td>
+<td>-</td>
+<td>合并两个以上分支。参见 git merge 的octopus合并策略</td>
+</tr>
+<tr>
+<td>git merge-one-file</td>
+<td>-</td>
+<td>-</td>
+<td>由 git merge-index 调用的标准辅助程序</td>
+</tr>
+<tr>
+<td>git merge-ours</td>
+<td>-</td>
+<td>-</td>
+<td>合并使用本地版本，抛弃他人版本。参见 git merge 的ours合并策略</td>
+</tr>
+<tr>
+<td>git merge-recursive</td>
+<td>-</td>
+<td>-</td>
+<td>针对两个分支的三向合并。参见 git merge 的recursive合并策略</td>
+</tr>
+<tr>
+<td>git merge-resolve</td>
+<td>-</td>
+<td>-</td>
+<td>针对两个分支的三向合并。参见 git merge 的resolve合并策略</td>
+</tr>
+<tr>
+<td>git merge-subtree</td>
+<td>-</td>
+<td>-</td>
+<td>子树合并。参见 git merge 的 subtree 合并策略</td>
+</tr>
+<tr>
+<td>git merge-tree</td>
+<td>-</td>
+<td>-</td>
+<td>显式三向合并结果，不改变暂存区</td>
+</tr>
+<tr>
+<td>git fmt-merge-msg</td>
+<td>-</td>
+<td>-</td>
+<td>供执行合并操作的脚本调用，用于创建一个合并提交说明</td>
+</tr>
+<tr>
+<td>git rerere</td>
+<td>-</td>
+<td>-</td>
+<td>重用所记录的冲突解决方案</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2><a>A.10 杂项</a></h2>
+<table border="1"><colgroup> <col width="24%"></col> <col width="14%"></col> <col width="9%"></col> <col width="53%"></col> </colgroup>
+<thead>
+<tr>
+<th>命令</th>
+<th>相关章节</th>
+<th>页数</th>
+<th>简要说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>git bisect--helper</td>
+<td>-</td>
+<td>-</td>
+<td>由 git bisect 命令调用，确认二分查找进度</td>
+</tr>
+<tr>
+<td>git check-attr</td>
+<td>41.1.2</td>
+<td></td>
+<td>显示某个文件是否设置了某个属性</td>
+</tr>
+<tr>
+<td>git checkout-index</td>
+<td>-</td>
+<td>-</td>
+<td>从暂存区拷贝文件至工作区</td>
+</tr>
+<tr>
+<td>git cherry</td>
+<td>-</td>
+<td>-</td>
+<td>查找没有合并到上游的提交</td>
+</tr>
+<tr>
+<td>git diff-files</td>
+<td>-</td>
+<td>-</td>
+<td>比较暂存区和工作区，相当于 git diff --raw</td>
+</tr>
+<tr>
+<td>git diff-index</td>
+<td>-</td>
+<td>-</td>
+<td>比较暂存区和版本库，相当于 git diff --cached --raw</td>
+</tr>
+<tr>
+<td>git diff-tree</td>
+<td>-</td>
+<td>-</td>
+<td>比较两个树对象，相当于 git diff --raw A B</td>
+</tr>
+<tr>
+<td>git difftool--helper</td>
+<td>-</td>
+<td>-</td>
+<td>由 git difftool 命令调用，默认要使用的差异比较工具</td>
+</tr>
+<tr>
+<td>git get-tar-commit-id</td>
+<td>10.9</td>
+<td></td>
+<td>从 git archive 创建的 tar 包中提取提交ID</td>
+</tr>
+<tr>
+<td>git gui--askpass</td>
+<td>-</td>
+<td>-</td>
+<td>命令 git gui 的获取用户口令输入界面</td>
+</tr>
+<tr>
+<td>git notes</td>
+<td>41.5</td>
+<td></td>
+<td>提交评论管理</td>
+</tr>
+<tr>
+<td>git patch-id</td>
+<td>-</td>
+<td>-</td>
+<td>补丁过滤行号和空白字符后生成补丁唯一ID</td>
+</tr>
+<tr>
+<td>git quiltimport</td>
+<td>20.3.2</td>
+<td></td>
+<td>将Quilt补丁列表应用到当前分支</td>
+</tr>
+<tr>
+<td>git replace</td>
+<td>41.4.2</td>
+<td></td>
+<td>提交替换</td>
+</tr>
+<tr>
+<td>git shortlog</td>
+<td>-</td>
+<td>-</td>
+<td>对 git log 的汇总输出，适合于产品发布说明</td>
+</tr>
+<tr>
+<td>git stripspace</td>
+<td>-</td>
+<td>-</td>
+<td>删除空行，供其他脚本调用</td>
+</tr>
+<tr>
+<td>git submodule</td>
+<td>23.1</td>
+<td></td>
+<td>子模组管理</td>
+</tr>
+<tr>
+<td>git tar-tree</td>
+<td>-</td>
+<td>-</td>
+<td>过时命令，请使用 git archive</td>
+</tr>
+<tr>
+<td>git var</td>
+<td>-</td>
+<td>-</td>
+<td>显示 Git 环境变量</td>
+</tr>
+<tr>
+<td>git web--browse</td>
+<td>-</td>
+<td>-</td>
+<td>启动浏览器以查看目录或文件</td>
+</tr>
+<tr>
+<td>git whatchanged</td>
+<td>-</td>
+<td>-</td>
+<td>显示提交历史及每次提交的改动</td>
+</tr>
+<tr>
+<td>git-mergetool--lib</td>
+<td>-</td>
+<td>-</td>
+<td>包含于其他脚本中，提供合并/差异比较工具的选择和执行</td>
+</tr>
+<tr>
+<td>git-parse-remote</td>
+<td>-</td>
+<td>-</td>
+<td>包含于其他脚本中，提供操作远程版本库的函数</td>
+</tr>
+<tr>
+<td>git-sh-setup</td>
+<td>-</td>
+<td>-</td>
+<td>包含于其他脚本中，提供 shell 编程的函数库</td>
+</tr>
+</tbody>
+</table>

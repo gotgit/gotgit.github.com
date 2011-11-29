@@ -1,0 +1,61 @@
+---
+layout: post
+title: "Python setuptools hack: get revision from git-svn"
+---
+
+Python egg 打包有赖于 setuptools。setuptools 有一个功能很有意思，就是准备打包的软件如果使用了 subversion 版本控制系统，会自动将当前SVN的提交版本号附加在生成的软件包文件名中。
+
+例如：pySvnManager-0.4.1dev-r131.tar.gz 中的 r131 含义就是从 svn 的 131 提交版本创建的源码包。
+
+但是如果使用 git-svn来检出 svn 版本库，再运行打包命令 "python setup.py sdist"，就失去了这个帅呆了的功能。怎么办呢？
+
+Hack 一下 setuptools 呗，之前就干过。
+<h2><span id="more-1295"></span>曾经的 Hack： setuptools 不支持新版本的 SVN</h2>
+之前就遇到过，当使用最新的 SVN 客户端时，setuptools 用于从 .svn/entries 文件解析出当前提交版本时，因不能识别 SVN 版本而失败。
+
+从下面的代码可以看到，当 SVN 新版本推出后，setuptools 需要进行相应的更新，这肯定要有一个时间差。
+<pre> f = open(os.path.join(base,'.svn','entries'))
+ data = f.read()
+ f.close()
+
+ if data.startswith('10') or data.startswith('9') or data.startswith('8'):</pre>
+SVN 1.6 的 .svn/entries 文件头一行的版本标识是 10, svn1.5 是9, svn 1.4 是 8。
+<h2>Hack： 从 Git-svn 版本控制系统获取版本号</h2>
+其实也很简单，运行 git log 命令就可以看到 SVN 相应的版本号：
+<pre>$ <strong>git log -1</strong>
+commit 6a6a3a0f1f9e08f78d75bbe655637bbc95f52220
+Author: jiangx &lt;jiangx@39c8d0d3-2d71-4a2c-8909-36513c942afe&gt;
+Date:   Wed Jun 2 01:02:26 2010 +0000
+
+ v0.4.1: Update svn hooks sync with ossxp-svn-tools; parse_ini.sh break if sh is dash instead of bash.
+
+ git-svn-id: https://pysvnmanager.svn.sourceforge.net/svnroot/pysvnmanager/trunk@131 39c8d0d3-2d71-4a2c-8909-36513c942afe</pre>
+只需要 Hack setuptools 中的一个文件就可以了：
+<pre>
+--- /usr/lib/python2.6/dist-packages/setuptools/command/egg_info.py.0 2010-10-08 09:32:55.592618902 +0800                                                   
++++ /usr/lib/python2.6/dist-packages/setuptools/command/egg_info.py 2010-10-08 09:36:20.392683308 +0800
+@@ -183,7 +183,7 @@
+         if self.tag_build:
+             version+=self.tag_build
+         if self.tag_svn_revision and (
+-            os.path.exists('.svn') or os.path.exists('PKG-INFO')
++            os.path.exists('.svn') or os.path.exists('PKG-INFO') or os.path.exists('.git/svn')
+         ):  version += '-r%s' % self.get_svn_revision()
+         if self.tag_date:
+             import time; version += time.strftime("-%Y%m%d")
+@@ -238,6 +238,17 @@
+                 continue    # not part of the same svn tree, skip it
+             revision = max(revision, localrev)
+
++        if revision == 0 and os.path.exists('.git/svn'):
++            from subprocess import Popen, PIPE, STDOUT
++            pattern = re.compile(r'git-svn-id:.*@([0-9]+)\s+.*$')
++            proc = Popen('git log -1', stdout=PIPE, shell=True)
++            for line in proc.stdout.readlines():
++                line = line.strip()
++                match = pattern.search(line)
++                if match:
++                    revision = match.group(1)
++                    break
++
+         return str(revision or get_pkg_info_revision())</pre>

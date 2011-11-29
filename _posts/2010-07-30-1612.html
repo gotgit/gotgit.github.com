@@ -1,0 +1,121 @@
+---
+layout: post
+title: "nVidia 显卡在 Debian sarge 最新 linux 内核中的驱动"
+---
+
+我的笔记本安装的是 Debian sarge，上次升级内核到 linux 2.6.32-5, nVidia 的驱动就一直没有跑起来，今天下班后，仔细研究了一下。
+<h2>先说一下 nouveau 和 nVidia 驱动的历史</h2>
+Linux 和 Windows 相比，让用户觉得上手比较难，一个很重要的原因就是驱动不易安装。
+<ul>
+	<li>Windows 本身内置了大量的设备驱动</li>
+	<li>因为 Windows 的普及，硬件厂商首选是开发针对 Windows 的设备驱动</li>
+	<li>再有一个就是 Windows 升级比较缓慢，Windows XP 的历史都快10年了，硬件厂商的支持难度要小</li>
+</ul>
+就 nVidia 显卡来说，其实 Linux 的支持也是满不错的：
+<ul>
+	<li>Linux 内置了 nv 驱动：<em>xserver-xorg-video-nv</em> 。对 2D 支持尚可，3D 则是完全的不支持</li>
+	<li>nVidia 官方曾经发布过开源的驱动 <em>nvidia-glx</em> 但不久就宣布不再支持。现在 nVidia 提供非开源的 Linux 驱动，在官网提供下载链接： <a title="nVidia 官方 Linux 驱动下载" href="http://www.nvidia.com/object/unix.html">http://www.nvidia.com/object/unix.html</a></li>
+	<li>因为 nVidia 官方的驱动和 Linux 操作系统的开放版权向背，各个 Linux 发行版都没有将 nVidia 官方的驱动集成到发行版中，造成用户安装 Linux 不能像 Windows 那样下载拆包即装的硬件驱动，只能使用功能较弱的内置驱动。</li>
+</ul>
+为了发挥显卡的最大功效，使用 3D 桌面或者运行 Google Earth 之类软件，我是这样安装 nVidia 驱动的：
+<ul>
+	<li>首先在 Linux 中要安装 gcc，g++ 等软件开发环境，因为编译硬件驱动需要。</li>
+	<li>下载 nVidia 驱动。见官方驱动下载网页：<a title="nVidia 官方 Linux 驱动下载" href="http://www.nvidia.com/object/unix.html">http://www.nvidia.com/object/unix.html</a></li>
+	<li>启动 Linux 到文本控制台。如果进入了 X Window，需要杀掉 X，进入控制台界面。</li>
+	<li>运行从 nVidia 下载的软件包，按照界面一步一步操作，即可编译出内核模组和 Xorg 的设备驱动</li>
+	<li>编辑 /etc/X11/xorg.conf 设置： <span style="text-decoration: underline;"><em>Driver   "nvidia"</em></span></li>
+	<li>如果 Linux 升级？需要重新执行上面的步骤。</li>
+</ul>
+是不是太繁琐了？谁让你频繁升级呢？ :-D
+
+好消息是 Nouveau 来了，你看其中有字母 n 和 v，猜出来了么？这是 nVidia 在 Linux 下新的开源驱动名称。<a href="http://nouveau.freedesktop.org/wiki/">Nouveau</a> 是通过针对 nVidia 显卡驱动反向工程，实现的 nVidia 开源显卡驱动，目标是提供完全的 3D 驱动支持。较 Linux 之前提供的 nv 驱动大大的前进了，甚至有一天会盖过官方的驱动。
+<h2><span id="more-1612"></span>如何使用 Nouveau 驱动</h2>
+Linus Torvalds 终于决定将 nouveau 驱动加到 Linux 内核中。当我将 Linux 内核升级到 linux 2.6.32-5 的时候，就发现不同了：
+<ul>
+	<li>Linux 启动过程，控制台分辨率自动提升到最佳，控制台的分辨率前所未有！</li>
+	<li>X Window 启动失败是当然的，因为 X 使用的 nVidia 驱动，新的 Linux 内核尚为编译匹配的 nVidia 内核模组</li>
+	<li>但是编译 nVidia 官方提供的驱动软件失败！失败信息：
+<pre>Unable to load the kernel module 'nvidia.ko'. This happens most
+frequently when this kernel module was build against the wrong or
+improperly configured kernel sources, with a version of gcc that
+differs from the one used to build the target kernel, or if a driver
+such as rivafb/nvidiafb is present apd prevents the NVIDIA kernel
+module from obtaining ownership of the NVIDIA graphics device(s), or
+NVIDIA GPU installed in this system is not supported by the NVIDIA
+LINUX graphics driver release.</pre>
+</li>
+</ul>
+实际上编译 nvidia 驱动失败，是因为内核已经加载了一个替代的驱动： nouveau。通过命令查看模组加载：
+<pre>$ lsmod |grep nouveau
+nouveau               353136  1
+...
+</pre>
+升级上如果对 3D 要求不高的话，完全不必安装 nVidia 官方驱动，直接用 nouveau 就可以了。你需要做的是：
+<ul>
+	<li>安装 xorg 相关驱动：
+<pre>$ sudo aptitude install xserver-xorg-video-nouveau</pre>
+</li>
+	<li>修改 /etc/X11/xorg.conf 更改设备驱动。由 nvidia 改为 nouveau
+<pre>Section "Device"
+ Identifier     "Device0"
+ Driver         "nouveau"
+EndSection</pre>
+</li>
+	<li>重启 X 就可以了</li>
+</ul>
+<strong>使用 nouveau 的好处是：</strong>
+<ul>
+	<li>驱动随内核升级自动更新，免去了手工编译的烦恼</li>
+	<li>可以使用系统自带的显示器设置，能够很好的支持投影仪等多显示输出</li>
+	<li>能够发挥显卡最大的优势。2D支持完美，3D暂不支持 :-(</li>
+</ul>
+<h2>但是Nouveau 尚不完美。如何继续使用 nVidia 官方驱动？</h2>
+Nouveau 对 3D 的支持正在完善中，如果想开启 3D 驱动，需要从源码编译。可以参考官方文档：
+<ul>
+	<li>http://nouveau.freedesktop.org/wiki/GalliumHowto</li>
+</ul>
+如果想在 Linux 新内核（如 linux 2.6.32-5）中继续使用 nVidia 官方驱动，需要解决的一个问题是关闭内核加载 nouveau 驱动，这样才能成功编译及加载 nVidia 官方驱动。
+<ul>
+	<li>编辑 /boot/grub/grub.cfg 文件，在 linux /vmlinuz-2.6.32-5 行的后面加上 nomodeset，例如我的 grub 配置对应的修改：
+<pre>linux /vmlinuz-2.6.32-5-amd64 root=UUID=83ec3994-42f1-4695-9226-c6fec0b243e6 ro rootfstype=ext4 quiet vga=791 <strong>nomodeset</strong></pre>
+</li>
+	<li>修改完毕重启内核，会发现控制台没有继续切换到高分辨率模式，即没有加载 nouveau 模组。</li>
+	<li>然后，按照之前介绍的方法安装 nVidia 官方驱动，就有可以照常的使用 nVidia 官方驱动了。</li>
+</ul>
+<h2>后记</h2>
+公司其它人笔记本遇到另外的问题：“ATI Radeon 显卡安装 Debian sarge 版本，Xwindow 无法启动”。或者希望使用官方模组 fglrx。
+
+解决方法：
+<ul>
+	<li>在内核启动参数中添加 nomodeset 想禁止内核对 radeon 自动加载无效。因为 radeon 驱动不是编译到内核中，而是以模组型式存在。</li>
+	<li>可以编辑 /etc/modprobe.d/blacklist.conf 文件，添加下面一行，禁止在控制台状态加载 radeon 模组。
+<pre>blacklist radeon</pre>
+</li>
+</ul>
+通过 Google 搜索到关于 ATI 显卡配置的有意思的帖子，摘录如下：
+
+原地址：http://www.linuxquestions.org/questions/debian-26/radeon-xpress-200-problem-on-debian-squeeze-kernel-2-6-30-a-756271/
+<pre>The RadeonFB driver in the kernel interferes with ATI's driver. It's the same thing with nVidia's fb driver. I think you need to uncheck the RadeonFB option in the kernel config. But here's what you can do:
+
+CTRL+ALT+F1 to a terminal, and run:
+
+bash@debian # X -configure
+
+That will place a new: xorg.conf.new file in the home directory of whatever user you are logged in as.
+
+Then try:
+bash@debian # X -configure ~/xorg.conf.new
+
+If you get a textured background, the new xorg.conf.new file works. Then:
+
+bash@debian # sudo cp ~/xorg.conf.new /etc/X11/xorg.conf
+
+But if you do that, you'll blow away your original /etc/X11/xorg.conf
+
+You might be sorry if you don't back up the existing:
+/etc/X11/xorg.conf
+to:
+/etc/X11/xorg.conf.bak
+
+bash@debian # sudo mv /etc/X11/xorg.conf /etc/X11/xorg.conf.bak
+</pre>

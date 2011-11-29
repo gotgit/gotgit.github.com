@@ -1,0 +1,216 @@
+---
+layout: post
+title: "Python技巧篇(2)：工具模块"
+---
+
+Python作为一种高效的脚本语言，内置了很多实用的函数，同时也提供了丰富的工具模块，所有的这些使得Python用起来得心应手！
+
+下面是我总结的几种工具模块的应用技巧，当然还有很多我并不知道的技巧，望与广大的 Python fans 交流学习。
+
+<span id="more-598"></span>
+
+<strong>1、math模块</strong>
+<pre>&gt;&gt;&gt; import math
+&gt;&gt;&gt; math.pi
+3.1415926535897931
+&gt;&gt;&gt; math.e
+2.7182818284590451
+&gt;&gt;&gt; math.sin(2*math.pi/180)
+0.034899496702500969</pre>
+<strong>2、random模块</strong>
+<pre>&gt;&gt;&gt; import random
+&gt;&gt;&gt; random.random()
+0.40019449172525789
+&gt;&gt;&gt; random.random()
+0.063811948555701825
+&gt;&gt;&gt; random.randint(1,10)
+3
+&gt;&gt;&gt; random.randint(1,10)
+2
+
+&gt;&gt;&gt; random.choice(['a', 'b', 'c'])
+'a'
+&gt;&gt;&gt; random.choice(['a', 'b', 'c'])
+'c'</pre>
+<strong>3、decimal模块</strong>
+<pre>&gt;&gt;&gt; print 0.1+0.1+0.1-0.3
+5.55111512313e-17
+&gt;&gt;&gt; from decimal import Decimal
+&gt;&gt;&gt; Decimal('0.1')+Decimal('0.1')+Decimal('0.1')-Decimal('0.3')
+Decimal("0.0")</pre>
+<strong>4、re正则表达式</strong>
+
+re模块能够处理正则表达式的操作
+<ul>
+	<li>生成正则表达式对象
+compile(pattern, flags=0)构建一个正则表达式，返回该正则表达式对象
+<pre>&gt;&gt;&gt; import re
+&gt;&gt;&gt; ptn1 = re.compile('he')</pre>
+</li>
+	<li>进行匹配
+<ul>
+	<li>match() 确定正则表达式是否匹配字符串的开头</li>
+	<li>search() 扫描字符串以查找匹配</li>
+	<li>findall() 找到所有正则表达式匹配的子字符串，并把它们作为一个列表返回</li>
+	<li>finditer() 找到所有正则表达式匹配的子字符串，并把它们以迭代器的形式返回</li>
+</ul>
+<strong>match()和search()在没有发现匹配时返回None。如果匹配成功，一个MatchObject实例被返回，其中包含的匹配信息有：哪开始哪结束，匹配的子字符串等等。</strong>
+<ul>
+	<li>group() 返回通过正则表达式匹配到的字符串</li>
+	<li>start() 返回成功匹配开始位置</li>
+	<li>end()   返回成功匹配结束位置</li>
+	<li>span()  返回包含成功匹配开始和结束位置的元组</li>
+</ul>
+<pre>&gt;&gt;&gt; import re
+&gt;&gt;&gt; p1 = re.compile('h')
+&gt;&gt;&gt; str1 = 'hello world'
+&gt;&gt;&gt; md = p1.match(str1)
+&gt;&gt;&gt; print md
+&lt;_sre.SRE_Match object at 0x7f28e95c3238&gt;
+&gt;&gt;&gt; md.group()
+'h'
+&gt;&gt;&gt; md.start()
+0
+&gt;&gt;&gt; md.end()
+1
+&gt;&gt;&gt; md.span()
+(0, 1)
+&gt;&gt;&gt; p2 = re.compile('llo')
+&gt;&gt;&gt; md2 = p2.search(str1)
+&gt;&gt;&gt; md2.group()
+'llo'
+&gt;&gt;&gt; md2.span()
+(2, 5)
+&gt;&gt;&gt; p3 = re.compile('\d+')
+&gt;&gt;&gt; str2 = '12abc3de45'
+&gt;&gt;&gt; print p3.findall(str2)
+['12', '3', '45']
+&gt;&gt;&gt; iterator = p3.finditer(str2)
+&gt;&gt;&gt; iterator
+&lt;callable-iterator object at 0x7f28e96ba9d0&gt;
+&gt;&gt;&gt; for match in iterator:
+...     print match.span()
+...
+(0, 2)
+(5, 6)
+(8, 10)</pre>
+</li>
+</ul>
+<strong>5、用pickle存储Python的原生对象（对象的序列化以及反序列化）</strong>
+pickle模块是能够让我们直接在文件中存储几乎任何Python对象的高级工具，也并不要求我们把字符串转换来转换去。
+<pre># 向文件中存储数据
+&gt;&gt;&gt; data = {'a':97, 'b':98, 'A':65, 'B':66}
+&gt;&gt;&gt; datafile = open('data.txt','w')
+&gt;&gt;&gt; import pickle
+&gt;&gt;&gt; pickle.dump(data,datafile)
+&gt;&gt;&gt; datafile.close()
+# 读取存储的数据
+&gt;&gt;&gt; datafile = open('data.txt')
+&gt;&gt;&gt; data = pickle.load(datafile)
+&gt;&gt;&gt; data
+{'a': 97, 'A': 65, 'B': 66, 'b': 98}</pre>
+<strong>6、文件中打包二进制数据的存储与解析</strong>
+struct模块能够构造并解析打包的二进制数据。
+<pre># 存储
+&gt;&gt;&gt; f = open('data.bin','wb')
+&gt;&gt;&gt; import struct
+&gt;&gt;&gt; bytes = struct.pack('&gt;i4sh', 7, 'spam', 8)
+&gt;&gt;&gt; bytes
+'\x00\x00\x00\x07spam\x00\x08'
+&gt;&gt;&gt; f.write(bytes)
+&gt;&gt;&gt; f.close()
+# 读取
+&gt;&gt;&gt; f = open('data.bin','rb')
+&gt;&gt;&gt; data = f.read()
+&gt;&gt;&gt; data
+'\x00\x00\x00\x07spam\x00\x08'
+&gt;&gt;&gt; values = struct.unpack('&gt;i4sh', data)
+&gt;&gt;&gt; values
+(7, 'spam', 8)</pre>
+<strong>7、进程模块工具</strong>
+<ol>
+	<li>Python的标准库中与进程和线程相关的模块和函数
+<table>
+<thead>
+<th>模块名称</th>
+<th>说明</th>
+</thead>
+<tbody>
+<tr>
+<td>os/sys</td>
+<td>包含基本进程管理函数</td>
+</tr>
+<tr>
+<td>subprocess</td>
+<td>Python基本库中多进程相关模块</td>
+</tr>
+<tr>
+<td>signal</td>
+<td>Python基本库中信号相关模块</td>
+</tr>
+</tbody>
+</table>
+</li>
+	<li>进程的操作示例
+<ul>
+	<li>os/sys模块
+<strong>创建进程</strong>
+<ul>
+	<li>system函数
+格式：system(command)
+说明：此函数在新进程中执行command字符串命令。如果返回值为0，表示命令执行成功，否则表示失败。
+示例：
+<pre>&gt;&gt;&gt; import os
+&gt;&gt;&gt; print os.system('ls')</pre>
+</li>
+	<li>exec 家族函数
+exec家族中有8个类似的函数(execl, execle, execlp, execlpe, execv, execve, execvp, execvpe)。虽然用他们都可以创建进程，但是和system函数还是有些不同。system函数实际上是调用系统内置的命令行程序来执行系统命令，所以在命令结束之后会将控制权返回给Python进程。但是，所有的exec函数在执行命令之后，将会接管Python进程，而不会将控制权返回。换句话说，Python进程会在调用exec函数后终止。新生成的进程将会替换调用进程。这些函数都没有返回值，如果发生错误，将会触发OSError异常。
+execl 函数
+格式：execl(path, arg0, arg1, ...)
+示例：
+<pre>&gt;&gt;&gt; import os
+&gt;&gt;&gt; os.execl('/usr/bin/kate')</pre>
+</li>
+</ul>
+<strong>终止进程</strong>
+当Python脚本遇到最外层的return语句而退出的时候，这个进程也就终止了。除此之外，还有两种方法终止进程: sys.exit 和os.abort
+<ul>
+	<li>sys.exit函数
+exit函数是一种"温和"的终止进程方式，在程序退出之前会执行一些清理操作，同时将返回值给调用进程(一般是操作系统)。使用此返回值，系统可以判断程序是否是正常退出或者运行出了异常。
+例子：
+<pre>import sys
+try:
+filename = sys.argv[1]
+print filename
+except:
+print "Usage:", sys.argv[0], "filename"
+sys.exit(1)</pre>
+</li>
+	<li>os.abort 函数
+和exit函数不同的是，abort函数是一种"暴力"的退出方式，将会直接给进程发送终止信号(SIGABORT信号)。默认情况下，这将会终止进程，同时不会做相关的清理工作。需要注意的是，可以使用signal.signal()来为SIGABORT信号注册不同的信号处理函数，从而改变其默认行为。</li>
+</ul>
+</li>
+	<li>subprocess 模块
+subprocess模块是作为进程管理的高级模块在2.4版本被引入的。subprocess可以调用外部的系统命令创建新的子进程，同时连接到子进程的input/output/error管道上，并得到子进程的返回值。这个模块可以用来替代一些旧模块的方法，如os.system, os.spawn*, os.popen*,popen2.*, commands.*等。subprocess模块中提供了一个类和两个使用函数来管理进程，下面将分别进行介绍。
+<ul>
+	<li>使用Popen类管理进程
+class Popen(args, bufsize=0, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None, close_fds=False,
+shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0)
+其中，args参数为要执行的外部程序。其值可以是字符串或者序列。除此之外，其他的类参数都是有默认值，可以根据需要进行修改。
+<pre>import subprocess
+pingP = subprocess.Popen(args='ping -c 4 www.sina.com', shell=True)
+pingP.wait()
+print pingP.pid
+print pingP.returncode</pre>
+注：在Linux下，当shell为"False"时，Popen将调用os.execvp执行对应的程序。而shell为"True"时，如果命令为字符串，Popen直接调用系统shell来执行指定的程序。如果命令为一个序列，则其第一项是定义命令字符串，其他项为命令的附加参数。</li>
+	<li>subprocess模块还提供了两个实用函数来直接调用外部系统命令：call()和check_all()。
+call()会直接调用命令生成子进程，并且等待子进程结束，然后返回子进程的返回值。check_all()和call()函数的主要区别在于：如果返回值不为0，则触发CallProcessError异常。返回值保存在这个异常对象的returncode属性中。
+<pre>import subprocess
+retcode = subprocess.call(['ls','-l'])   #调用ls -l 命令</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<a href="/2010/02/22/578.html" target="_blank">Python技巧篇(1)：内置对象及函数</a>

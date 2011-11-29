@@ -1,0 +1,46 @@
+---
+layout: post
+title: "Repo——另一个Git协同模型"
+---
+
+Git 的神奇之处在于，你可以用很多不同的方式来使用它，而不像 Subversion，只有集中式一种方式。
+
+最近又发现了一个 Git 新的协同模型 —— Repo，这个协同模型对于一个项目用到了多个Git版本库的协同开发非常有效。
+
+实际上，这是上周在给一个团队做 “Git培训” 时，发现该团队在 Android 开发中，需要使用 Repo 这个工具来维护 Android 代码。于是花了些时间研究，补充了新的一章到讲义中...
+
+<span id="more-1884"></span><a href="/wpfiles/2010/08/repo_model.png"><img class="aligncenter size-medium wp-image-1911" title="repo_model" src="/wpfiles/2010/08/repo_model-300x225.png" alt="" width="300" height="225" /></a>
+
+Repo 是 Google Android 项目的附属工具，用于维护 Android 超级复杂的 Git 库（150多个独立的Git库）。虽然 repo 属于 android 项目，但 repo 本身可以独立使用，可以作为独立的工具，被任何项目使用。
+
+用一句话概括 Repo： Repo 让分散的各自独立的 Git 版本库整合为一个整体。
+
+不是有 git submodule 么？为什么还会出现一个 repo 呢？主要的原因，我认为有：
+<ul>
+	<li>子模组不能指向Git库的某一分支，只是指向某个 commit
+<ul>
+	<li>这对于项目发布没有问题，子模组指向 commit，即相当于固定于某个版本（里程碑）</li>
+	<li>但是对于开发非常不方便 。子模组固定于某个 commit，相当于处于 detached HEAD 状态，必须切换到分支才能更改。但是子模组对应于git库的哪一个分支，子模组的实现不能给出答案</li>
+</ul>
+</li>
+	<li>主版本库和各个子版本库各自独立操作，不能整体的查看状态，查看differ</li>
+</ul>
+Repo 的实现很有趣，通过 repo 可以将本来各自独立的 Git 库在形式上整合为一个整体，可以用 repo 的命令进行整体操作。
+<ul>
+	<li>通过一个 manifests git 库，维护一个 XML 文件：manifest.xml
+<ul>
+	<li>这个文件相当于 submodule 的 .gitmodules 文件</li>
+	<li>记录着版本库的源地址，以及本地检出的路径</li>
+	<li>该XML文件超越 .gitmodules 之处在于，XML文件可以记录分支名，即检出版本库的哪一个分支到对应的目录中</li>
+</ul>
+</li>
+	<li>Repo 包含了一些和 git 相近的子命令，实际上是对 git 相应命令的封装以便提供多版本库支持
+<ul>
+	<li>branches 命令，可以显示各个分支名称在各个 git 版本库中的分布统计</li>
+	<li>diff 命令，可以显示各个 git 库的代码差异</li>
+	<li>start 命令，对所有版本库创建功能分支并切换分支</li>
+	<li>还有 rebase, stage, status, sync 等命令</li>
+</ul>
+</li>
+</ul>
+关于 Repo 工具的使用，参见博客 <a href="/2010/08/31/1915.html">《Android repo 魔法》</a>

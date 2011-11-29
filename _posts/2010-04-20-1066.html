@@ -1,0 +1,71 @@
+---
+layout: post
+title: "Windows 下Redmine-0.9.x的安装"
+---
+
+<h3 id="Redmine是一个灵活的跨平台的项目管理与缺陷跟踪管理工具。下面介绍一下Windows下Redmine的安装步骤。">Redmine是一个灵活的跨平台的项目管理与缺陷跟踪管理工具 。具体的特征，可访问 <a href="/2010/01/06/20.html" target="_blank">redmine---项目管理工具</a></h3>
+<h3 id="Redmine是一个灵活的跨平台的项目管理与缺陷跟踪管理工具。下面介绍一下Windows下Redmine的安装步骤。">下面介绍一下Windows下Redmine的安装步骤。</h3>
+<span id="more-1066"></span>
+<ol>
+	<li><strong>给DOS添加ruby运行环境（下载并安装 rubyinstaller-1.8.7-p249-rc2.exe）
+</strong>下载地址：<a href="http://rubyforge.org/frs/?group_id=167&amp;release_id=42563" target="_blank">http://rubyforge.org/frs/?group_id=167&amp;release_id=42563</a></li>
+	<li><strong>安装Redmine所需的运行环境
+</strong>安装完rubyinstaller后， 点击开始菜单，选择 <em>Start Command Prompt with Ruby</em>
+进入含有ruby环境的DOS界面，依次执行如下命令：
+<pre>gem install rake
+gem install -v=1.0.1 rack
+gem install mysql
+gem install -v=2.3.5 rails</pre>
+</li>
+	<li><strong>数据库的安装和创建
+</strong>下载并安装MySQL数据库 ，下载地址： <a href="http://dev.mysql.com/downloads/mysql/" target="_blank"><span class="external">http://dev.mysql.com/downloads/mysql/</span></a>
+
+进入mysql命令行，执行如下命令：
+<pre>mysql&gt; create database redmine character set utf8;
+mysql&gt; create user 'redmine'@<code>'localhost' identified by 'redmine';
+mysql&gt; grant all privileges on redmine.* to 'redmine'</code>@'localhost';</pre>
+</li>
+	<li><strong>下载Redmine压缩包  (redmine-0.9.3.zip)
+</strong>下载地址 <a href="http://rubyforge.org/frs/?group_id=1850" target="_blank"><span class="external">http://rubyforge.org/frs/?group_id=1850</span></a>
+
+解压并进入解压后目录的目录，将config/database.yml.example 重命名为 config/database.yml，
+并修改链接数据库所需要的参数，以下是修改信息，加粗部分是修改的内容：
+<pre>production:
+  adapter: mysql
+  database: redmine
+  host: localhost
+  username: <strong>redmine</strong>
+  password: <strong>redmine</strong>
+  encoding: utf8
+</pre>
+</li>
+	<li><strong>生成session密钥，执行数据迁移并载入Redmine默认配置
+</strong>
+<pre>set RAILS_ENV=production
+rake config/initializers/session_store.rb
+rake db:migrate
+rake redmine:load_default_data</pre>
+如果出现以下异常：
+<pre>Mysql::Error: query: not connected: CREATE TABLE 'schema_migrations' ('version varchar(255) NOT NULL) ENGINE=InnoDB
+</pre>
+说明需要添加MySQL的动态链接库文件 libmySQL.dll
+<ol>
+	<li>下载地址 <a href="http://instantrails.rubyforge.org/svn/trunk/InstantRails-win/InstantRails/mysql/bin/libmySQL.dll" target="_blank"><span class="external">http://instantrails.rubyforge.org/svn/trunk/InstantRails-win/InstantRails/mysql/bin/libmySQL.dll</span></a></li>
+	<li>然后后把libmySQL.dll复制到 Ruby/bin/目录下（你安装rubyinstaller的目录）</li>
+</ol>
+</li>
+	<li><strong>至此，Redmine安装已经完毕，下面用Redmine自带的Webrick服务器运行Redmine，测试是否安装成功</strong>
+在Redmine的根目录输入命令
+<pre> ruby script/server</pre>
+打开浏览器，输入 http://localhost:3000 如果页面正常显示，则说明已经成功安装。</li>
+</ol>
+如果你用的操作系统是Linux， 可参见 <a href="/2010/03/09/766.html">Debian/Linux下Redmine的安装步骤</a>
+<div id="_mcePaste" style="overflow: hidden; position: absolute; left: -10000px; top: 162px; width: 1px; height: 1px;">
+
+下载MySQL数据库 ，下载地址： <a class="external" href="http://dev.mysql.com/downloads/mysql/">http://dev.mysql.com/downloads/mysql/</a>
+
+进入mysql命令行，执行如下命令：
+mysql&gt; create database redmine character set utf8;
+mysql&gt; create user 'redmine'<code>'localhost' indetified by 'redmine';&lt;br /&gt;mysql&gt; grant all privileges on redmine.* to 'redmine'</code>'localhost';
+
+</div>

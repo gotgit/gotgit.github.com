@@ -1,0 +1,77 @@
+---
+layout: post
+title: "NotesForLightBox灯箱控件示例"
+---
+
+NotesForLightBox 是一个简单易用的脚本，用于在当前页面放大原图。
+
+当前的功能特征有：
+<ul>
+	<li>圆角灯箱</li>
+	<li>按钮导航</li>
+	<li>带有进度条的幻灯显示</li>
+</ul>
+下面介绍一下如何使用：
+<ol>
+	<li><span id="more-1163"></span>下载NotesForLightBox
+NotesForLightBox下载地址 <a href="http://www.notesfor.net/file.axd?file=NFLightBox.zip" target="_blank">http://www.notesfor.net/file.axd?file=NFLightBox.zip</a></li>
+	<li>在需要灯箱特效的页面添加引用的JavaScript和CSS脚本
+因为NotesForLightBox依赖于jQuery库，所以也许要导入jQuery库。
+<pre>&lt;script src="js/jquery-1.3.2.min.js" type="text/javascript"&gt;&lt;/script&gt;
+&lt;script src="js/NFLightBox.js" type="text/javascript"&gt;&lt;/script&gt;
+&lt;link href="css/nf.lightbox.css" rel="stylesheet" type="text/css" media="screen" /&gt;</pre>
+</li>
+	<li>声明对页面中那些元素开启灯箱特效
+<pre>&lt;script type="text/javascript"&gt;
+
+$(function() {
+$('a[@rel*=lightbox]').lightBox(); // Select all links that contains lightbox in the attribute rel
+$('#gallery a').lightBox(); // Select all links in object with gallery ID
+$('a.lightbox').lightBox(); // Select all links with lightbox class
+$('a').lightBox(); // Select all links in the page
+});
+
+&lt;/script&gt;</pre>
+</li>
+</ol>
+下面是我的示例文件(demo.html)截图
+
+<a href="/wpfiles/2010/05/lightbox_demo.png"><img class="aligncenter size-medium wp-image-1165" title="lightbox_demo" src="/wpfiles/2010/05/lightbox_demo-300x160.png" alt="" width="300" height="160" /></a>
+
+后记：
+
+用户可以自定义LightBox控件的显示格式。可用的属性有
+<pre>
+///    &lt;param name="settings" type="Options"&gt;
+///        1: overlayBgColor - (string) Background color to overlay; inform a hexadecimal value like: #RRGGBB. Where RR, GG, and BB are the hexadecimal values for the red, green, and blue values of the color.
+///        2: overlayOpacity - (integer) Opacity value to overlay; inform: 0.X. Where X are number from 0 to 9.
+///        3: fixedNavigation - (boolean) Boolean that informs if the navigation (next and prev button) will be fixed or not in the interface.
+///        4: imageLoading - (string) Path and the name of the loading icon image
+///        5: imageBtnPrev - (string) Path and the name of the prev button image
+///        6: imageBtnNext - (string) Path and the name of the next button image
+///        7: imageBtnClose - (string) Path and the name of the close button image
+///        8: imageBlank - (string) Path and the name of a blank image (one pixel)
+///        9: imageBtnBottomPrev - (string) Path and the name of the bottom prev button image
+///        10: imageBtnBottomNext - (string) (string) Path and the name of the bottom next button image
+///        11: imageBtnPlay - (string) Path and the name of the close button image
+///        12: imageBtnStop - (string) Path and the name of the play button image
+///        13: containerBorderSize - (integer) If you adjust the padding in the CSS for the container, #lightbox-container-image-box, you will need to update this value
+///        14: containerResizeSpeed - (integer) Specify the resize duration of container image. These number are miliseconds. 500 is default.
+///        15: txtImage - (string) Specify text "Image"
+///        16: txtOf - (string) Specify text "of"
+///        17: txtPrev - (string) Specify text "previous"
+///        18: keyToNext - (string) Specify text "next"
+///        19: keyToClose - (string) (c = close) Letter to close the jQuery lightBox interface. Beyond this letter, the letter X and the SCAPE key is used to.
+///        20: keyToPrev - (string) (p = previous) Letter to show the previous image.
+///        21: keyToNext - (string) (n = next) Letter to show the next image.
+///        22: slideShowTimer - (integer) number of milliseconds to change image by default 5000.
+///    &lt;/param&gt;</pre>
+
+例如调整灯箱拉长时间
+<pre>
+&lt;script type="text/javascript"&gt;
+$(function(){
+    var settings = {containerResizeSpeed:350};
+    $('a').lightBox(settings);
+});
+&lt;/script&gt;</pre>

@@ -1,0 +1,86 @@
+---
+layout: post
+title: "单点登录架构升级手册"
+---
+
+CoSign 3.x 和之前的版本 CoSign 2.x 不兼容，如果贸然升级，会导致出现应用无法访问的故障。因此 CoSign 3.x 采用了另外的软件包名称，这样在使用 apt-get 升级的时候，不会“被升级”。
+
+<span id="more-853"></span>单点登录架构的升级，应该采取先升级应用软件，再升级单点登录架构，最后是调整配置
+<h2>应用软件升级</h2>
+应用软件升级后，仍然能够向下兼容老版本的单点登录架构，不会因为升级而无法登录。即新版本应用缺省即支持老版本的单点登录架构。
+
+这样的应用有：用户管理系统，博客，邮件列表，testlink，redmine 等。
+<h2>单点登录架构升级</h2>
+单点登录系统的软件包名称也有所改变，以免误升级。
+
+安装基于 CoSign v3 的单点登录系统：
+<pre>$ sudo aptitude install ossxp-cosign3-daemon ossxp-cosign3-cgi ossxp-cosign3-filter</pre>
+使用 aptitude 命令，会根据需要自动删除老版本的软件包：ossxp-cosign-daemon, ossxp-cosign-cgi, ossxp-cosign-filter。
+<h2>更改软件配置</h2>
+切换到新版本的单点登录平台，大致有三种情况：
+<ol>
+	<li>无须配置，即可以用在新版本的单点登录平台上</li>
+	<li>修改软件的配置文件，即可切换到新的单点登录系统上</li>
+	<li>需要修改数据库，不过通过一个 FALLBACK 文件，临时关闭单点登录，使用确认认证，在软件的配置界面中更改</li>
+</ol>
+下面对部分应用的单点登录切换做一介绍
+<h3>更改配置文件方式切换</h3>
+<ul>
+	<li>GOsa 的配置文件更改：增加一行 protoco=3
+<pre>&lt;cosign login_url="https://weblogin.bj.ossxp.com/cgi-bin/login"
+ logout_url="https://weblogin.bj.ossxp.com/cgi-bin/logout"
+ service_name="gosa"
+ location="default"
+ <strong>protocol="3"</strong>
+ disabled = "false"
+ /&gt;</pre>
+</li>
+	<li>Testlink 的配置文件：认证方式由 COSIGN 修改为 COSIGN3
+<pre>$tlCfg-&gt;authentication['method'] = <strong>'COSIGN3';</strong>
+$tlCfg-&gt;authentication['demo_users'] = array(
+       "guest" =&gt; "Guest",
+       "leader" =&gt; "Leader");
+$tlCfg-&gt;authentication['login_url'] = 'https://weblogin.bj.ossxp.com/cgi-bin/login';
+$tlCfg-&gt;authentication['logout_url'] = 'https://weblogin.bj.ossxp.com/cgi-bin/logout';</pre>
+</li>
+	<li>Mailman 的配置文件修改：增加 protocol=3
+<pre>from Auth.auth_ldap   import AuthLDAP
+from Auth.auth_cosign import AuthCoSign
+
+auth_method_ldap = AuthLDAP(server_uri='ldap://localhost:389',
+ base_dn='dc=bj,dc=ossxp,dc=com',
+ bind_dn='',
+ bind_pw='')
+auth_method_cosign = AuthCoSign(server_uri='https://weblogin.bj.ossxp.com',
+ service='cosign-mailman',
+ <strong>protocol=3,</strong>
+ login='/cgi-bin/login',
+ logout='/cgi-bin/logout')
+
+auth_backend_archive = [auth_method_cosign, auth_method_ldap, ]
+auth_backend_default = [auth_method_ldap]</pre>
+</li>
+</ul>
+<h3>避免修改数据库，采用 FALLBACK 文件方式</h3>
+有的应用的单点登录配置是在数据库中完成的，如果让客户直接修改数据库，是在是太繁琐了。对于这些应用我们提供一个使用 FALLBACK 文件，来暂时关闭单点登录，或者强制指定单点登录采用最新的协议。
+
+如果直接强制采用最新单点认证协议无法登录，必须通过管理后台，则采用暂时关闭单点登录，使用内置的其他登录模式，登录成功后，进入管理员界面调整 CoSign 的参数设置。然后删除 FALLBACK 文件，即可完成切换。
+
+FALLBACK 文件的不同内容，进入不同的认证方式：
+<ul>
+	<li>空 FALLBACK 文件：关闭单点认证，采用内置的认证模式</li>
+	<li>内容为 <em>LDAP</em> ：采用 LDAP 认证模式</li>
+	<li>内容为 <em>COSIGN2</em>：采用 CoSign v2.x 认证模式</li>
+	<li>内容为 <em>COSIGN3</em>：采用 CoSign v3.x 认证模式</li>
+</ul>
+支持这种配置方法的软件有：
+<ul>
+	<li>redmine
+FALLBACK 配置文件位置：/opt/redmine/web/config/FALLBACK</li>
+	<li>wordpress
+FALLBACK 配置文件位置：/opt/wordpress/share/wp-content/plugins/cosign-sso/FALLBACK</li>
+</ul>
+<h3>避免 /cosign/valid 被 URL 重写所覆盖</h3>
+例如 wordpress 如果采用永久链接，会在 web 目录下创建一个 .htaccess 文件，该文件会导致 URL 重写覆盖 Apache 为该站点配置的 /cosign/valid 地址。
+
+可以参考这个补丁，来修改 .htaccess 文件：<a href="http://github.com/ossxp-com/wordpress-hacks/commit/a28cabb347f0ef45a32cfaeb831d0787f362d1e5">群英汇修改 WordPress 重定向，让 /cosign/valid 能够生效</a>

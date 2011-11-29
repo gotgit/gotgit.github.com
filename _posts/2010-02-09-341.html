@@ -1,0 +1,41 @@
+---
+layout: post
+title: "Subversion 用户眼中的 Git (6): stage"
+---
+
+不单单是 Subversion 的用户，还包括其他类型的分布式版本控制的用户，如 Hg 的使用者，都可能会对 Git 的 stage 或称为 index 的东西感到非常的陌生。
+
+但是一旦你熟悉 Git 的 stage 的秉性，你就会喜欢上它。
+
+<span id="more-341"></span>
+<h2>关于 stage ﻿概念</h2>
+﻿ stage 是介于 workcopy 和 版本库  HEAD 版本的一种中间状态。通过索引文件 .git/index 可以找到 stage，因而 stage 有可以叫做 index。
+
+<a href="/wpfiles/2010/02/stage1.png"><img class="aligncenter size-medium wp-image-522" title="Stage 是介于工作区与版本库的中间状态" src="/wpfiles/2010/02/stage1-300x276.png" alt="" width="300" height="276" /></a>
+
+stage 可以视作 Subversion 中的 changelist。即加入 stage 的变更在提交的时候提及到版本库，没有加入 stage 的变更则不会提交。Git 提供相应命令 (add,rm) 将工作区变更加入到 stage，也提供从 stage 中撤销变更的功能。参见下图：
+<h2><a href="/wpfiles/2010/02/stage2.png"><img class="aligncenter size-medium wp-image-523" title="Git 文件状态变迁" src="/wpfiles/2010/02/stage2-300x190.png" alt="" width="300" height="190" /></a>古怪的 git add</h2>
+其他的版本控制系统，也提供 add 命令，但是 add 命令仅仅是将未标记为版本控制状态的文件标记为添加状态，并在下次提交时入库。
+
+而 git 的 add 自命令，除了对尚未版本控制的文件进行添加外，还对工作区的修改文件进行操作。命令 git add 的含义是将工作区变更的文件或者新文件增加到版本库，并在下次提交的时候入库。
+
+还好 git add 不能用于对本地删除的文件进行操作，否则可真的是太怪了。 :-D  对于工作区直接删除的文件，需要用 git rm 命令进行标记，在下次提交时，在版本库中删除。
+<h2>Stage 提供更好用的提交列表</h2>
+Subversion 有提交列表功能，即将某些文件加入一个修改列表，提交可以只提交处于该列表的文件。但是 Subversion 的这个功能真的很少使用，因为：
+<ul>
+	<li>subversion 的changelist 增加了命令的复杂度</li>
+	<li>提交时如果忘了添加特定的参数，是对所有改动进行的修改，而非 changlist 中的改动</li>
+	<li>不同的changelist 的文件不能有交叉</li>
+</ul>
+Git 的 stage 却是一个你不得不用到的 changelist，让你在提交的时候明明白白的告诉 git 你要提交哪些改动。除非提交的时候使用 -a 参数（不建议使用）。
+<ul>
+	<li>工作区的文件改动（新增文件，修改文件，删除文件），必须用 git add 或者 git rm 命令标识，使得改动进入 stage</li>
+	<li>提交只对加入 stage 的改动进行提交</li>
+	<li>如果一个文件改动加入 stage 后再次改动，则后续改动不改变 stage。即该文件的改动有两个状态，一个是标记到 stage 中并将在下次提交时入库的改动，另外的后续改动则不被提交，除非再次使用 git add 命令将改动加入到 stage 中</li>
+</ul>
+<h2>参数 --cached 和 git</h2>
+当改动通过 git add/rm 添加到 stage 后，执行 git diff 将看不到代码改动。这会让 git 新手大为疑惑。
+
+实际上 git diff 是针对工作区和 stage 进行比较，如果改动已经加入到了 stage 中了，就不会在 git diff 中看到。
+
+如果想查看加入到 stage 中的改动，到底更改了哪些地方，则使用 git diff --cached。即用 --cached 改变命令的比较对象，即比较 stage 和 HEAD 中的内容。

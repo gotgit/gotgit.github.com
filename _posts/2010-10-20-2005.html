@@ -1,0 +1,34 @@
+---
+layout: post
+title: "看到了 Twitter 上鲁宾对乔布斯简短的回复"
+---
+
+看到了 Twitter 上鲁宾对乔布斯简短的回复，我把这一有趣的内容，加到筹划中的 Git book 中了。
+<h2><a>5.6 Android 式多版本库协同</a></h2>
+Android 是谷歌(Google)开发的手持设备的操作系统，提供了当前最为吸引眼球的开源的手机操作平台，大有超越苹果(Apple.com)的专有的 IOS 的趋势。Android 的源代码就是使用 Git 进行维护的，Android 项目在源代码管理上有两个伟大的创造，一个是用 Python 语言开发名为 repo 的命令行工具用于多版本库的管理，另外一个是用 Java 开发的名为 Gerrit 的代码审核服务器。本节我们重点介绍 repo 是如何管理多代码库的。
+
+Android 的源代码的 Git 库有 160 多个（截止置2010年10月）：
+<ul>
+	<li>Android 的版本库管理工具 repo：git://android.git.kernel.org/tools/repo.git</li>
+	<li>保存GPS 配置文件的版本库git://android.git.kernel.org/device/common.git</li>
+	<li>160 个其它的版本库...</li>
+</ul>
+如果我要是把 160 多个版本库都列在这里，恐怕各位的下巴会掉下来。那么为什么 Android 的版本库这么多呢？怎么管理这么复杂的版本库呢？
+
+Android 版本库众多的原因，主要原因是版本库太大以及 Git 不能部分检出。Android 的版本库有接近 2 个GB之多。如果所有的东西都放在一个库中，而某个开发团队感兴趣的可能就是某个驱动，或者是某个应用，却要下载如此庞大的版本库，是有些说不过去。
+
+好了，既然我们接受 Android 有多达 160 多个版本库这一事实，那么 Android 是不是用我们之前介绍的“子模组”方式组织起来的呢？如果真的用“子模组”方式来管理这160个代码库，可能就需要如此管理：
+<ul>
+	<li>建立一个索引版本库，在该版本库中，通过子模组方式，将一个一个的目录对应到 160 多个版本库。</li>
+	<li>当对此索引版本库执行克隆操作后，再执行 <cite>git submodule init</cite> 命令。</li>
+	<li>当执行 <cite>git submodule update</cite> 命令时，开始分别克隆这 160 多个版本库。</li>
+	<li>如果想修改某个版本库中的内容，需要进入到相应的子模组目录，执行切换分支的操作。因为子模组是以某个固定提交的状态存在的，是不能更改的，必须先切换到某个工作分支后，才能进行修改和提交。</li>
+	<li>如果要将所有的子模组都切换到某个分支（如 master）进行修改，必须自己通过脚本对这 160 多个版本库一一切换。</li>
+	<li>Android 有多个版本：android-1.0, android-1.5, ..., android-2.2_r1.3, ... 如何维护这么多的版本呢？也许索引库要通过分支和里程碑，和子模组的各个不同的提交状态进行对应。但是由于子模组的状态只是一个提交ID，如何管理分支， 我真的给不出答案。</li>
+</ul>
+幸好，上面只是假设。聪明的 Google 程序设计师一早就考虑到了 Git 子模组的局限性以及版本库管理的问题，开发出了 repo 这一工具。
+
+Android 之父安迪.鲁宾在回应乔布斯谈及 Android 复杂的言论时，在 Twitter (<a href="http://twitter.com/Arubin">http://twitter.com/Arubin</a>) 上留了下面这段简短的话：
+<pre>the definition of open: "mkdir android ; cd android ; repo init -u git://android.git.kernel.org/platform/manifest.git ; repo sync ; make"
+</pre>
+是的，就是 repo 让 Android 变得如此简单。

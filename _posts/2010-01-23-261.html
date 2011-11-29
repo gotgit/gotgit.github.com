@@ -1,0 +1,39 @@
+---
+layout: post
+title: "群英汇 TopGit 改进 (5): tg summary 执行的更快"
+---
+
+关于 tg summary 速度改进，其实不是因为 tg summary 使用中发现的问题。tg summary 是在使用 topgit 最常用到的命令。该命令用于查看各个功能分支和版本库的同步关系。
+
+一般情况下，不太容易受到这个小问题的干扰，但是如果存在近百个功能分支，就有问题了：
+<ul>
+	<li>执行 <strong>tg create &lt;TAB&gt;</strong>，即在 tg create 命令后按下 Tab 键，想查看当前分支列表，会发现速度很慢，需要一秒钟甚至更长的时间相应。可是用命令 git co 按下命令，瞬间就提供分支名的自动补齐</li>
+	<li>tg depend 命令也存在类似问题</li>
+	<li>tg patch 命令如果按下 Tab 键，也存在类似问题</li>
+	<li>...</li>
+</ul>
+追根溯源，找到原来是 <em><strong>tg summary -t</strong></em> 命令的性能问题。命令补齐实际上是调用的  tg summary -t 命令来获取 topgit 分支的。
+
+看看改进前和改进后，执行 tg summary -t 命令的效率：
+<ul>
+	<li>改进前：
+<pre>$ time tg summary -t &gt;/dev/null
+
+real    0m1.799s
+user    0m0.580s
+sys     0m0.868s
+</pre>
+</li>
+	<li>改进后：
+<pre>$ time tg summary -t &gt;/dev/null
+
+real    0m0.040s
+user    0m0.016s
+sys     0m0.020s</pre>
+</li>
+	<li>可以看出改进后，执行时间由 1.8 秒缩短为仅仅 0.04 秒</li>
+</ul>
+我们是如何改进的呢？非常简单，简单到有些不好意思，您去 Github 上看看吧。
+<ul>
+	<li><a href="http://github.com/ossxp-com/topgit">群英汇 在 Github 上的 topgit 代码库</a></li>
+</ul>

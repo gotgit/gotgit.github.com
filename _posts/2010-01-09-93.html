@@ -1,0 +1,84 @@
+---
+layout: post
+title: "Rails多语言支持"
+---
+
+<h2>Rails I18n(国际化)</h2>
+Rails在 2.2 版本以后已经把 I18n 模块引入了 Rails 框架，以前的多语言支持大都采用 <a href="/2010/01/09/119.html" target="_blank">localization</a> 插件完成的。在 Rails 2.2 版本后，我们只需要在配置文件中开启 I18n，并写相应语种的资源文件就可以了。
+<h2>I18n 演示例子</h2>
+<strong>1、开启I18n</strong>
+创建一个配置文件，用于存放本地化的信息( RailsProject&gt; config/initializers/i18n.rb)，文件内容如下：
+<pre>I18n.default_locale = 'zh'
+LOCALES_DIRECTORY = "#{RAILS_ROOT}/config/locales/"
+LANGUAGES = {
+'English' =&gt; 'en',
+'Chinese' =&gt; 'zh'
+}</pre>
+参数解释：
+I18n.default_locale 指定默认的本地语言
+LOCALES_DIRECTORY 指定存放多国语言文件的目录
+LANGUAGES 存储所支持语种
+
+<strong><span id="more-93"></span>2、在layout文件中加入一个下拉框，给用于提供语种选择(RailsProject&gt; app/views/layouts/base.rhtml ），添加代码如下：</strong>
+<pre>&lt;% form_tag '', :method =&gt; 'GET', do %&gt;
+&lt;%= select_tag 'locale', options_for_select(LANGUAGES, I18n.locale),
+:onchange =&gt; 'this.form.submit()' %&gt;
+&lt;%= submit_tag 'submit' %&gt;
+&lt;% end %&gt;</pre>
+<div>
+<pre>注解：LANGUAGES 就是刚在配置文件中声明的LANGUAGES</pre>
+<strong>3、创建一个前置过滤器，用于设定本地化语言（RailsProject&gt; app/controllers/application.rb)，代码如下：</strong>
+
+</div>
+<pre>class ApplicationController &lt; ActionController::Base
+ layout "base"
+ before_filter :set_locale
+ ...........
+ protected
+ def set_locale
+   session[:locale] = params[:locale] if params[:locale]
+   I18n.locale = session[:locale] || I18n.default_locale
+   locale_path = "#{LOCALES_DIRECTORY}#{I18n.locale}.yml"
+   unless I18n.load_path.include? locale_path
+     I18n.load_path &lt;&lt; locale_path
+     I18n.backend.send(:init_translations)
+   end
+ rescue Exception =&gt; err
+   logger.error err
+   flash.now[:notice] = "#{I18n.locale} translation not available"
+   I18n.load_path -= [locale_path]
+   I18n.locale = session[:locale] = I18n.default_locale
+ end
+end</pre>
+<div><strong> 4、用I18n.translate方法(简写I18n.t，甚至t)，将页面中写死的字符串替换掉（RailsProject&gt; app/views/layouts/base.rhtml)，代码如下：</strong></div>
+<div>
+<pre>&lt;head&gt;
+ &lt;title&gt;&lt;%= I18n.t 'base.title' %&gt;&lt;/title&gt;
+ &lt;/head&gt;
+ &lt;body&gt;
+ ............
+ &lt;/body&gt;</pre>
+</div>
+<div><strong>
+5、在存放多国语言目录下加入各种语种文件</strong>
+RailsProject&gt; config/locales/zh.yml  代码如下</div>
+<pre>
+<div>
+zh:
+  base:
+    title: "演示Rails的国际化支持"</div></pre>
+<div>
+
+RailsProject&gt; config/locales/en.yml 代码如下
+
+</div>
+<pre>
+<div>
+en:
+  base:
+    title: "Show Rails internationalization support"</div></pre>
+<div>
+
+至此，重启服务器，你就可以看到双语网站了。
+
+</div>

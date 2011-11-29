@@ -1,0 +1,35 @@
+---
+layout: post
+title: "Debian/Linux上的txt文本文件拷到Mp3后变成乱码"
+---
+
+最近我在网上下载了一些好的英语学习资料，然后想拷贝到Mp3里浏览，不料打开一看全部是乱码？ :-? 上网搜索之后终于找到了原因，并解决了。下面分享一下我的解决方法。
+<span id="more-708"></span>
+<strong>出现乱码的原因：</strong>
+
+我的操作系统是Debian/Linux，默认文本编码方式由locale决定（默认是utf-8)；而我的Mp3电子书编码方式是gb2312。
+
+这是转换前文件信息：
+<pre>$ file 美国人常用的经典口语.txt
+美国人常用的经典口语.txt: UTF-8 Unicode English text
+</pre>
+<strong>解决方法：</strong>
+
+Linux 上的 iconv 命令用于转换给定文件的编码
+
+<strong>我的操作：</strong>
+<pre>$ iconv -f utf-8 -t gb2312 美国人常用的经典口语.txt &gt;美国人常用的经典口语2.txt
+
+$ file 美国人常用的经典口语.txt
+
+美国人常用的经典口语.txt: ISO-8859 English text
+</pre>
+说明：
+<ul>
+	<li>-f 指定原编码方式</li>
+	<li>-t 指定目标编码方式</li>
+</ul>
+转换完成，打开Mp3浏览该文件，一切正常，乱码消失了，问题解决了。 :-)
+
+如果想获得跟多关于iconv命令的选项，可以用以下命令查看
+<pre>$ iconv --help</pre>

@@ -1,0 +1,107 @@
+---
+layout: post
+title: "jquery和php整合实例"
+---
+
+研究Jquery和php也有一段时间了，但是对两者深层次方面的整合还不是很精通。Google了N百次了，只能说收效甚微，一篇篇转烂了的JQuery和php整合的例子最后可能在你的机器上还是跑不起来，别泄气，这太正常了。我不能不感叹于那些高手们的懒惰，虽然我只能算的上菜鸟，请允许我发表一下自己的观点。本来我的这个小程序是不敢贴出来献丑的，但是鉴于这方面的资料确实太少，我还是贴出来吧。希望能给真正需要的人提供一些帮助。麻雀虽小，五脏俱全，也许你能从这个小程序中悟出来点什么。
+
+<span id="more-462"></span>
+
+如果下面的例子不能理解，你可能需要补习一下理论基础，参见这个博客：<a href="/2010/02/07/493.html">jQuery跨域AJAX</a>。
+<h3>例子1：这个例子是JQuery和php不跨域的情况下整合的例子</h3>
+首先我先叙述一下我的环境需要，以方便尝试跑这个小程序的朋友。你必须有一个wordpress 2.9系列，因为我这个程序中调用了Wordpress 2.9中的函数。在Wordpress根目录下建一个rpc文件夹，其他的也无所谓，自己看着改改相应的地方就行了。
+下一步就把这两个文件copy到rpc下边就行了。其他的不需要任何改动，还有一点要提醒的，把jquery-1.4.js复制到rpc目录下
+<h3>1、latest.php文件</h3>
+<pre>&lt;?php
+require_once("../wp-config.php");
+//$arr = $_POST; //若以$.get()方式发送数据，则要改成$_GET.或者直接用:$_REQUEST
+$arr = $_REQUEST['post_num'];
+$show_post = "type=postbypost&amp;limit=6"; //该参数是传递给wp_get_archives函数的，wp_get_archives得到后会返回指定数目的日志
+echo my_wp_get_archives($show_post);
+function my_wp_get_archives($show_post)
+{
+    return wp_get_archives($show_post);
+}
+?&gt;</pre>
+<h3>2、latest.html文件</h3>
+<pre>&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;演示&lt;/title&gt;
+&lt;meta http-equiv="Content-Type" content="text/html; charset=utf8" /&gt;
+&lt;/head&gt;
+&lt;script language="javascript" src="jquery-1.4.js"&gt;&lt;/script&gt;
+&lt;script language="javascript"&gt;
+$(document).ready(function (){
+ $('#latest').click(function (){
+ var post_num=$('#number1').attr('value');
+ $.post('http://localhost/wordpress/rpc/latest.php?post_num='+post_num,show_post);
+ });
+});
+
+function show_post(res){
+ //Replace contents of #result with retrieved result
+ $('#result').html(res);
+}
+&lt;/script&gt;
+
+&lt;body&gt;
+&lt;div id="result" style="background:orange;border:1px solid red;width:300px;height:200px;"&gt;&lt;/div&gt;
+&lt;form id="formtest" action="" method="post"&gt;
+&amp;nbsp;&amp;nbsp;&lt;p&gt;&lt;span&gt;日志数:&lt;/span&gt;&lt;input type="text" name="number1" id="number1" size="15" &gt;&lt;/p&gt;
+&lt;p&gt;&lt;span&gt;日志分类:&lt;/span&gt;&lt;input type="text" name="category" id="input2" size="15" &gt;&lt;/p&gt;
+&lt;/form&gt;
+&lt;button id="latest"&gt; 最新日志 &lt;/button&gt;</pre>
+<h3>例子2：JQuery和php跨域的情况下整合的例子</h3>
+1.client.html(客户端文件)
+<pre>&lt;html&gt;
+&lt;head&gt;
+&lt;meta http-equiv="Content-Type" content="text/html; charset=utf8" /&gt;
+&lt;script language="javascript" src="jquery-1.4.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript"&gt;
+$(document).ready(function (){
+    $('#latest').click(function (){
+        var $limit=$('#limit').attr('value');
+        var $category=$('#category').attr('value');
+        $.getJSON("http://localhost/wordpress/rpc/server.php?limit="+$limit+"&amp;category="+$category+"&amp;callback=?",
+                  function(data){ // 往后台传递的参数
+                      $rpc = "日志链接:"+data.link1+"&lt;br&gt;   日志标题:"+data.title1;
+                      $('#result').html($rpc);  //调用用来显示内容的div
+                  })
+    })
+});
+&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id="result" style="background:orange;border:1px solid red;width:300px;height:200px;"&gt;&lt;/div&gt;
+&lt;form id="formtest" action="" method="post"&gt;
+&amp;nbsp;&amp;nbsp;&lt;p&gt;&lt;span&gt;日志数:&lt;/span&gt;&lt;input type="text" name="limit" id="limit" size="15" &gt;&lt;/p&gt;
+&lt;p&gt;&lt;span&gt;日志分类:&lt;/span&gt;&lt;input type="text" name="category" id="category" size="15" &gt;&lt;/p&gt;
+&lt;/form&gt;
+&lt;/body&gt;
+&lt;button id="latest"&gt;最新日志&lt;/button&gt;
+&lt;/html&gt;</pre>
+2.server.php(用来处理客户端发来的请求)
+<pre>&lt;?php
+//header('Content-Type: application/json; charset=utf-8');
+require_once("../wp-config.php");
+$limit=$_REQUEST['limit'];  //接收客户端发来的数据
+$category=$_REQUEST['category'];
+$arr=Array();
+function my_wp_get_archives($limit)
+{
+    $show_post = "type=postbypost&amp;echo=0&amp;limit=".$limit;
+    return wp_get_archives($show_post);  //调用wordpress自身的函数
+}
+$posts=split('&lt;li&gt;',my_wp_get_archives($limit));
+for($start=1;$start&lt;sizeof($posts);$start++)
+{
+    $arr["title".$start]=strip_tags($posts[$start]);  //对从wordpress取到的数据进行处理，提取出字符串，方便自己加工成Json数据
+    $arr["link".$start]=substr($posts[$start],strpos($posts[$start],'=\'')+2,strpos($posts[$start],'/\'')-8);
+}
+// var_dump($arr);
+$json = json_encode($arr);  //用Json_encode函数处理php的数组
+echo $_GET['callback']."(".$json.")";
+?&gt;</pre>
+注：已经说明是跨域调用了，所以这两个文件自己要合理放置。我已经测试过了，绝对能用
+
+鉴于上面的注释已经很详细了，在此不再对代码进行分析

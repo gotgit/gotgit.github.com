@@ -1,0 +1,98 @@
+---
+layout: post
+title: "Debian/Linux下Sphinx-for-chinese (中文全文搜索)的安装"
+---
+
+Sphinx是一个基于SQL的全文检索引擎，但对中文用户来说一个致命的缺陷是不支持中文。后来在网上发现了一个基于 Sphinx 的支持切词的全文搜索引擎 <a href="http://code.google.com/p/sphinx-for-chinese/" target="_blank">sphinx-for-chinese</a>。下载下来安装使用后发现很好用，下面介绍一下具体的安装过程。
+<span id="more-720"></span>
+<ol>
+	<li><strong>下载所需的安装包</strong>
+sphinx-for-chinese-0.9.9-r2117.tar.gz
+xdict_1.1.tar.gz
+下载地址：<a href="http://code.google.com/p/sphinx-for-chinese/downloads/list" target="_blank">http://code.google.com/p/sphinx-for-chinese/downloads/list</a></li>
+	<li>安装 sphinx-for-chinese
+<pre>$ tar zxvf sphinx-for-chinese-0.9.9-r2117.tar.gz
+$ cd sphinx-for-chinese-0.9.9-r2117
+$ ./configure --prefix=/usr/local/sphinx
+$ make
+$ sudo make install</pre>
+</li>
+	<li>创建test数据库，并创建sphinx用户
+<pre>mysql&gt; create database test;
+mysql&gt;create user 'sphinx'@'localhost' identified by 'sphinx';
+mysql&gt;grant all privileges on test.* to 'sphinx'@'localhost';</pre>
+</li>
+	<li>指定sphinx配置文件
+<pre>$ cd /usr/local/sphinx/etc
+$ sudo cp sphinx.conf.dist sphinx.conf</pre>
+</li>
+	<li>编辑配置文件
+<pre>sql_host        = localhost
+<strong>sql_user        = sphinx
+sql_pass        = sphinx</strong>
+sql_db          = test
+sql_port        = 3306  # optional, default is 3306</pre>
+说明：加粗部分是修改的内容</li>
+</ol>
+到这里为止，sphinx已经可以使用了，但还不能支持中文切词,以下是加入中文切词的步骤
+<ol>
+	<li>解压字典文件 xdict_1.1.tar.gz
+<pre>$ tar zxvf xdict_1.1.tar.gz</pre>
+</li>
+	<li>借助先前安装的 mkdict 工具生成字典
+<pre>$ /usr/local/sphinx/bin/mkdict xdict.txt xdict</pre>
+</li>
+	<li>将字典 xdict 拷贝到 /usr/local/sphinx/etc目录下</li>
+	<li>配置中文切词
+打开 sphinx.conf文件，找到 'charset_type    = sbcs' 字样，将其改为
+<pre>charset_type    = utf-8
+chinese_dictionary = /usr/local/sphinx/etc/xdict</pre>
+</li>
+</ol>
+至此中文切词配置完成，下面做一个简单的测试
+<ol>
+	<li>编辑sphinx-for-chinese自带的SQL脚本，加入中文数据
+$ vi /usr/local/sphinx/etc/example.sql
+<pre>REPLACE INTO test.documents ( id, group_id, group_id2, date_added, title, content ) VALUES
+  ( 1, 1, 5, NOW(), 'test one', 'this is my test document number one. also checking search within phrases.' ),
+  ( 2, 1, 6, NOW(), 'test two', 'this is my test document number two' ),
+  ( 3, 2, 7, NOW(), 'another doc', 'this is another group' ),
+  ( 4, 2, 8, NOW(), 'doc number four', 'this is to test groups' ),
+  <strong>( 5, 2, 8, NOW(), 'doc number five', '一个' ),
+  ( 6, 2, 8, NOW(), 'doc number six', '我' ),
+  ( 7, 2, 8, NOW(), 'doc number seven', '中国人' )</strong>;
+</pre>
+说明：加粗部分是添加的中文测试数据
+</li>
+	<li>导入数据
+<pre>$ mysql -usphinx -psphinx &lt; example.sql</pre>
+</li>
+	<li>建立索引
+<pre>$ sudo /usr/local/sphinx/bin/indexer --all</pre>
+</li>
+	<li>检索
+<pre>$ /usr/local/sphinx/bin/search 我是一个中国人
+Sphinx 0.9.9-release (r2117)
+Copyright (c) 2001-2009, Andrew Aksyonoff
+
+using config file '/usr/local/sphinx/etc/sphinx.conf'...
+index 'test1': query '我是一个中国人 ': returned 0 matches of 0 total in
+0.000 sec
+
+words:
+1. '我': 1 documents, 1 hits
+2. '是': 0 documents, 0 hits
+3. '一个': 1 documents, 1 hits
+4. '中国人': 1 documents, 1 hits
+
+index 'test1stemmed': query '我是一个中国人 ': returned 0 matches of 0
+total in 0.000 sec
+
+words:
+1. '我': 1 documents, 1 hits
+2. '是': 0 documents, 0 hits
+3. '一个': 1 documents, 1 hits
+4. '中国人': 1 documents, 1 hits</pre>
+</li>
+</ol>
+至此，sphinx-for-chinese已经成功安装并顺利通过测试

@@ -1,0 +1,36 @@
+---
+layout: post
+title: "性能测试工具小黑马&#8212;JMeter+Badboy"
+---
+
+众所周知，LoadRunner是性能测试的霸主。但因其高额的商业费用使小公司望而却步。难道小公司在性能测试方面就只能缴械投降了吗？
+
+答案另所有人兴奋：当然不是了。JMeter+Badboy这一对后起之秀，完美地实现了只有LoadRunner才有的功能。
+
+JMeter 是纯Java编写的功能与性能测试工具，但其录制脚本过于笨拙复杂，成为使用者的诟病。Badboy是用C++开发的，被用于测试和开发复杂的动态应用。 它提供了强大的屏幕录制和回放功能，同时也提供了丰富的图形结果分析功能。只要不用于商业目的就可以免费使用。因此这两工具的结合，就成为了绝配。你可以 用Badboy录制脚本，然后将录制的脚本导出为JMeter格式的脚本，最后将该脚本导入到JMeter，借助于JMeter强大的测试功能模拟大量的 虚拟用户，进行复杂的性能测试。
+
+下面用一个简单的测试流程来演示一下如何使用
+
+<span id="more-1360"></span>
+<ol>
+	<li><strong>安装Badboy</strong>
+下载地址 <a href="http://badboy.com.au/download/index" target="_blank">http://badboy.com.au/download/index</a>
+这是一个可执行程序，下载之后双击，然后根据安装向导，很容易就安装完毕。</li>
+	<li><strong>安装JMeter</strong>
+下载地址 <a href="http://jakarta.apache.org/site/downloads/downloads_jmeter.cgi" target="_blank">http://jakarta.apache.org/site/downloads/downloads_jmeter.cgi</a>
+下载后解压即可。
+注意：你的机器上必须安装有JDK。</li>
+	<li><strong>用Badboy录制脚本并到处为JMeter格式的脚本</strong>
+在 开始菜单中启用Badboy，点击工具栏上的红色圆饼按钮，开始录制，然后在URL框中输入 你要测试站点的URL。随便点击几个链接，然后点击工具栏上的黑色方框按钮，停止录制。最后点击 File --&gt;Export to JMeter... ，将录制的脚本导出为JMeter格式的脚本。</li>
+	<li><strong>启用JMeter，导入Badboy录制的脚本，并设置测试计划，开始测试</strong>
+双击JMeter目录下 bin/jmeter.bat ，将弹出JMeter图形窗口。然后点击 文件 --&gt;打开，在文件管理器中选择你刚导出的Badboy录制的脚本。打开脚本后，如下图。
+<div><img title="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" src="http://img241.ph.126.net/FdLLc_l8rzItZfXPEwMBNQ==/1390486384951953300.png" alt="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" /></div>
+设置虚拟用户：
+<div><img title="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" src="http://img.ph.126.net/bSbw1BY6qI_WWjpV5SS_TA==/3388677244620341883.png" alt="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" /></div>
+添加测试过程监听器：
+<div><img title="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" src="http://img611.ph.126.net/WN_6jg0MzZ8QJF-Eg2tmAg==/1667457762035603407.jpg" alt="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" /></div>
+开始测试：
+<div><img title="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" src="http://img104.ph.126.net/NZ4_zp9k4PpfW20hanll3g==/720012990427692139.png" alt="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" /></div>
+这时可以看到右上角的小方块中变成绿色，下面的图像动态刷新显示
+<div><img title="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" src="http://img242.ph.126.net/SaK-6QpafvPBfjijJqYAlg==/2137802448119234114.png" alt="性能测试工具小黑马---JMeter+Badboy - 齐博云天 - 问渠哪得清如许" /></div></li>
+</ol>

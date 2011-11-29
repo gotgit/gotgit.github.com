@@ -1,0 +1,32 @@
+---
+layout: post
+title: "CoSign-SSO插件已提交到Subversion版本库及github"
+---
+
+<a href="http://www.ossxp.com/">群英汇</a>开发了 CoSign-SSO 插件，以便将<a href="http://blog.ossxp.com/">博客</a>整合到<a href="https://weblogin.ossxp.com/">群英汇的统一认证架构</a>中。
+<ul>
+	<li>群英汇的员工，直接拥有博客帐号，并能够撰写博客；</li>
+	<li>任何在群英汇<a href="https://weblogin.ossxp.com/">注册</a>的用户 ，同时拥有博客相应帐号，默认权限为subscriber。</li>
+</ul>
+CoSign SSO 插件功能是：为 WordPress 增加了两个新的认证方式：单点登录认证及LDAP认证。其中单点登录认证是此插件开发的主要目的，LDAP认证只不过是副产品。
+
+我们已经将该插件提交到 WordPress，有需要集中认证的用户，可以试用本插件
+<ul>
+	<li>插件首页：<a href="http://wordpress.org/extend/plugins/cosign-sso/">http://wordpress.org/extend/plugins/cosign-sso/</a></li>
+	<li>WordPress官方代码库:  <a title="使用 subversion 客户端打开此链接" href="http://plugins.svn.wordpress.org/cosign-sso/trunk/">tsvn:http://plugins.svn.wordpress.org/cosign-sso/trunk/</a></li>
+	<li>群英汇在 github 上的代码库： <a title="采用 topgit 管理的git代码库" href="http://github.com/ossxp-com/wordpress-hacks/commits/t/plugin_cosign_sso">http://github.com/ossxp-com/...</a></li>
+</ul>
+<span id="more-15"></span>截屏图：
+<ul>
+	<li>单点登录的管理员配置界面</li>
+</ul>
+<a href="/wpfiles/2010/01/screenshot-2.png">
+<p style="text-align: center;"><img class="alignnone size-medium wp-image-17" title="screenshot-2" src="/wpfiles/2010/01/screenshot-2-300x258.png" alt="单点登录管理界面" width="300" height="258" /></p>
+
+</a>
+
+重要提示：当插件配置错误，导致无法登录时，提供一个简单的回退方法：
+<ul>
+	<li>在 cosign-sso 插件目录下，创建一个空文件名为 <em>FALLBACK</em>，即可完全禁用单点登录，使用缺省的登录方式；</li>
+	<li>在 cosign-sso 插件目录下，在文件 <em>FALLBACK</em> 中写入内容<em> LDAP</em>，回退到LDAP认证方式。这在单点登录URL改变时非常有用；</li>
+</ul>

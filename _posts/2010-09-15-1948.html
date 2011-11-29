@@ -1,0 +1,69 @@
+---
+layout: post
+title: "关于 pySvnManager 的回复"
+---
+
+最近有网友问 pySvnManager 的问题，我把解答放到了这里
+<h2>关于软件安装</h2>
+<em>问：</em>
+<p style="padding-left: 30px;">看到你开发的这个pysvnmanager很不错，比较适合于svn的 账户 权限管理，我的操作系统是centos，用easy_install安装的是0.4版本，不知道 哪里 有0.5版本下载呢？</p>
+<em>答：</em>
+<p style="padding-left: 30px;">直接从 sourceforge.net 上下载源代码安装吧</p>
+
+<h2>安装出错</h2>
+<em>问：</em>
+<p style="padding-left: 30px;">我下载了源码，按照README中 的指导进行安装</p>
+
+<div style="padding-left: 30px;">
+<pre>$ cd config
+$ make
+$ python setup.py compile_catalog
+$ paster serve --reload develogment.ini 
+
+运行却报错如下：
+/usr/lib/python2.4/site-packages/PasteScript-1.7.3-py2.4.egg/paste/script/pluginlib.py:81: UserWarning: Unbuilt egg for pySvnManager [unknown version] (/usr/local/pysvnmanager)
+pkg_resources.require(plugin)
+
+Traceback (most recent call last):
+File "/usr/bin/paster", line 7, in ?
+.....</pre>
+</div>
+<em>答复：</em>
+<p style="padding-left: 30px;">应该是依赖的 pylons 框 架未安装。</p>
+<p style="padding-left: 30px;">其实有源代码，你可以编译出 egg 包哇。</p>
+
+<div style="padding-left: 30px;">
+<pre>$ python setup.py bdist_egg</pre>
+</div>
+<p style="padding-left: 30px;">然后，就可以安装 dist 目录 下的 egg 包，安装 egg 包会自动安装依赖的 pylons 框架。
+你看到 Readme 并执行的指 令是直接运行源码，为调试而用的。</p>
+
+<h2>关于认证</h2>
+<em>问：</em>
+<p style="padding-left: 30px;">还有一个问题想请交一下，我想从LDAP服务器同步帐号来做认证。现在单独从本地密码文件，或者单独LDAP服务登录都可以。但是两个一起用，好像不行。因为看到localconfig.py文件里面说可以二者都用。因为我想把root管理帐号认证放在本地，其他帐号放在LDAP服务器，不知道这样可不可以？谢谢！</p>
+<em>答复：</em>
+<p style="padding-left: 30px;">同时用两种认证，就需要在 auth 数组同时加入两种认证方式，如下：</p>
+
+<div style="padding-left: 30px;">
+<pre>    from pysvnmanager.model.auth.http import htpasswd_login
+    import ldap
+    from pysvnmanager.model.auth.ldap_login import ldap_login
+    auth = [htpasswd_login, ldap_login]
+
+    ## LDAP login parameters
+    ldap_uri = '<a href="ldap://localhost">ldap://localhost</a>'
+    ldap_binddn = 'cn=ldapreader,dc=foo,dc=bar'
+    ldap_bindpw = 'guess'
+    ldap_base = 'dc=foo,dc=bar'</pre>
+</div>
+<h2>关于 LDAP 用户组授权</h2>
+<em>问：</em>
+<p style="padding-left: 30px;">我还有一个问题关于LDAP账户同步的问题。我先在LDAP服务器上建立了一个svnusers用户组，把有权限使用svn的用户都加到这个组里面来；然后在apache里面读取svnusers组里面的memberUid来实现svn对特定组的账户读取。所以我就想问不知道能否在pysvnmanager里面实现这样的功能，也就是读取属于某一个组的用户帐号？</p>
+<em>答复：</em>
+<p style="padding-left: 30px;">我的 LDAP 授权模型和你的不同，不是通过用户组而是为用户设置名为 authorizedService 多值属性进行授权。可以通过设置 ldap_filter 加以判断：</p>
+
+<div style="padding-left: 30px;"><pre>    ldap_filter = '(&amp;(uid=%(username)s)(authorizedService=svn)(ossxpConfirmed=TRUE))'</pre></div>
+<p style="padding-left: 30px;">我的方案要新增 LDAP schema，可以配合我们公司的统一管理平台进行图形化的用户授权。</p>
+<p style="padding-left: 30px;">你的方案也很好，不过在认证过程增加了一次查询（用户组匹配），会影响执行效率。</p>
+
+<div id="_mcePaste" style="overflow: hidden; position: absolute; left: -10000px; top: 867px; width: 1px; height: 1px;"><em>答复：</em></div>

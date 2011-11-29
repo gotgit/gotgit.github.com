@@ -1,0 +1,54 @@
+---
+layout: post
+title: "如何用nginx+passenger署Rails"
+---
+
+以前一直用apache+passenger部署redmine（一个用Rails开发的项目管理工具），最近听说一个web服务器后期之秀----Nginx很是厉害（传说它可以处理的并发链接数是apache的10倍）。于是今天就上网搜一些关于这方面的资料，以下是安装passenger+nginx，并部署redmine的过程。
+
+<span id="more-1341"></span><strong>安装步骤</strong>
+<ol>
+	<li>下载passenger源码包并解压
+下载地址：<a href="下载地址：http://rubyforge.org/frs/download.php/71015/passenger-2.2.14.tar.gz" target="_blank"></a><a href="http://rubyforge.org/frs/download.php/71015/passenger-2.2.14.tar.gz" target="_blank">http://rubyforge.org/frs/download.php/71015/passenger-2.2.14.tar.gz</a>
+
+解压：
+<pre>  tar -zxvf passenger-2.2.14.tar.gz</pre>
+</li>
+	<li>用passenger提供的nginx安装器安装nginx
+注意：如果你想把nginx安装在非个人目录，如/usr/local/nginx或者/opt/nginx你需要以root身份执行以下命令
+<pre>./passenger-2.2.14/bin/passenger-install-nginx-module</pre>
+然后在提示下一步一步安装。这个步骤大致如下：
+<ol>
+	<li>按回撤键继续安装</li>
+	<li>选择自动从网上下载nginx稳定版本安装还是手动安装nginx（我选择1,从网上自动安装）</li>
+	<li>选择nignx安装目录，<em>默认 /opt/nginx</em></li>
+</ol>
+</li>
+</ol>
+<strong>如果你的机器上安装了rubygems，那么有一种更简便的安装passenger+nginx方法</strong>
+<pre>sudo gem install passenger
+sudo /var/lib/gems/1.8/bin/passenger-install-nginx-module</pre>
+<strong>部署redmine</strong>
+
+修改nginx配置文件，部署redmine
+<pre>sudo vi /opt/nginx/conf/nginx.conf</pre>
+在该配置文件中添加一个server 块，用于redmine服务。以下是添加的内容
+<pre>        # rails server
+        server {
+        listen 80;
+        server_name redmine.moon.ossxp.com;
+        root /opt/redmine/web/public;   # &lt;--- be sure to point to 'public'!
+        passenger_enabled on;
+       }
+</pre>
+说明：
+<ul>
+	<li>listen： 监听的端口</li>
+	<li>server_name : 服务名</li>
+	<li>root: rails程序存放的目录。记住一定要指到public目录</li>
+	<li>passenger_enabled: 是否开启passenger。该选项一定要选择 on。</li>
+</ul>
+<strong>测试是否配置成功</strong>
+
+启动nginx
+<pre>sudo /opt/nginx/sbin/nginx</pre>
+在浏览器输入 redmine.moon.ossxp.com ，按回撤键，如果正确显示redmine首页，那么你已经成功部署了Rails程序。
