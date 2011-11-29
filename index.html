@@ -9,15 +9,13 @@ full_posts: 3
       ><img src='/images/subscribe-icon.gif' alt='Subscribe'/></a
       >最新博客（<a href='/blog.html'>更多</a>）</h2>
   
-{% for post in site.posts %}
-  {% if forloop.index < page.full_posts %}
+{% for post in site.posts limit:page.full_posts %}
   <div class='post'>
     <span class='date'>{{post.date | date_to_string}}</span>
     <h1><a href='{{post.url}}'>{{post.title}}</a></h1>
     <div class='body'>{{post.content}}</div>
     <a href='{{post.url}}#disqus_thread'>View Comments</a>
   </div>
-  {% endif %}
 {% endfor %}
 
 </div>
