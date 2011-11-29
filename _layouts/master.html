@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <title>World Hello - {{ page.title }}</title>
+    <link rel="stylesheet" href="/stylesheets/master.css" type="text/css" media="screen" charset="utf-8"/>
+    <link rel="stylesheet" href="/stylesheets/syntax.css" type="text/css" media="screen" charset="utf-8"/>
+    <script src="/javascripts/jquery.js" type="text/javascript" charset="utf-8"></script>
+    <script src="/javascripts/jquery.github.js" type="text/javascript" charset="utf-8"></script>
+  </head>
+  <body>
+    <div id='wrapper'>
+      <div id='header'>
+        <h1><a href='/'>World Hello</a></h1>
+        
+        <div id='menu'>
+          <ul>
+            <li><a href='/blog.html' id='blog_link' title='Blog'>博客</a></li>
+            <li><a href='/about.html' id='about_link' title='About'>关于</a></li>
+            <li><a href='http://github.com/ossxp-com' target='_blank' title='GitHub' rel='me' id='github_link'>GitHub</a></li>
+            <li><a href='http://weibo.com/gotgit' title='微博' target='_blank' rel='me' id='weibo_link'>微博</a></li>
+          </ul>
+        </div>
+      </div>
+      <div id='content'>
+        {{ content }}
+        <div class='clearfix'></div>
+      </div>
+    </div>
+    <div id='footer'>
+      Copyright &copy; 2011 Jiang Xin. Hosted by <a href='http://github.com/gotgit/gotgit.github.com/' target='_blank'>GitHub</a> and powered by <a href='http://github.com/mojombo/jekyll'>Jekyll</a>. Templates from <a href='http://github.com/mbleigh/mbleigh.github.com/' target='_blank'>Michael Bleigh</a>.
+    </div>
+    <script type="text/javascript">
+    //<![CDATA[
+    (function() {
+    		var links = document.getElementsByTagName('a');
+    		var query = '?';
+    		for(var i = 0; i < links.length; i++) {
+    			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+    				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+    			}
+    		}
+    		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/gotgit/get_num_replies.js' + query + '"></' + 'script>');
+    	})();
+    //]]>
+    </script>
+  </body>
+</html>
