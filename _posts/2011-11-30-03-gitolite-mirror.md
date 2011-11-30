@@ -3,6 +3,10 @@ layout: post
 title: "Gitolite 版本库镜像"
 ---
 
+说明：Gitlite 2.1版本库对版本库镜像改动较大，几乎完全重写，导致《Git权威指南》P436-P437 两页内容过时。更新如下。
+
+---
+
 Git 版本库控制系统往往并不需要设计特别的容灾备份，因为每一个Git用户就是一个备份。但是下面的情况，就很有必要考虑容灾了。
 
 * Git 版本库的使用者很少（每个库可能只有一个用户）。
@@ -11,8 +15,11 @@ Git 版本库控制系统往往并不需要设计特别的容灾备份，因为�
 
 可以在两台或多台安装了Gitolite服务的服务器之间实现版本库的镜像。数据镜像的最小单位为版本库，对于任意一个Git版本库可以选择在其中一个服务器上建立主版本库（只能有一个主版本库），在其他服务器上建立的为镜像库。镜像库只接受来自主版本库的数据同步而不接受来自用户的推送。
 
-Gitolite服务器命名
----------------------------
+### 启用钩子
+
+将 Gitolite 部署目录下钩子 `post-receive.mirrorpush` 重命名为 `post-receive` ，并执行 `gl-setup` 命令为所有 Gitolite 控制下的版本库安装必须的钩子脚本。
+
+### Gitolite服务器命名
 
 首先要为每一台服务器架设Gitolite服务，并建议所有的服务器上Gitolite服务都架设在同一用户（如 `git` ）之下。如果Gitolite服务安装到不同的用户账号下，就必需通过文件 `~/.ssh/config` 建立SSH别名，以便能够使用正确的用户名连接服务器。
 
@@ -26,16 +33,15 @@ Gitolite服务器命名
 * 设置 `$GL_HOSTNAME` 为本服务器的别名，如 `serer1` 。
 * 设量 `$GL_GITCONFIG_KEYS` 以便允许在Gitolite授权文件中为版本库动态设置配置变量。
 
-  例如本例设置了 `GL_GITCONFIG_KEYS` 为 `gitolite.mirror.*` 后，允许在 `gitolite-admin` 管理库的 `conf/gitolite.conf` 中用 `config` 指令对版本库添加配置变量。
+    例如本例设置了 `GL_GITCONFIG_KEYS` 为 `gitolite.mirror.*` 后，允许在 `gitolite-admin` 管理库的 `conf/gitolite.conf` 中用 `config` 指令对版本库添加配置变量。
 
-      repo testing
-            config gitolite.mirror.master       =   "server1"
-            config gitolite.mirror.slaves       =   "server2 server3"
+        repo testing
+              config gitolite.mirror.master       =   "server1"
+              config gitolite.mirror.slaves       =   "server2 server3"
 
 同样对 `server2` 进行设置，只不过将 `$GL_HOSTNAME` 设置为 `serer2` 。
 
-服务器之间的公钥认证
------------------------
+### 服务器之间的公钥认证
 
 接下来每一个服务器为Gitolite的安装用户创建公钥/私钥对。
 
@@ -57,8 +63,7 @@ Gitolite服务器命名
     Hello server1, I am server2
 
 
-配置版本库镜像
-------------------------
+### 配置版本库镜像
 
 做了前面的准备工作后，就可以开始启用版本库镜像了。下面通过一个示例介绍如何建立版本库镜像，将服务器 `server1` 上的版本库 `testing` 要镜像到服务器 `server2` 上。
 
@@ -100,6 +105,9 @@ Gitolite服务器命名
 
     $ gl-mirror-shell request-push gitolite-admin
 
-Gitolite官方版本在版本库同步时有个局限，要求在镜像服务器上必需事先存在目标版本库并正确设置了 `gitolite.mirror.*` 参数，才能同步成功。例如允许用户自行创建的通配符版本库，必需在主服务器上和镜像服务器上分别创建，之后版本库同步才能正常执行。我在GitHub上的Gitolite分支项目提交了一个补丁解决了这个问题。
+Gitolite官方版本在版本库同步时有个局限，要求在镜像服务器上必需事先存在目标版本库并正确设置了 `gitolite.mirror.*` 参数，才能同步成功。例如允许用户自行创建的通配符版本库，必需在主服务器上和镜像服务器上分别创建，之后版本库同步才能正常执行。我在GitHub上的Gitolite分支项目提交了 [一个补丁][mirror-missing-repo] 解决了这个问题。
 
-关于Gitolite版本库镜像的更详悉资料，参见 <http://sitaramc.github.com/gitolite/doc/mirroring.html> 。
+如果发现镜像没有正常工作，查看目录 `~git/.gitolite/logs` 下相关日志文件。 更多Gitolite版本库镜像的资料，参见 <http://sitaramc.github.com/gitolite/doc/mirroring.html> 。
+
+
+[mirror-missing-repo]: https://github.com/ossxp-com/gitolite/commit/a29446403edda42fc67c18f2d5b3f53625412eec "Topgit branch: t/mirror-missing-repo"

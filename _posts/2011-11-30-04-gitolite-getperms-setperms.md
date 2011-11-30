@@ -3,8 +3,11 @@ layout: post
 title: "Gitolite 通配符版本库自定义授权"
 ---
 
-每个人创建自己的版本库
------------------------
+《Git权威指南》第一版，在介绍 Gitolite 通配符版本库的创建一节（即书 P429 页），关于创建者自定义授权的相关内容存在瑕疵，授权文件中缺乏对 `READERS` 和 `WRITERS` 的设置，在新的 Gitolite 中不能正常设置授权。本博客对相关内容进行更新。
+
+---
+
+### 每个人创建自己的版本库
 
 授权文件如下：
 
@@ -20,11 +23,11 @@ title: "Gitolite 通配符版本库自定义授权"
 
 * 第4条指令，设置用户可以在自己的名字空间（ `/usrs/<userid>/` ）下，自己创建版本库。例如下面就是用户 `dev1` 执行 `git push` 命令在Gitolite服务器上自己的名字空间下创建版本库。
 
-      dev1$ git push git@server:users/dev1/repos1.git master
+        dev1$ git push git@server:users/dev1/repos1.git master
 
 * 第5条指令，设置版本库创建者对版本库具有完全权限。
   
-  即用户 `dev1` 拥有对其自建的 `users/dev1/repos1.git` 拥有最高权限。
+    即用户 `dev1` 拥有对其自建的 `users/dev1/repos1.git` 拥有最高权限。
 
 * 第7条指令，让管理员组 `@administrators` 的用户对于 `users/` 下用户自建的版本库拥有读取权限。
 
