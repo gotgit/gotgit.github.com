@@ -72,58 +72,58 @@ Debian等平台会在安装过程中（或运行 `sudo dpkg-reconfigure gitolite
 
 如果想在系统中部署多个Gitolite实例，希望部署最新的Gitolite版本，或者希望安装自己或他人对Gitolite的定制版本，就要采用从源代码进行Gitolite部署。
 
-#### 1. 创建专用系统账号。 ####
+1. 创建专用系统账号。
 
-* 首先需要在服务器上创建Gitolite专用帐号。因为所有用户都要通过此帐号访问Git版本库，为方便易记一般选择更为简练的 `git` 作为专用帐号名称。
+   * 首先需要在服务器上创建Gitolite专用帐号。因为所有用户都要通过此帐号访问Git版本库，为方便易记一般选择更为简练的 `git` 作为专用帐号名称。
 
-        $ sudo adduser --system --group --shell /bin/bash git
+            $ sudo adduser --system --group --shell /bin/bash git
 
-* 注意添加的用户要能够远程登录，若系统只允许特定用户组（如 `ssh` 用户组）的用户才可以通过 SSH 协议登录，就需要将新建的 `git` 用户添加到该特定的用户组中。执行下面的命令可以将 `git` 用户添加到 `ssh` 用户组。
+   * 注意添加的用户要能够远程登录，若系统只允许特定用户组（如 `ssh` 用户组）的用户才可以通过 SSH 协议登录，就需要将新建的 `git` 用户添加到该特定的用户组中。执行下面的命令可以将 `git` 用户添加到 `ssh` 用户组。
 
-        $ sudo adduser git ssh
+            $ sudo adduser git ssh
 
-* 取消 `git` 用户的口令，以便只能通过公钥对 `git` 账号进行认证，增加系统安全性。
+   * 取消 `git` 用户的口令，以便只能通过公钥对 `git` 账号进行认证，增加系统安全性。
 
-        $ sudo passwd --delete git
+            $ sudo passwd --delete git
 
-#### 2. 切换到专用账号。 ####
+2. 切换到专用账号。
 
-切换到新创建的专用账号，后续的安装都以该用户身份执行。
+   切换到新创建的专用账号，后续的安装都以该用户身份执行。
 
-    $ sudo su - git
+        $ sudo su - git
 
-#### 3. 在服务器端下载 Gitolite 源码。 ####
+3. 在服务器端下载 Gitolite 源码。
 
-一个更加“Git”的方式就是克隆Gitolite的版本库。
+   一个更加“Git”的方式就是克隆Gitolite的版本库。
 
-* 克隆官方的Gitolite版本库如下：
+   * 克隆官方的Gitolite版本库如下：
 
-        $ git clone git://github.com/sitaramc/gitolite.git
+            $ git clone git://github.com/sitaramc/gitolite.git
 
-* 也可以克隆定制后的Gitolite版本库，如我在GitHub上基于Gitolite官方版本库建立的分支版本：
+   * 也可以克隆定制后的Gitolite版本库，如我在GitHub上基于Gitolite官方版本库建立的分支版本：
 
-        $ git clone git://github.com/ossxp-com/gitolite.git
+            $ git clone git://github.com/ossxp-com/gitolite.git
 
-#### 4. 安装Gitolite。 ####
+4. 安装Gitolite。
 
-* 若Gitolite安装到 `~/bin` 目录下（即没有安装到系统目录下），需要设置 `PATH` 环境变量以便安装过程中调用 `gl-setup` 时能够正常运行。
+   * 若Gitolite安装到 `~/bin` 目录下（即没有安装到系统目录下），需要设置 `PATH` 环境变量以便安装过程中调用 `gl-setup` 时能够正常运行。
 
-        $ export PATH=~/bin:$PATH
+            $ export PATH=~/bin:$PATH
 
-* 运行源码目录中的 `src/gl-system-install` 执行安装。
+   * 运行源码目录中的 `src/gl-system-install` 执行安装。
 
-        $ cd gitolite
-        $ src/gl-system-install
+            $ cd gitolite
+            $ src/gl-system-install
 
-* 如果像上面那样不带参数的执行安装程序，会将Gitolite相关命令安装到 `~/bin` 目录中，相当于执行：
+   * 如果像上面那样不带参数的执行安装程序，会将Gitolite相关命令安装到 `~/bin` 目录中，相当于执行：
 
-        $ src/gl-system-install $HOME/bin $HOME/share/gitolite/conf $HOME/share/gitolite/hooks
+            $ src/gl-system-install $HOME/bin $HOME/share/gitolite/conf $HOME/share/gitolite/hooks
 
-#### 5. 运行 gl-setup 完成设置。 ####
+5. 运行 gl-setup 完成设置。
 
-安装完毕运行 `gl-setup` 命令，并以客户端复制过来的公钥文件路径作为参数。
+   安装完毕运行 `gl-setup` 命令，并以客户端复制过来的公钥文件路径作为参数。
 
-    $ gl-setup /tmp/admin.pub
+        $ gl-setup /tmp/admin.pub
 
 不带参数运行 `gl-setup` 命令会检查 Gitolite 维护的 Git 版本库是否正确设置了钩子脚本，以及正确设置了配置文件等。对于通过服务器端拷贝方式导入 Gitolite 中的 Git 版本库，只有经过此操作才能正确运行。
 
