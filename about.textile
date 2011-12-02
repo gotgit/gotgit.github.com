@@ -35,5 +35,6 @@ h2. 关于群英汇
 
 h2. 关于 WorldHello.net
 
-网址 worldhello.net 是我自2002年开始维护的个人网站，那时尚不知博客为何物，于是用 DocBook 以及 FreeMind 分享一些心得体会。2005 年之后，很少维护，此次网站转型，原样用 Markdown 等标记语言转换。
+网址 WorldHello.net 是我自2002年开始维护的个人网站，2002-2006 年陆续用 "DocBook":/doc/docbook_howto/ 及 "FreeMind":/doc/freemind/freemind.mm.htm 撰写了一些技术文章， 并在 2006 年将这些历史文章重新整理，尝试建立一个名为 "WHODO":/doc/whodo_howto/ 的项目，以期像 "The Linux Documentation Project":http://tldp.org/ 一样建立一种易于维护的开放文档平台...
 
+原有 WorldHello.net 文档的迁移过程参见博客： "用 Git 维护博客？酷！":/2011/11/29/jekyll-based-blog-setup.html 。
