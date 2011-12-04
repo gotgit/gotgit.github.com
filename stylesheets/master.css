@@ -91,6 +91,21 @@ a:visited {
   line-height: 160%;
 }
 
+#submenu {
+  float: left;
+}
+
+#submenu ul {
+  list-style: none;
+  margin: 0;
+  text-align: center;
+  margin-top: 25px;
+}
+
+#submenu ul li {
+  margin-left: 10px;
+}
+
 span.date {
   background: #6e9b20 url(/images/green_gradient.gif) repeat-x top;
   display: block;
@@ -239,6 +254,15 @@ div.related {
 
 #home_right {
   width: 260px;
+  margin-left: 1em;
+}
+
+#gotgit_left {
+  width: 260px;
+}
+
+#gotgit_right {
+  width: 680px;
   margin-left: 1em;
 }
 
