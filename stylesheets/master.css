@@ -100,19 +100,14 @@ a:visited {
   line-height: 160%;
 }
 
-#submenu {
-  float: left;
-}
-
 #submenu ul {
   list-style: none;
-  margin: 0;
-  text-align: center;
-  margin-top: 25px;
+  text-align: left;
+  line-height: 200%;
 }
 
 #submenu ul li {
-  margin-left: 10px;
+  margin-left: -20px;
 }
 
 span.date {
@@ -267,12 +262,12 @@ div.related {
 }
 
 #gotgit-left {
-  width: 260px;
+  width: 120px;
+  margin-right: 1em;
 }
 
 #gotgit-right {
-  width: 680px;
-  margin-left: 1em;
+  width: 820px;
 }
 
 .clearfix { clear: both;}
