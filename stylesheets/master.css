@@ -68,15 +68,6 @@ a:visited {
   text-indent: -999em;
 }
 
-#menu ul li a#twitter_link { background-image: url(/images/twitter.gif); }
-#menu ul li a#blog_link { background-image: url(/images/blog.gif); }
-#menu ul li a#linkedin_link { background-image: url(/images/linkedin.gif); }
-#menu ul li a#github_link { background-image: url(/images/github.gif); }
-#menu ul li a#about_link { background-image: url(/images/about.gif); }
-#menu ul li a#weibo_link { background-image: url(/images/weibo.gif); }
-#menu ul li a#home_link { background-image: url(/images/home.gif); }
-#menu ul li a#docs_link { background-image: url(/images/docs.gif); }
-
 #menu ul li a#twitter-link { background-image: url(/images/twitter.gif); }
 #menu ul li a#blog-link { background-image: url(/images/blog.gif); }
 #menu ul li a#linkedin-link { background-image: url(/images/linkedin.gif); }
