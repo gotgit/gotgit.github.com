@@ -77,6 +77,15 @@ a:visited {
 #menu ul li a#home_link { background-image: url(/images/home.gif); }
 #menu ul li a#docs_link { background-image: url(/images/docs.gif); }
 
+#menu ul li a#twitter-link { background-image: url(/images/twitter.gif); }
+#menu ul li a#blog-link { background-image: url(/images/blog.gif); }
+#menu ul li a#linkedin-link { background-image: url(/images/linkedin.gif); }
+#menu ul li a#github-link { background-image: url(/images/github.gif); }
+#menu ul li a#about-link { background-image: url(/images/about.gif); }
+#menu ul li a#weibo-link { background-image: url(/images/weibo.gif); }
+#menu ul li a#home-link { background-image: url(/images/home.gif); }
+#menu ul li a#docs-link { background-image: url(/images/docs.gif); }
+
 #content {
   padding: 2em 0;
 }
@@ -215,11 +224,11 @@ div.related {
   text-decoration: none;
 }
 
-.home_box {
+.home-box {
   float: left;
 }
 
-#content .home_box h2 {
+#content .home-box h2 {
   background: #6e9b20 url(/images/green_gradient.gif) repeat-x bottom;
   padding: 0.3em 0.5em;
   border-bottom: 3px solid #262;
@@ -235,33 +244,33 @@ div.related {
   box-shadow: 1px 0 5px rgba(0,0,0,0.5);
 }
 
-#content .home_box h2 a {
+#content .home-box h2 a {
   font-weight: normal;
 }
 
-#content .home_box .post h1 {
+#content .home-box .post h1 {
   margin-top: 0;
 }
 
-.home_box h2 a {
+.home-box h2 a {
   color: white;
   margin: 0 0.2em;
 }
 
-#home_left {
+#home-left {
   width: 680px;
 }
 
-#home_right {
+#home-right {
   width: 260px;
   margin-left: 1em;
 }
 
-#gotgit_left {
+#gotgit-left {
   width: 260px;
 }
 
-#gotgit_right {
+#gotgit-right {
   width: 680px;
   margin-left: 1em;
 }
@@ -273,7 +282,7 @@ code {
   font-family: "Consolas","Courier New",Courier,monospace;
 }
 
-.home_box .post h1 a {
+.home-box .post h1 a {
   font-size: 0.7em;
 }
 
@@ -307,7 +316,7 @@ code {
   font-size: 1.2em;
 }
 
-#sidebar.big .sidebar-item {
+.sidebar.big .sidebar-item {
   float: left;
   width: 25.2em;
   margin: 1.2em 1em 0 0;
