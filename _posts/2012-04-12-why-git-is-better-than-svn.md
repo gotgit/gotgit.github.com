@@ -35,6 +35,8 @@ SVN脱库的工具SVN本身就提供： ``svnsync`` 。这个工具主要用于S
 有人认为SVN可以对目录授权，从而阻止对整个版本库进行脱库操作。
 下面就来看看SVN的授权究竟是否可靠。
 
+<a name='svnauthz' id='svnauthz'></a>
+
 ### 误解2：SVN能对目录进行精细授权，而Git太不安全 ###
 
 SVN的目录授权对管理员来说是灾难，管理负担相当重，在分支或里程碑众多的时候很难作对。
@@ -45,20 +47,20 @@ SVN的目录授权对管理员来说是灾难，管理负担相当重，在分�
     [demo:/trunk]
     @demo-admin = rw
     @leaders = r
-    
+
     [demo:/trunk/doc]
     @demo-dev = rw
     @designers = rw
-    
+
     [demo:/trunk/src/apps]
     @demo-dev = rw
-    
+
     [demo:/trunk/src/common]
     @demo-dev = rw
-    
+
     [demo:/trunk/src/html]
     @designers = rw
-    
+
     [demo:/trunk/src/secret]
     * =
     @demo-admin = rw
@@ -70,20 +72,20 @@ SVN的目录授权对管理员来说是灾难，管理负担相当重，在分�
     [demo:/branches/1.x]
     @demo-admin = rw
     @leaders = r
-    
+
     [demo:/branches/1.x/doc]
     @demo-dev = rw
     @designers = rw
-    
+
     [demo:/branches/1.x/src/apps]
     @demo-dev = rw
-    
+
     [demo:/branches/1.x/src/common]
     @demo-dev = rw
-    
+
     [demo:/branches/1.x/src/html]
     @designers = rw
-    
+
     [demo:/branches/1.x/src/secret]
     * =
     @demo-admin = rw
@@ -136,9 +138,14 @@ SVN也允许配置为可修改历史提交说明，但是一旦管理员放开�
 我为客户配置的Git支持HTTP、SSH协议，和Gitweb。其中HTTP协议、Gitweb都使用LDAP认证，
 实现统一的口令管理。并且无论是HTTP协议、SSH协议，还是Gitweb都使用同一套Gitolite授权。
 
-### 误解6：SVN更易上手，Git太难了 ###
+<a name='workflow' id='workflow'></a>
 
-如果想把配置管理做好，SVN并不容易，否则 [《SVN Book》](http://svnbook.red-bean.com/) 也不会有那么厚了。
+### 误解6：SVN更易上手，更易管理；而Git太难和太灵活了，不适合团队？ ###
+
+如果想把配置管理做好，无论是 SVN 还是 Git 都不容易，否则 [《SVN Book》](http://svnbook.red-bean.com/)
+以及我写 [《Git权威指南》](http://gotgit.github.com/gotgit/) 也不会有那么厚了。
+
+觉得SVN更简单的，看看下面的错误你有没有犯？
 
 * 很多公司的SVN版本库没有遵照约定俗成的三个顶级目录。
 * 如何配置SVN悲观锁，以便更好地对二进制文件编辑进行协同。
@@ -148,7 +155,37 @@ SVN也允许配置为可修改历史提交说明，但是一旦管理员放开�
 * SVN管理员如何对版本库进行整理，如撤出不当提交、修改错误的提交说明。
 * 版本库的安全性问题，如何做好版本库的备份。
 
-Git的设计模型非常简单，理解了其设计思想，就可以很容易地掌握 ``git reset``,
+SVN对分支当做路径来授权，造成管理的负担（参见 [前面的描述](#svnauthz) ），
+因此使用SVN实现灵活的特性分支开发、可靠的发布控制（维护分支冻结）很难。
+
+企业应用Git的困惑之一是如何裁剪出适合自己的工作流。实际上Git本身已经给出范例：
+
+    $ git help workflows
+
+理解Git的应用模型并选用合适的服务器端软件（如 Gitolite），可以定制出适合自己的工作流。
+例如下表就是在企业中使用Git版本控制系统的典型角色划分：
+
+
+|                                 | 系统管理员 | 配置管理员 | 发布工程师 | 整合工程师   | 模块负责人   | 开发工程师
+|---------------------------------|:-----------------------:|:----------:|:------------:|:------------:|:----------:
+|                                 | (SYSadm)   | (SCMadm)   | (RELeng)   | (INTegrator) | (MODmaster)  | (DEV)
+| 创建版本库                      |            | ✔          |            |              |              |
+| 版本库授权                      |            | ✔          |            |              |              |
+| 版本库改名                      | ✔          | ?          |            |              |              |
+| 删除版本库                      | ✔          | ?          |            |              |              |
+| 创建Tag                         |            |            | ✔          |              |              |
+| 删除Tag                         |            | ✔          |            |              |              |
+| 创建一级分支                    |            | ✔          |            |              |              |
+| 为分支授权                      |            | ✔          |            |              |              |
+| 向 maint 分支强推               |            | ✔          |            |              |              |
+| 向 master 分支强推              |            | ✔          |            |              |              |
+| 向 maint 分支写入               |            |            | ✔          |              |              |
+| 向 master 分支写入              |            |            |            | ✔            | ✔            |
+| 创建个人专有分支                |            | ✔          | ✔          | ✔            | ✔            | ✔
+| 创建个人专有版本库              |            | ✔          | ✔          | ✔            | ✔            | ✔
+| 为个人专有版本库授权            |            | ✔          | ✔          | ✔            | ✔            | ✔
+
+再来谈谈Git的使用，实际上Git的设计模型非常简单，理解了其设计思想，就可以很容易地掌握 ``git reset``,
 ``git checkout``, ``git rebase``, ``git push``, ``git pull`` 等命令。
 
 ### 误解7：程序员不喜欢命令行 ###
@@ -210,7 +247,7 @@ Git的基于DAG（有向非环图）的设计比SVN的线性提交提供更好�
 提交没有合并到最新版本而造成已修复问题在新版本中重现。
 
 Git分支和合并追踪可以解决这个问题。例如用 maint 分支跟踪最新的发行版，
-当确定里程碑tag  v1.6.4 为最新发行版时，在 maint 
+当确定里程碑tag  v1.6.4 为最新发行版时，在 maint
 分支执行如下命令以切换到最新发行版：
 
     $ git checkout maint
