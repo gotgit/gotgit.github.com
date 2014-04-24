@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "使用 git-svn 整理 SVN 版本库"
+title: "使用 git-svn 和 git-filter-branch 整理 SVN 版本库"
 ---
 
 SVN 本身提供了如下版本库整理工具：
@@ -12,19 +12,20 @@ SVN 本身提供了如下版本库整理工具：
 
 其中 `svnadmin dump` 将整个版本库或部分提交导出为一个导出文件； `svndumpfilter`
 基于配置项的路径（SVN 1.7的 svndumpfilter 还支持通配符路径）对导出文件进行过滤，
-过滤结果保存在为新的导出文件； `svnadmin load` 将导出文件导入到另外的版本中，
+过滤结果保存为新的导出文件； `svnadmin load` 将导出文件导入到另外的版本库中，
 导入过程有两个选择——维持路径不变，或导入到某个路径之下。
 
-相对于Git提供的用于提交整理的 `git filter-branch` 命令，SVN的版本库整理工具能做的实在不多。
-而且用SVN的相关工具容错性太差，操作过程经常被中断，实在是步步惊心。
+相对于Git提供的用于整理提交的 `git filter-branch` 命令，SVN的版本库整理工具能做的实在不多。
+而且SVN的相关工具容错性太差，操作过程经常被中断，可谓步步惊心。
 
 最近遇到的一个案例，需要将两个 SVN 版本库（bar 和 baz）的全部历史导入到另外一个 SVN 版本库（foo）中。
-并要求版本库 bar 和 baz 的目录结构采用 foo 中统一规定的目录结构。
+并要求版本库 bar 和 baz 的目录结构统一采用 foo 中规定的目录结构。面对要导入的近 20GB 数据（绝大部分是Word、Excel、PDF文档），
+决定采用Git提供的工具集进行SVN版本库整理。整理过程和过程中开发的脚本记录如下。
 
 ## 将 bar 和 baz 版本库转换为本地Git库 ##
 
 以 bar 为例，将两个版本库（bar 和 baz）转换为本地的 Git 版本库，以便使用强大的
-`git filter-branch` 命令对提交中的文件路径进行逐一的修改。
+`git filter-branch` 命令对提交逐一进行修改（如修改版本库中的文件路径）。
 
     $ git init git/bar
     $ cd git/bar
@@ -89,7 +90,7 @@ Windows和Linux下文件名长度限制不同，前者255个Unicode字符，后�
 
 ## 根据需要对版本库目录重新组织 ##
 
-`git filter-branch` 至少有两个过滤器可以逐一对提交进行重新组织。一个是 `--tree-filter` ，
+`git filter-branch` 至少有两个过滤器可以对提交中的目录和文件进行组织。一个是 `--tree-filter` ，
 一个是 `--index-filter` 。前者的过滤器脚本写起来简单，但执行起来较后者慢至少一个数量级。
 
 根据路径转换的需求，编写过滤器脚本，如脚本 `transform.sh` ：
