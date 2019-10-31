@@ -10,7 +10,6 @@ layout: master
 2010年我认准Git在版本控制领域已无可阻挡，于是把公司业务暂搁一旁，去完成我在2003年便开始的一个梦想 —— 要在书架上摆上一本自己的书。花了很长时间给书起名，我想出来的最酷的名字就是：GotGit。很遗憾出版社认为这个名字缺乏卖点，但我还是可以通过URL来纪念这个名字： [https://github.com/gotgit/gotgit/](https://github.com/gotgit/gotgit/) 是本书官网版本库，托管在 GitHub 上。
 
 - 2018年10月加入[阿里巴巴](http://www.alibaba.com)。
-- 2015年12月加入[华为](http://www.huawei.com)。
 
 -- 蒋鑫
 
